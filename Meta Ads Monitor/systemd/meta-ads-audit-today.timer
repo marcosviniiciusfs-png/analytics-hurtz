@@ -1,0 +1,11 @@
+[Unit]
+Description=Atualiza auditoria Meta Ads a cada hora
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=3min
+Persistent=true
+Unit=meta-ads-audit@today.service
+
+[Install]
+WantedBy=timers.target

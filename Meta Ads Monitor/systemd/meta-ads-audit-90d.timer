@@ -1,0 +1,11 @@
+[Unit]
+Description=Atualiza comparacao Meta Ads de 90 dias
+
+[Timer]
+OnCalendar=*-*-* 04:10:00 America/Sao_Paulo
+RandomizedDelaySec=5min
+Persistent=true
+Unit=meta-ads-audit@90d.service
+
+[Install]
+WantedBy=timers.target

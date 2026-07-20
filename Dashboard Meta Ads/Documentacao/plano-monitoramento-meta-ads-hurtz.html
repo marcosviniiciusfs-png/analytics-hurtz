@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Plano de Monitoramento Meta Ads 24h - Hurtz</title>
+  <style>
+    @page{size:A4;margin:14mm 15mm 16mm}*{box-sizing:border-box}body{margin:0;color:#25201c;font:10.5pt Arial,sans-serif;line-height:1.48;background:#fff}h1,h2,h3{font-family:Arial,sans-serif;margin-top:0}h1{font-size:28pt;line-height:1.08;letter-spacing:-.7px;margin-bottom:12px}h2{font-size:18pt;border-bottom:2px solid #e87722;padding-bottom:7px;margin-bottom:16px}h3{font-size:12pt;margin:18px 0 7px}.page{min-height:267mm;page-break-after:always;position:relative;padding-bottom:15mm}.page:last-child{page-break-after:auto}.cover{display:flex;flex-direction:column;justify-content:space-between;background:#171511;color:#fff;margin:-14mm -15mm -16mm;padding:18mm 17mm 16mm;min-height:297mm}.cover-logo{width:150px;height:95px;object-fit:cover;object-position:center}.kicker{color:#f18a3c;font-weight:700;font-size:9pt;letter-spacing:1.8px;text-transform:uppercase}.cover h1{font-size:34pt;max-width:590px;margin-top:18px}.cover .lead{font-size:15pt;color:#d9d2ca;max-width:570px}.cover-meta{border-top:1px solid #4b4038;padding-top:18px;display:flex;justify-content:space-between;color:#bcb4ac}.accent{color:#e87722}.summary{font-size:13pt;line-height:1.55;border-left:4px solid #e87722;padding:13px 17px;background:#fff6ef;margin:10px 0 22px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.card{border:1px solid #e7e1db;border-radius:8px;padding:14px;background:#fcfbfa}.card strong{display:block;font-size:12pt;margin-bottom:4px}.metric{font-size:21pt;color:#e87722;font-weight:800}.muted{color:#786f68}.ok,.warn,.fail{font-weight:700}.ok{color:#16825b}.warn{color:#b66a0b}.fail{color:#c73d49}.status{display:inline-block;border-radius:20px;padding:3px 8px;font-size:8.5pt;font-weight:700}.status.ok{background:#e8f7f0}.status.warn{background:#fff3df}.status.fail{background:#ffecef}table{width:100%;border-collapse:collapse;margin:10px 0 18px;font-size:9.2pt}th{background:#211c18;color:#fff;text-align:left;padding:8px}td{border-bottom:1px solid #e9e3dd;padding:8px;vertical-align:top}tr:nth-child(even) td{background:#faf8f6}ul,ol{padding-left:20px;margin:7px 0 14px}li{margin:4px 0}.flow{display:flex;align-items:center;justify-content:center;gap:7px;margin:20px 0;flex-wrap:wrap}.node{border:1px solid #dfd8d1;border-radius:7px;padding:10px 13px;background:#fff;font-weight:700;text-align:center}.node.primary{background:#e87722;color:#fff;border-color:#e87722}.arrow{color:#e87722;font-size:16pt}.code{font:9pt Consolas,monospace;background:#211c18;color:#f4eee9;border-radius:7px;padding:11px 13px;white-space:pre-wrap}.callout{border:1px solid #f0c49f;background:#fff7f0;border-radius:7px;padding:12px 14px;margin:12px 0}.footer{position:absolute;bottom:0;left:0;right:0;border-top:1px solid #e6dfd9;padding-top:6px;display:flex;justify-content:space-between;color:#988f87;font-size:8pt}.checklist li::marker{color:#e87722}.small{font-size:8.7pt}.no-break{break-inside:avoid}.timeline{border-left:3px solid #e87722;margin-left:6px;padding-left:18px}.timeline-item{position:relative;margin:0 0 17px}.timeline-item:before{content:"";position:absolute;width:9px;height:9px;border-radius:50%;background:#e87722;left:-24px;top:5px}.timeline-item strong{display:block}.risk{border-left:4px solid #c73d49;padding-left:12px}.recommend{border:2px solid #e87722;border-radius:9px;padding:16px;background:#fffaf6}.recommend h3{color:#c55f14;margin-top:0}
+  </style>
+</head>
+<body>
+  <section class="page cover">
+    <div>
+      <img class="cover-logo" src="../hurtz-logo.png" alt="Hurtz">
+      <p class="kicker">DOCUMENTO TÉCNICO E EXECUTIVO</p>
+      <h1>Monitoramento Meta Ads<br><span class="accent">24 horas por dia</span></h1>
+      <p class="lead">O que estamos construindo, o que já foi testado, por que as primeiras integrações não atenderam e o que falta para colocar o sistema em funcionamento.</p>
+    </div>
+    <div class="cover-meta"><span>Hurtz Performance</span><span>17 de julho de 2026</span></div>
+  </section>
+
+  <section class="page">
+    <p class="kicker">01 • RESUMO</p><h2>Objetivo do projeto</h2>
+    <p class="summary">Criar uma central própria da Hurtz para acompanhar continuamente todas as contas de anúncio da Meta, identificar riscos de saldo e desempenho e enviar alertas automáticos sem depender de um computador ligado.</p>
+    <h3>O sistema deverá mostrar</h3>
+    <div class="grid">
+      <div class="card"><strong>Contas e saldo</strong>Contas ativas, contas sem saldo e contas cujo saldo pode acabar nos próximos três dias.</div>
+      <div class="card"><strong>Desempenho</strong>Investimento, leads, custo por lead, objetivos e campanhas com veiculação.</div>
+      <div class="card"><strong>Visão consolidada</strong>Somas e médias gerais, seguidas pela lista individual de todas as contas.</div>
+      <div class="card"><strong>Detalhamento</strong>Modal por conta, campanhas veiculadas e seletor de datas semelhante ao Gerenciador da Meta.</div>
+      <div class="card"><strong>Alertas</strong>Avisos automáticos por WhatsApp usando n8n e Evolution API.</div>
+      <div class="card"><strong>Operação contínua</strong>Coleta programada na VPS, histórico em banco e painel atualizado sem depender do computador local.</div>
+    </div>
+    <h3>Arquitetura pretendida</h3>
+    <div class="flow"><span class="node primary">Meta Ads</span><span class="arrow">→</span><span class="node">Coletor na VPS</span><span class="arrow">→</span><span class="node">Banco de dados</span><span class="arrow">→</span><span class="node">Dashboard</span><span class="arrow">+</span><span class="node">n8n / WhatsApp</span></div>
+    <div class="callout"><strong>Situação atual:</strong> a infraestrutura e o dashboard-base estão prontos. O bloqueio restante é obter uma autenticação permanente da própria Meta para a coleta automática.</div>
+    <div class="footer"><span>Plano de Monitoramento Meta Ads • Hurtz</span><span>2</span></div>
+  </section>
+
+  <section class="page">
+    <p class="kicker">02 • O QUE JÁ ESTÁ PRONTO</p><h2>Infraestrutura validada</h2>
+    <p>A VPS “WhatsApp” da Contabo foi acessada e auditada em modo de leitura. Ela possui capacidade suficiente para receber o monitor sem contratar outro servidor.</p>
+    <div class="grid">
+      <div class="card"><span class="metric">4</span><strong>vCPUs</strong></div>
+      <div class="card"><span class="metric">7,8 GB</span><strong>Memória total</strong><span class="muted">aproximadamente 6 GB disponíveis no teste</span></div>
+      <div class="card"><span class="metric">113 GB</span><strong>Disco disponível</strong><span class="muted">23% do disco utilizado</span></div>
+      <div class="card"><span class="metric">11</span><strong>Containers ativos</strong><span class="muted">consumo geral baixo</span></div>
+    </div>
+    <h3>Serviços já existentes na VPS</h3>
+    <table><thead><tr><th>Serviço</th><th>Função</th><th>Situação</th></tr></thead><tbody>
+      <tr><td>Evolution API</td><td>Envio e recebimento de mensagens WhatsApp</td><td><span class="status ok">Ativo</span></td></tr>
+      <tr><td>n8n</td><td>Editor, worker, webhooks e automações em modo fila</td><td><span class="status ok">Ativo</span></td></tr>
+      <tr><td>PostgreSQL e Redis</td><td>Persistência e filas dos sistemas existentes</td><td><span class="status ok">Ativos</span></td></tr>
+      <tr><td>Traefik</td><td>Domínios, HTTPS e roteamento dos serviços</td><td><span class="status ok">Ativo</span></td></tr>
+      <tr><td>Portainer</td><td>Gerenciamento das stacks Docker</td><td><span class="status ok">Ativo</span></td></tr>
+    </tbody></table>
+    <h3>Dashboard local construído</h3>
+    <ul class="checklist"><li>Identidade visual Hurtz em laranja e logo oficial.</li><li>Cards principais, tabela geral, busca e estados de saldo.</li><li>Modal com campanhas e seletor de período.</li><li>Dados demonstrativos separados da futura fonte real.</li><li>Servidor local validado em <strong>localhost:8091</strong>.</li></ul>
+    <p class="small muted">Nenhuma versão foi publicada. O dashboard permanece local enquanto a fonte de dados é definida.</p>
+    <div class="footer"><span>Plano de Monitoramento Meta Ads • Hurtz</span><span>3</span></div>
+  </section>
+
+  <section class="page">
+    <p class="kicker">03 • TENTATIVA 1</p><h2>Pipeboard</h2>
+    <div class="timeline">
+      <div class="timeline-item"><strong>Por que foi considerada</strong>Já estava conectada à conta Meta da Hurtz e foi utilizada anteriormente para gerar relatórios de campanhas.</div>
+      <div class="timeline-item"><strong>O que funcionou</strong>A conexão MCP respondeu, ofereceu ferramentas para contas, campanhas e insights e indicou suporte a campos de saldo e valor gasto.</div>
+      <div class="timeline-item"><strong>O que bloqueou</strong>A consulta real retornou que todas as execuções semanais do plano gratuito tinham sido consumidas.</div>
+    </div>
+    <div class="code">You've used all your trial commands and reached the weekly limit on your Free plan.</div>
+    <h3>Limites relevantes</h3>
+    <table><thead><tr><th>Plano</th><th>Execuções</th><th>Contas</th><th>Impacto</th></tr></thead><tbody>
+      <tr><td>Free</td><td>30 por semana</td><td>2</td><td>Serve para testes, não para monitoramento frequente.</td></tr>
+      <tr><td>Pro</td><td>Ilimitadas</td><td>3</td><td>Poucas contas para uma agência.</td></tr>
+      <tr><td>Premium</td><td>Ilimitadas</td><td>10</td><td>Inclui consultas em lote, mas exige vagas adicionais.</td></tr>
+      <tr><td>Enterprise</td><td>Ilimitadas</td><td>25</td><td>Mais próximo do cenário Hurtz, ainda com limite de contas.</td></tr>
+    </tbody></table>
+    <h3>Por que não foi escolhida até agora</h3>
+    <p class="risk">O monitor consultaria saldo e métricas várias vezes ao dia. Isso ultrapassa rapidamente 30 execuções semanais. Além disso, cada conta monitorada ocupa uma vaga, elevando o custo para uma carteira grande.</p>
+    <p><strong>Conclusão:</strong> tecnicamente funciona, mas o plano gratuito não sustenta o projeto. Continuar pela Pipeboard depende da contratação de um plano compatível.</p>
+    <div class="footer"><span>Plano de Monitoramento Meta Ads • Hurtz</span><span>4</span></div>
+  </section>
+
+  <section class="page">
+    <p class="kicker">04 • TENTATIVA 2</p><h2>Conector oficial Meta Ads MCP</h2>
+    <p>Foi registrado no Codex o endpoint oficial:</p>
+    <div class="code">https://mcp.facebook.com/ads</div>
+    <h3>Resultado</h3>
+    <p>O Codex reconheceu o servidor como MCP HTTP com suporte a OAuth, mas a Meta recusou o registro dinâmico do cliente antes de abrir a autorização.</p>
+    <div class="code">invalid_client_metadata
+Dynamic registration is not available for this client.</div>
+    <h3>O que isso significa</h3>
+    <ul><li>O endpoint existe e foi reconhecido.</li><li>O erro ocorreu na compatibilidade do fluxo OAuth entre Meta e Codex.</li><li>Não foi erro de senha, conta de anúncios ou VPS.</li><li>Nenhuma campanha foi consultada ou alterada.</li></ul>
+    <div class="callout"><strong>Conclusão:</strong> o MCP oficial não pôde ser autenticado diretamente neste cliente. Ele continua cadastrado localmente, porém com status “não autenticado”.</div>
+    <h3>Por que ele não resolve o monitor sozinho</h3>
+    <p>Mesmo quando o OAuth interativo funciona em um cliente compatível, ainda é preciso comprovar que a sessão permanece válida para um processo agendado 24 horas na VPS e que os campos financeiros necessários estão disponíveis.</p>
+    <div class="footer"><span>Plano de Monitoramento Meta Ads • Hurtz</span><span>5</span></div>
+  </section>
+
+  <section class="page">
+    <p class="kicker">05 • TENTATIVA 3</p><h2>CLI oficial da Meta</h2>
+    <p>A documentação oficial foi consultada para evitar a instalação de um pacote independente com nome semelhante. O pacote correto é <strong>meta-ads</strong>, e os comandos usam o formato <strong>meta ads ...</strong>.</p>
+    <h3>Instalação realizada na VPS</h3>
+    <table><tbody><tr><td>Versão da CLI</td><td><strong>1.1.0</strong></td></tr><tr><td>Python</td><td>3.12.3</td></tr><tr><td>Diretório isolado</td><td>/opt/meta-ads-cli</td></tr><tr><td>Impacto nos containers</td><td>Nenhum reinício necessário</td></tr></tbody></table>
+    <p>A CLI reconheceu comandos para contas, campanhas, anúncios, conjuntos, insights, páginas, criativos, catálogos, pixels/datasets e recomendações.</p>
+    <h3>Bloqueio encontrado</h3>
+    <div class="code">Not authenticated. Set the ACCESS_TOKEN environment variable.</div>
+    <p>A CLI oficial não reutiliza o OAuth do MCP nem o token da Pipeboard. Ela exige um <strong>Access Token próprio da Meta</strong>.</p>
+    <div class="callout"><strong>Conclusão:</strong> a ferramenta correta já está instalada e operacional. Falta somente fornecer uma credencial Meta válida, permanente e com acesso às contas da Hurtz.</div>
+    <h3>Alterações controladas feitas na VPS</h3>
+    <ul><li>Instalação do componente Ubuntu <code>python3.12-venv</code>.</li><li>Criação de ambiente Python isolado em <code>/opt/meta-ads-cli</code>.</li><li>Instalação da CLI oficial e dependências dentro desse ambiente.</li></ul>
+    <p class="small muted">Evolution API, n8n, Traefik, Portainer, PostgreSQL e Redis permaneceram ativos e não foram modificados.</p>
+    <div class="footer"><span>Plano de Monitoramento Meta Ads • Hurtz</span><span>6</span></div>
+  </section>
+
+  <section class="page">
+    <p class="kicker">06 • REQUISITOS</p><h2>O que falta para funcionar</h2>
+    <ol>
+      <li><strong>Criar ou selecionar um aplicativo Business</strong> no Meta for Developers com acesso à Marketing API.</li>
+      <li><strong>Criar um usuário do sistema</strong> no Portfólio Empresarial/Business Manager da Hurtz.</li>
+      <li><strong>Atribuir os ativos</strong> ao usuário do sistema: todas as contas de anúncio que serão monitoradas, com permissão suficiente para leitura.</li>
+      <li><strong>Gerar um Access Token</strong> para esse usuário do sistema. Para o monitor, a configuração inicial deve ser somente leitura.</li>
+      <li><strong>Conceder permissões adequadas</strong>, normalmente <code>ads_read</code> e, quando necessário para enumerar ativos empresariais, <code>business_management</code>. Permissões financeiras adicionais só devem ser adicionadas se os campos de cobrança exigirem.</li>
+      <li><strong>Inserir o token diretamente na VPS</strong>, com entrada oculta e arquivo acessível somente pelo serviço. O token não deve ser enviado por chat, colocado no navegador ou incluído no JavaScript do dashboard.</li>
+      <li><strong>Executar testes somente de leitura</strong>: listar contas, consultar saldo, obter campanhas e comparar métricas com o Gerenciador de Anúncios.</li>
+      <li><strong>Construir o coletor</strong> para consultar a Meta em intervalos controlados e salvar snapshots no PostgreSQL.</li>
+      <li><strong>Conectar o dashboard</strong> à API interna da VPS e substituir os dados demonstrativos.</li>
+      <li><strong>Criar alertas no n8n</strong> e enviá-los pela Evolution API quando saldo ou desempenho ultrapassar limites definidos.</li>
+    </ol>
+    <h3>Campos que precisam ser validados</h3>
+    <div class="grid"><div class="card"><strong>Financeiros</strong>Saldo, valor gasto, limite da conta, moeda e disponibilidade de informações de cobrança.</div><div class="card"><strong>Performance</strong>Resultados/leads, custo por resultado, investimento, objetivo, status e campanhas veiculadas.</div></div>
+    <div class="footer"><span>Plano de Monitoramento Meta Ads • Hurtz</span><span>7</span></div>
+  </section>
+
+  <section class="page">
+    <p class="kicker">07 • RECOMENDAÇÃO</p><h2>Caminho recomendado</h2>
+    <div class="recommend"><h3>Usar a CLI/API oficial da Meta como fonte principal</h3><p>É a opção mais adequada para muitas contas e operação contínua, pois remove o limite semanal da Pipeboard e reduz a dependência de um OAuth interativo no MCP. A CLI oficial já está instalada na VPS.</p></div>
+    <h3>Sequência de implantação</h3>
+    <table><thead><tr><th>Fase</th><th>Entrega</th><th>Critério para avançar</th></tr></thead><tbody>
+      <tr><td>1. Autenticação</td><td>Token Meta somente leitura armazenado na VPS</td><td>CLI autenticada sem expor credenciais</td></tr>
+      <tr><td>2. Prova de dados</td><td>Consulta de contas, saldo e campanhas</td><td>Valores conferidos no Gerenciador</td></tr>
+      <tr><td>3. Coletor</td><td>Processo agendado e banco de histórico</td><td>Execução estável e logs sem erros</td></tr>
+      <tr><td>4. Dashboard</td><td>Dados reais no painel Hurtz</td><td>Filtros e totais reconciliados</td></tr>
+      <tr><td>5. Alertas</td><td>Regras no n8n e mensagens via Evolution</td><td>Teste controlado recebido no WhatsApp</td></tr>
+      <tr><td>6. Produção</td><td>Serviço 24h com backup e observabilidade</td><td>Recuperação testada e acesso protegido</td></tr>
+    </tbody></table>
+    <h3>Cuidados antes da produção</h3>
+    <ul><li>Criar snapshot/backup da VPS e dos bancos.</li><li>Configurar swap e limites de CPU/memória do novo serviço.</li><li>Fixar versões das imagens Docker em vez de usar apenas <code>latest</code>.</li><li>Usar domínio HTTPS e autenticação no dashboard.</li><li>Manter o coletor inicialmente somente leitura.</li><li>Nunca expor token Meta no frontend, logs ou arquivos versionados.</li></ul>
+    <div class="callout"><strong>Próxima ação necessária do administrador da Meta:</strong> criar o aplicativo/usuário do sistema, atribuir as contas e gerar o token. Após isso, a equipe técnica consegue concluir a prova de dados e iniciar a integração real do dashboard.</div>
+    <div class="footer"><span>Plano de Monitoramento Meta Ads • Hurtz</span><span>8</span></div>
+  </section>
+</body>
+</html>

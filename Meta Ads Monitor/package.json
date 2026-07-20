@@ -1,0 +1,11 @@
+{
+  "name": "hurtz-meta-billing-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "billing:collect": "node billing_browser_collector.js"
+  },
+  "dependencies": {
+    "playwright": "^1.61.1"
+  }
+}

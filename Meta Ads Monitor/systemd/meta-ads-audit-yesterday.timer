@@ -1,0 +1,11 @@
+[Unit]
+Description=Fecha e audita o dia anterior no Meta Ads
+
+[Timer]
+OnCalendar=*-*-* 03:10:00 America/Sao_Paulo
+RandomizedDelaySec=5min
+Persistent=true
+Unit=meta-ads-audit@yesterday.service
+
+[Install]
+WantedBy=timers.target

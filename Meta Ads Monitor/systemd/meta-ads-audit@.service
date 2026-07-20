@@ -1,0 +1,17 @@
+[Unit]
+Description=Auditoria Meta Ads Hurtz (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/meta-ads-cli/monitor
+EnvironmentFile=/opt/meta-ads-cli/secrets/.env
+ExecStart=/usr/bin/python3 /opt/meta-ads-cli/monitor/scheduled_audit.py --window %i
+User=root
+UMask=0077
+Nice=10
+TimeoutStartSec=20min
+
+[Install]
+WantedBy=multi-user.target

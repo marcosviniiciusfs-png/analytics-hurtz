@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hurtz | Monitor Meta Ads</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=20260718-2" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260720-19" />
+</head>
+<body>
+  <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
+    <div class="global-progress-card">
+      <div class="global-progress-track" aria-hidden="true"><span></span></div>
+      <span class="global-progress-label" id="globalProgressLabel">Consultando dados da Meta...</span>
+    </div>
+  </div>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><img src="hurtz-logo.png" alt="Hurtz" /></div>
+      <nav>
+        <a class="active" href="#"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg></span><span class="nav-label">Visão geral</span></a>
+        <a href="#accounts"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c1.1 1.4 2.4 2.1 4 2.1 2.4 0 4-1.2 4-3 0-2-1.8-2.5-4-3-2.2-.5-4-1-4-3 0-1.8 1.6-3 4-3 1.6 0 2.9.6 4 1.9M12 5v14"/></svg></span><span class="nav-label">Contas</span></a>
+        <a href="#analysis" id="analysisNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/><path d="M2 19h21"/></svg></span><span class="nav-label">Análise</span></a>
+        <a href="#reports" id="reportsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5M9 12h7M9 16h7"/></svg></span><span class="nav-label">Relatórios</span></a>
+        <a href="#"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg></span><span class="nav-label">Alertas</span><b class="pill" id="alertPill">0</b></a>
+        <a href="#"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span><span class="nav-label">Configurações</span></a>
+      </nav>
+      <div class="sidebar-foot"><span class="live-dot"></span><div><strong>Monitoramento ativo</strong><small>Atualiza a cada 15 min</small></div></div>
+    </aside>
+
+    <main>
+      <header>
+        <div><p class="eyebrow">CENTRAL DE MONITORAMENTO</p><h1>Visão geral das contas</h1><p class="subtitle">Depósitos conciliados com o gasto real das contas.</p></div>
+        <div class="header-actions">
+          <div class="global-date-filter">
+            <button class="date-button" id="globalDateButton">Calendário <span>Este mês</span></button>
+            <div class="date-filter-panel" id="dateFilterPanel" hidden>
+              <div class="date-filter-head"><strong>Selecionar período</strong><span>Atalhos ou intervalo personalizado</span></div>
+              <div class="date-quick-options">
+                <button data-global-range="today">Hoje</button><button data-global-range="yesterday">Ontem</button><button data-global-range="7">7 dias</button><button data-global-range="14">14 dias</button><button data-global-range="30">30 dias</button><button data-global-range="month">Este mês</button>
+              </div>
+              <div class="date-custom-range"><label>Data inicial<input type="date" id="globalDateFrom" /></label><span>até</span><label>Data final<input type="date" id="globalDateTo" /></label></div>
+              <div class="account-filter-section"><div class="account-filter-head"><strong>Contas de anúncio</strong><div><button type="button" class="find-accounts-button" id="findMetaAccounts">Buscar contas</button><button type="button" id="toggleAllAccounts">Selecionar todas</button></div></div><small class="account-search-status" id="accountSearchStatus">Contas cadastradas no monitoramento</small><div class="account-filter-options" id="accountFilterOptions"></div></div>
+              <div class="preset-section"><div class="preset-select-row"><select id="savedFilterPreset" aria-label="Predefinições salvas"><option value="">Predefinições salvas</option></select><button type="button" class="preset-manage-button" id="manageFilterPreset" title="Editar predefinição" aria-label="Editar predefinição">⚙</button></div><input id="presetName" type="text" maxlength="32" placeholder="Nome da predefinição" /><div class="preset-actions"><button type="button" class="flag-button" id="saveFilterPreset">⚑ Salvar predefinição</button><button type="button" class="flag-button" id="setDefaultPreset">⚑ Tornar padrão</button></div><div class="preset-manager" id="presetManager" hidden><strong>Editar predefinição</strong><input id="presetEditName" type="text" maxlength="32" placeholder="Nome da predefinição" /><div><button type="button" id="updateFilterPreset">Salvar alterações</button><button type="button" class="delete-preset-button" id="deleteFilterPreset">Apagar</button></div></div></div>
+              <button class="apply-date-filter" id="applyDateFilter">Aplicar filtros</button>
+            </div>
+          </div>
+          <button class="refresh-button" id="refreshButton">↻ <span>Atualizar</span></button><div class="avatar">MB</div>
+        </div>
+      </header>
+
+      <section class="metrics" id="summaryCards"></section>
+
+      <section class="accounts-panel" id="accounts">
+        <div class="panel-head">
+          <div><h2>Contas de anúncio</h2><p id="accountsPeriod">Saldo estimado pelo depósito menos o gasto oficial da Meta</p></div>
+          <div class="table-tools"><label class="search">⌕ <input id="searchInput" type="search" placeholder="Buscar conta..." /></label><button class="filter-button" id="tableDateFilter">Filtros</button></div>
+        </div>
+        <div class="table-wrap">
+          <table class="accounts-table">
+            <thead><tr>
+              <th>Conta de anúncio</th>
+              <th><span class="metric-label">Status<button class="info-tooltip" type="button" aria-label="Sobre Status">i<span role="tooltip">Situação operacional da conta na Meta, separada do saldo estimado no planejamento.</span></button></span></th>
+              <th><span class="metric-label">Objetivos<button class="info-tooltip" type="button" aria-label="Sobre Objetivos">i<span role="tooltip">Objetivos das campanhas presentes na conta.</span></button></span></th>
+              <th class="number"><span class="metric-label">CPL<button class="info-tooltip" type="button" aria-label="Sobre CPL">i<span role="tooltip">Valor gasto dividido pela quantidade de leads no período.</span></button></span></th>
+              <th class="number"><span class="metric-label">Depósito<button class="info-tooltip" type="button" aria-label="Sobre Depósito">i<span role="tooltip">Valor bruto informado no planejamento da conta.</span></button></span></th>
+              <th class="number"><span class="metric-label">Gasto estimado<button class="info-tooltip" type="button" aria-label="Sobre Gasto estimado">i<span role="tooltip">Projeção calculada pelo teto diário e tempo transcorrido.</span></button></span></th>
+              <th class="number"><span class="metric-label">Saldo usado (Meta)<button class="info-tooltip" type="button" aria-label="Sobre Saldo usado">i<span role="tooltip">Gasto real auditado na Meta para o período selecionado.</span></button></span></th>
+              <th class="number"><span class="metric-label">Saldo estimado<button class="info-tooltip" type="button" aria-label="Sobre Saldo estimado">i<span role="tooltip">Verba líquida menos o consumo calculado do ciclo.</span></button></span></th>
+              <th><span class="metric-label">Previsão de término<button class="info-tooltip" type="button" aria-label="Sobre Previsão de término">i<span role="tooltip">Data do depósito somada à duração planejada.</span></button></span></th><th></th>
+            </tr></thead>
+            <tbody id="accountsBody"></tbody><tfoot id="accountsFoot"></tfoot>
+          </table>
+        </div>
+        <div class="panel-footer"><span id="accountCount"></span><span>Gasto real somente após auditoria: conta = soma das campanhas</span></div>
+      </section>
+
+      <section class="analysis-view" id="analysis" hidden>
+        <div class="analysis-heading"><div><p class="eyebrow">INTELIGÊNCIA DE PERFORMANCE</p><h2>Visão geral das contas</h2><p id="analysisPeriod">Período padrão: últimos 7 dias fechados.</p></div><span class="audit-chip" id="analysisAuditChip">Auditoria Meta obrigatória</span></div>
+        <div class="analysis-toolbar">
+          <label class="analysis-account-field"><span>Conta de anúncio</span><select id="analysisAccountSelect"><option value="">Carregando contas...</option></select></label>
+          <button class="analysis-accounts-button" id="analysisAccountsButton" type="button">Contas comparadas</button>
+          <div class="analysis-range-buttons" id="analysisRangeButtons"><button class="active" type="button" data-analysis-range="7">7 dias</button><button type="button" data-analysis-range="14">14 dias</button><button type="button" data-analysis-range="30">30 dias</button><button type="button" data-analysis-range="90">90 dias</button></div>
+          <label class="analysis-date-field"><span>Data inicial</span><input type="date" id="analysisDateFrom" /></label>
+          <label class="analysis-date-field"><span>Data final</span><input type="date" id="analysisDateTo" /></label>
+          <button class="analysis-apply" id="applyAnalysisFilter" type="button">Aplicar análise</button>
+        </div>
+        <div class="analysis-account-panel" id="analysisAccountPanel" hidden>
+          <div class="analysis-account-panel-head"><div><strong>Contas incluídas na comparação</strong><small>Remova contas sem alterar a lista oficial monitorada.</small></div><button type="button" id="closeAnalysisAccounts">×</button></div>
+          <div class="analysis-account-panel-tools"><select id="analysisSavedPreset"><option value="">Filtros salvos</option></select><button type="button" id="analysisToggleAll">Selecionar todas</button></div>
+          <div class="analysis-account-options" id="analysisAccountOptions"></div>
+          <div class="analysis-account-preset"><input id="analysisPresetName" maxlength="32" placeholder="Nome do filtro"/><button type="button" id="saveAnalysisPreset">Salvar filtro</button><button type="button" id="deleteAnalysisPreset">Apagar</button><button class="primary" type="button" id="applyAnalysisAccounts">Aplicar comparação</button></div>
+        </div>
+        <div class="analysis-kpis" id="analysisKpis"></div>
+        <div class="analysis-grid">
+          <article class="chart-card chart-wide objective-comparison-card"><div class="chart-head"><div><h3>Comparações rápidas entre contas</h3><p>Quem apresenta maior eficiência e quais diferenças merecem investigação.</p></div><button class="info-tooltip" type="button" aria-label="Sobre comparações entre contas">i<span role="tooltip">A seta compara contas com o mesmo objetivo e resultado. Produto é inferido pelo nome; formato vem do criativo oficial. Clique para detalhar.</span></button></div><div id="analysisObjectiveComparison"></div></article>
+          <article class="chart-card"><div class="chart-head"><div><h3>Idade do público</h3><p>Participação dos resultados por faixa etária.</p></div><button class="info-tooltip" type="button" aria-label="Sobre idade do público">i<span role="tooltip">Distribuição dos resultados atribuídos pela Meta em cada faixa etária.</span></button></div><div class="interactive-chart" id="analysisAgeChart"></div></article>
+          <article class="chart-card"><div class="chart-head"><div><h3>Formato dos anúncios</h3><p>Imagem, vídeo, dinâmico ou não identificado.</p></div><button class="info-tooltip" type="button" aria-label="Sobre formato">i<span role="tooltip">Formato identificado no criativo dos anúncios que tiveram entrega.</span></button></div><div class="interactive-chart" id="analysisFormatChart"></div></article>
+          <article class="chart-card chart-wide geography-card"><div class="chart-head"><div><h3>Resultados por localização</h3><p>Cidade quando disponibilizada pela Meta; caso contrário, região de entrega.</p></div><button class="info-tooltip" type="button" aria-label="Sobre localização">i<span role="tooltip">Localização atribuída pela Meta às pessoas alcançadas. O nível geográfico disponível é informado sem confundir região com cidade.</span></button></div><div class="geography-highlight" id="analysisGeographyHighlight"></div><div class="interactive-chart" id="analysisGeographyChart"></div></article>
+          <article class="chart-card chart-wide"><div class="chart-head"><div><h3>Posicionamento dos anúncios</h3><p>Facebook, Instagram e respectivas posições de entrega.</p></div><button class="info-tooltip" type="button" aria-label="Sobre posicionamento">i<span role="tooltip">Desempenho por plataforma e posição, como Feed, Stories e Reels.</span></button></div><div class="interactive-chart" id="analysisPlacementChart"></div></article>
+          <article class="chart-card"><div class="chart-head"><div><h3>CTR por formato</h3><p>Taxa de cliques dos formatos entregues.</p></div><button class="info-tooltip" type="button" aria-label="Sobre CTR por formato">i<span role="tooltip">Cliques divididos pelas impressões de cada formato.</span></button></div><div class="interactive-chart" id="analysisCtrChart"></div></article>
+          <article class="chart-card"><div class="chart-head"><div><h3>CPL por idade</h3><p>Custo por resultado em cada faixa etária.</p></div><button class="info-tooltip" type="button" aria-label="Sobre CPL por idade">i<span role="tooltip">Valor usado dividido pelos resultados mapeados em cada idade.</span></button></div><div class="interactive-chart" id="analysisCplChart"></div></article>
+          <article class="chart-card chart-wide"><div class="chart-head"><div><h3>Anúncios com melhor desempenho</h3><p>Comparação auditada de CTR, CPM, CPL e valor usado.</p></div><button class="info-tooltip" type="button" aria-label="Sobre ranking de anúncios">i<span role="tooltip">Anúncios com entrega no período, ordenados por volume de resultados e custo.</span></button></div><div id="analysisAdsRanking"></div></article>
+        </div>
+        <div class="analysis-pending" id="analysisNotice"><strong>Auditoria</strong><span>Os gráficos são exibidos somente quando a soma do breakdown reconcilia com o valor usado da conta.</span></div>
+      </section>
+
+      <section class="reports-view" id="reports" hidden>
+        <div class="reports-heading"><div><p class="eyebrow">RELATÓRIOS META ADS</p><h2>Criar relatório auditado</h2><p>Selecione as contas e o período exato. Nenhuma métrica será estimada.</p></div><span class="audit-chip">Conta = soma das campanhas</span></div>
+        <div class="report-run-summary" id="reportRunSummary" hidden></div>
+        <div class="report-builder">
+          <div class="report-field report-account-field"><span>Contas de anúncio</span><div class="report-account-actions"><button type="button" id="reportToggleAccounts">Selecionar todas</button></div><div class="report-account-options" id="reportAccountOptions"></div></div>
+          <label class="report-field"><span>Data inicial</span><input type="date" id="reportDateFrom" /></label>
+          <label class="report-field"><span>Data final</span><input type="date" id="reportDateTo" /></label>
+          <button class="create-report-button" id="createReportButton" type="button">Criar relatório</button>
+        </div>
+        <div class="report-status" id="reportStatus">Selecione pelo menos uma conta para iniciar.</div>
+        <div class="report-output" id="reportOutput" hidden></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop comparison-modal-backdrop" id="comparisonModal" aria-hidden="true">
+    <section class="comparison-modal" role="dialog" aria-modal="true" aria-labelledby="comparisonModalTitle">
+      <div class="comparison-modal-head"><div><span>COMPARAÇÃO AUDITADA</span><h2 id="comparisonModalTitle">Detalhes da comparação</h2><p id="comparisonModalPeriod"></p></div><button type="button" id="closeComparisonModal" aria-label="Fechar">×</button></div>
+      <div class="comparison-modal-body" id="comparisonModalBody"></div>
+    </section>
+  </div>
+  <div class="report-loader" id="reportLoader" role="status" aria-live="polite" hidden><div class="report-loader-content"><div id="reportLottie"></div><strong>Criando relatório auditado...</strong><span>Consultando contas e conciliando campanhas com a Meta.</span></div></div>
+  <div class="modal-backdrop png-report-backdrop" id="pngReportModal" aria-hidden="true"><section class="png-report-modal" role="dialog" aria-modal="true" aria-labelledby="pngReportModalTitle"><div class="png-report-modal-head"><div><span>RELATÓRIO EM IMAGEM</span><h2 id="pngReportModalTitle">Relatório de Performance</h2></div><button type="button" id="closePngReport" aria-label="Fechar">×</button></div><div class="png-report-controls"><label>Nome exibido no relatório<input id="pngReportName" maxlength="70" /></label><button type="button" id="updatePngReport">Atualizar prévia</button><button class="primary" type="button" id="downloadPngReport">Baixar PNG</button></div><section class="bulk-png-editor" id="bulkPngEditor" hidden><div><strong>Nomes exibidos nos relatórios</strong><span>Edite o texto de cada arte e clique em visualizar para conferir.</span></div><div class="bulk-png-name-list" id="bulkPngNames"></div></section><div class="png-report-preview"><canvas id="pngReportCanvas" width="1600" height="900"></canvas></div></section></div>
+
+  <div class="modal-backdrop" id="accountModal" aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head"><div><span class="modal-kicker">DETALHES DA CONTA</span><h2 id="modalTitle"></h2><p id="modalSubtitle"></p></div><div class="modal-head-actions"><button class="plan-toggle" id="planToggle">Configurar saldo</button><button class="close-button" id="closeModal" aria-label="Fechar">×</button></div></div>
+      <form class="balance-plan" id="balancePlan" hidden>
+        <div class="plan-copy"><strong>Planejamento do depósito</strong><span>O ciclo considera somente gastos posteriores à data e ao horário do depósito.</span></div>
+        <label>Valor depositado<input type="number" id="depositAmount" min="0" step="0.01" required /></label>
+        <label>Data do depósito<input type="date" id="depositDate" required /></label>
+        <label>Horário do depósito<input type="time" id="depositTime" required /></label>
+        <label>Duração planejada<input type="number" id="plannedDays" min="1" step="1" required /><small>dias</small></label>
+        <label>Máximo por dia<input type="number" id="dailyLimit" min="0" step="0.01" required /></label>
+        <button type="submit">Salvar planejamento</button>
+        <div class="net-budget-preview" id="netBudgetPreview" aria-live="polite"></div>
+      </form>
+      <div class="modal-toolbar"><div class="quick-dates" id="quickDates"><button data-range="today">Hoje</button><button class="active" data-range="yesterday">Ontem</button><button data-range="7">Últimos 7 dias</button><button data-range="30">Últimos 30 dias</button></div><label class="custom-date">Período <input type="date" id="dateFrom" /><span>até</span><input type="date" id="dateTo" /></label></div>
+      <div class="modal-summary plan-summary" id="modalSummary"></div>
+      <div class="plan-strip" id="planStrip"></div>
+      <div class="campaign-section"><div class="campaign-title"><div><h3>Campanhas com veiculação</h3><p id="campaignPeriod"></p></div><span id="campaignCount"></span></div><form class="campaign-goal-panel" id="campaignGoalPanel" hidden><div><strong id="campaignGoalTitle">Configurar coluna</strong><small>Metas diárias desta conta para definir as cores.</small></div><div class="campaign-goal-fields" id="campaignGoalFields"></div><button type="submit">Salvar metas</button><button type="button" class="clear-goal-button" id="clearCampaignGoal">Limpar</button><button type="button" class="close-goal-button" id="closeCampaignGoal">×</button></form><div class="campaign-table-wrap"><table class="campaign-table"><thead><tr><th>Campanha</th><th>Objetivo</th><th>Status</th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="investment">Investimento <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="results">Resultados <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="cost">Custo/resultado <span>⚙</span></button></th></tr></thead><tbody id="campaignBody"></tbody><tfoot id="campaignFoot"></tfoot></table></div></div>
+    </section>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="app.js?v=20260720-07"></script>
+</body>
+</html>
