@@ -8,6 +8,13 @@ const port = Number(process.env.PORT || 8091);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.svg':'image/svg+xml'};
 const analysisResponseCache = new Map();
 const ANALYSIS_CACHE_TTL = 15 * 60 * 1000;
+const runMonitorCommand = (command,options,callback) => {
+  if (process.platform === 'win32') {
+    const key = path.join(process.env.USERPROFILE, '.ssh', 'id_ed25519_contabo_monitor');
+    return execFile('ssh',['-i',key,'-o','IdentitiesOnly=yes','-o','BatchMode=yes','root@161.97.148.99',command],options,callback);
+  }
+  return execFile('/bin/bash',['-lc',command],options,callback);
+};
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
@@ -49,17 +56,15 @@ http.createServer((req,res)=>{
     if (accountIds.some(id=>!/^act_\d+$/.test(id))) {
       res.writeHead(400, {'Content-Type':'application/json'}); return res.end(JSON.stringify({error:'Conta inválida'}));
     }
-    const key = path.join(process.env.USERPROFILE, '.ssh', 'id_ed25519_contabo_monitor');
     const remote = `set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/dashboard_spend.py ${from} ${to}${accountIds.length?` ${accountIds.join(' ')}`:''}`;
-    return execFile('ssh', ['-i', key, '-o', 'IdentitiesOnly=yes', '-o', 'BatchMode=yes', 'root@161.97.148.99', remote], {timeout:120000,maxBuffer:5*1024*1024}, (error,stdout,stderr)=>{
+    return runMonitorCommand(remote,{timeout:120000,maxBuffer:5*1024*1024},(error,stdout,stderr)=>{
       if(error){res.writeHead(502,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Falha na auditoria Meta',detail:stderr.trim()}))}
       res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(stdout);
     });
   }
   if (requestUrl.pathname === '/api/meta-accounts') {
-    const key = path.join(process.env.USERPROFILE, '.ssh', 'id_ed25519_contabo_monitor');
     const remote = `python3 /opt/meta-ads-cli/monitor/diagnose_access.py --sample-accounts 0 --output /tmp/dashboard-meta-accounts.json >/dev/null && cat /tmp/dashboard-meta-accounts.json`;
-    return execFile('ssh', ['-i', key, '-o', 'IdentitiesOnly=yes', '-o', 'BatchMode=yes', 'root@161.97.148.99', remote], {timeout:120000,maxBuffer:5*1024*1024}, (error,stdout,stderr)=>{
+    return runMonitorCommand(remote,{timeout:120000,maxBuffer:5*1024*1024},(error,stdout,stderr)=>{
       if(error){res.writeHead(502,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Falha ao buscar contas na Meta',detail:stderr.trim()}))}
       res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(stdout);
     });
@@ -73,14 +78,13 @@ http.createServer((req,res)=>{
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || '') || !accountIds.length || accountIds.some(id=>!/^act_\d+$/.test(id)||!allowed.includes(id))) {
       res.writeHead(400, {'Content-Type':'application/json'}); return res.end(JSON.stringify({error:'Parâmetros de análise inválidos'}));
     }
-    const key = path.join(process.env.USERPROFILE, '.ssh', 'id_ed25519_contabo_monitor');
     const cacheKey = `${from}|${to}|${[...accountIds].sort().join(',')}`;
     const cached = analysisResponseCache.get(cacheKey);
     if (cached && Date.now() - cached.createdAt < ANALYSIS_CACHE_TTL) {
       res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Analysis-Cache':'HIT'});return res.end(cached.body);
     }
     const remote = `set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/analysis_breakdowns.py ${from} ${to} ${accountIds.join(' ')}`;
-    return execFile('ssh', ['-i', key, '-o', 'IdentitiesOnly=yes', '-o', 'BatchMode=yes', 'root@161.97.148.99', remote], {timeout:180000,maxBuffer:12*1024*1024}, (error,stdout,stderr)=>{
+    return runMonitorCommand(remote,{timeout:180000,maxBuffer:12*1024*1024},(error,stdout,stderr)=>{
       if(error){res.writeHead(502,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Falha na análise Meta',detail:stderr.trim()}))}
       try{JSON.parse(stdout)}catch{res.writeHead(502,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Resposta inválida da análise Meta'}))}
       analysisResponseCache.set(cacheKey,{createdAt:Date.now(),body:stdout});
@@ -94,4 +98,4 @@ http.createServer((req,res)=>{
     if(err){res.writeHead(404);return res.end('Not found')}
     res.writeHead(200,{'Content-Type':types[path.extname(target)]||'application/octet-stream','Cache-Control':'no-store'});res.end(data);
   });
-}).listen(port,'127.0.0.1',()=>console.log(`Dashboard Meta Ads: http://127.0.0.1:${port}`));
+}).listen(port,process.env.HOST||'127.0.0.1',()=>console.log(`Dashboard Meta Ads: http://${process.env.HOST||'127.0.0.1'}:${port}`));
