@@ -922,8 +922,8 @@ async function downloadAllPngReports(button){
 }
 document.addEventListener('click',event=>{const button=event.target.closest('#downloadAllPngReports');if(button)openBulkPngEditor()});
 let alertsInitialized=false;
-const ALERT_API_BASE=location.hostname==='analytics.hurtzcompany.com'?'https://api.analytics.hurtzcompany.com':'';
-async function alertFetchJson(url,options){let response;try{response=await fetch(`${ALERT_API_BASE}${url}`,options)}catch{throw new Error('A API de monitoramento ainda não está conectada a este domínio. Configure api.analytics.hurtzcompany.com.')}const type=response.headers.get('content-type')||'';if(!type.includes('application/json'))throw new Error('A API de monitoramento respondeu em formato inválido. Verifique api.analytics.hurtzcompany.com.');const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Falha na consulta.');return payload}
+const ALERT_API_BASE=location.hostname==='analytics.hurtzcompany.com'?'https://analytics-api.161-97-148-99.sslip.io':'';
+async function alertFetchJson(url,options={}){let response;try{response=await fetch(`${ALERT_API_BASE}${url}`,{...options,credentials:'include'})}catch{throw new Error('A API segura da VPS não respondeu. Abra a autorização da API e tente novamente.')}const type=response.headers.get('content-type')||'';if(response.status===401)throw new Error('Autorize o acesso à API segura da VPS e tente novamente.');if(!type.includes('application/json'))throw new Error('A API de monitoramento respondeu em formato inválido.');const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Falha na consulta.');return payload}
 function alertKindLabel(kind){return ({daily_limit:'Limite diário',spend_velocity:'Ritmo de gasto',opportunity:'Oportunidade',test:'Teste',technical:'Monitoramento técnico'})[kind]||'Notificação'}
 function alertTone(kind,severity){if(severity==='critical')return'critical';if(severity==='recommendation')return'recommendation';if(kind==='technical')return'technical';return'warning'}
 function renderAlertHistory(payload){
