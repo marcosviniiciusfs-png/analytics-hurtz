@@ -27,5 +27,5 @@ print(json.dumps({
     "config": config,
     "last_run": state.get("last_run"),
     "history": list(reversed(history)),
-    "evolution_configured": all(os.getenv(key) for key in ("EVOLUTION_API_URL", "EVOLUTION_API_KEY", "EVOLUTION_INSTANCE", "EVOLUTION_GROUP_JID")),
+    "evolution_configured": bool(os.getenv("EVOLUTION_API_KEY") and config.get("evolution_instance") and config.get("evolution_group_jid")),
 }, ensure_ascii=False))

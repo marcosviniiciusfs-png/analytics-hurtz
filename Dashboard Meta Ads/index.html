@@ -127,11 +127,19 @@
         <div class="alerts-layout">
           <form class="alert-settings" id="alertSettings">
             <div class="alert-settings-head"><div><h3>Regras de notificação</h3><p>O gasto do dia é provisório; recomendações usam somente períodos auditados.</p></div><label class="switch-field"><input type="checkbox" id="alertsEnabled"><span></span>Ativar alertas</label></div>
+            <section class="whatsapp-setup">
+              <div><h4>WhatsApp para os disparos</h4><p>Digite o número completo para verificar se ele já está conectado à Evolution API.</p></div>
+              <div class="whatsapp-phone-row"><label>Número com DDI e DDD<input id="alertWhatsAppPhone" inputmode="tel" placeholder="5594999999999"></label><button type="button" id="checkWhatsAppPhone">Verificar número</button></div>
+              <div class="whatsapp-connection-result" id="whatsappConnectionResult">Nenhum número verificado.</div>
+              <div class="whatsapp-destination" id="whatsappDestination" hidden><label>Instância conectada<select id="alertEvolutionInstance"></select></label><label>Grupo para receber alertas<select id="alertEvolutionGroup"><option value="">Selecione um grupo</option></select></label></div>
+            </section>
             <div class="alert-rule-grid">
               <label>Estágios do limite diário<input id="alertThresholds" value="75, 90, 100, 120" placeholder="75, 90, 100, 120"><small>Percentuais separados por vírgula.</small></label>
-              <label>Início do horário silencioso<input type="time" id="alertQuietStart" value="21:00"></label>
-              <label>Fim do horário silencioso<input type="time" id="alertQuietEnd" value="07:00"></label>
+              <label>Janela da velocidade<select id="alertVelocityWindow"><option value="30">30 minutos</option><option value="60" selected>1 hora</option><option value="120">2 horas</option><option value="180">3 horas</option></select><small>Tempo usado para medir o ritmo real.</small></label>
+              <label>Consumo na janela<input type="number" id="alertVelocityPercent" min="1" max="300" value="100"><small>% do limite diário que dispara o alerta.</small></label>
               <label>Resumo diário<input type="time" id="alertSummaryTime" value="19:30"></label>
+              <label>Início do horário silencioso<input type="time" id="alertQuietStart" value="21:00"><small>Alertas não críticos aguardam até o fim desse intervalo.</small></label>
+              <label>Fim do horário silencioso<input type="time" id="alertQuietEnd" value="07:00"><small>Críticos continuam sendo enviados imediatamente.</small></label>
             </div>
             <div class="alert-checks">
               <label><input type="checkbox" id="alertVelocity" checked><span><b>Ritmo elevado de gasto</b><small>Projeta o consumo pelo horário e avisa antes de ultrapassar o limite.</small></span></label>

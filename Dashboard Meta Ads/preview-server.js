@@ -12,7 +12,7 @@ const alertDataDir = process.env.META_ALERT_DATA_DIR || (process.platform === 'w
 const readJsonFile = (file,fallback={}) => { try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return fallback} };
 const writeJsonFile = (file,value) => { fs.mkdirSync(path.dirname(file),{recursive:true});const temporary=`${file}.tmp`;fs.writeFileSync(temporary,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',mode:0o600});fs.renameSync(temporary,file) };
 const readBody = (req,callback) => {let body='';req.on('data',chunk=>{body+=chunk;if(body.length>512*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
-const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(payload))};
+const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type'});res.end(JSON.stringify(payload))};
 const runMonitorCommand = (command,options,callback) => {
   if (process.platform === 'win32') {
     const key = path.join(process.env.USERPROFILE, '.ssh', 'id_ed25519_contabo_monitor');
@@ -23,6 +23,7 @@ const runMonitorCommand = (command,options,callback) => {
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type'});return res.end()}
   if (requestUrl.pathname === '/api/alert-plans') {
     const file=path.join(alertDataDir,'plans.json');
     if(req.method==='GET')return jsonResponse(res,200,readJsonFile(file,{plans:{}}));
@@ -37,17 +38,29 @@ http.createServer((req,res)=>{
     });
   }
   if (requestUrl.pathname === '/api/alerts') {
-    const remote = `META_ALERT_DATA_DIR=/opt/meta-ads-cli/data/alerts python3 /opt/meta-ads-cli/monitor/alert_status.py`;
+    const remote = `set -a; . /opt/meta-ads-cli/secrets/.env; set +a; META_ALERT_DATA_DIR=/opt/meta-ads-cli/data/alerts python3 /opt/meta-ads-cli/monitor/alert_status.py`;
     return runMonitorCommand(remote,{timeout:30000,maxBuffer:2*1024*1024},(error,stdout,stderr)=>{
       if(error)return jsonResponse(res,502,{error:'Falha ao consultar alertas',detail:stderr.trim()});
       try{return jsonResponse(res,200,JSON.parse(stdout))}catch{return jsonResponse(res,502,{error:'Resposta inválida dos alertas'})}
     });
   }
+  if (requestUrl.pathname === '/api/evolution/phone') {
+    const phone=(requestUrl.searchParams.get('phone')||'').replace(/\D/g,'');
+    if(phone.length<10||phone.length>15)return jsonResponse(res,400,{error:'Digite o número completo com DDI e DDD'});
+    const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/evolution_catalog.py --phone ${phone}`;
+    return runMonitorCommand(remote,{timeout:60000,maxBuffer:2*1024*1024},(error,stdout,stderr)=>{try{const payload=JSON.parse(stdout);return jsonResponse(res,error?502:200,payload)}catch{return jsonResponse(res,502,{error:'Resposta inválida da Evolution API'})}});
+  }
+  if (requestUrl.pathname === '/api/evolution/groups') {
+    const instance=requestUrl.searchParams.get('instance')||'';
+    if(!/^[\w .-]{1,100}$/.test(instance))return jsonResponse(res,400,{error:'Instância inválida'});
+    const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/evolution_catalog.py --groups '${instance}'`;
+    return runMonitorCommand(remote,{timeout:60000,maxBuffer:5*1024*1024},(error,stdout,stderr)=>{try{const payload=JSON.parse(stdout);return jsonResponse(res,error?502:200,payload)}catch{return jsonResponse(res,502,{error:'Resposta inválida da Evolution API'})}});
+  }
   if (requestUrl.pathname === '/api/alerts/config' && req.method === 'PUT') {
     return readBody(req,(error,payload)=>{
       if(error)return jsonResponse(res,400,{error:'Configuração inválida'});
       const thresholds=(payload.thresholds||[]).map(Number).filter(value=>value>=1&&value<=300).slice(0,8);
-      const config={enabled:Boolean(payload.enabled),dry_run:Boolean(payload.dry_run),thresholds:thresholds.length?thresholds:[75,90,100,120],balance_thresholds:[50,75,90,100],quiet_start:String(payload.quiet_start||'21:00'),quiet_end:String(payload.quiet_end||'07:00'),daily_summary_time:String(payload.daily_summary_time||'19:30'),velocity_enabled:Boolean(payload.velocity_enabled),recommendations_enabled:Boolean(payload.recommendations_enabled)};
+      const config={enabled:Boolean(payload.enabled),dry_run:Boolean(payload.dry_run),thresholds:thresholds.length?thresholds:[75,90,100,120],balance_thresholds:[50,75,90,100],quiet_start:String(payload.quiet_start||'21:00'),quiet_end:String(payload.quiet_end||'07:00'),daily_summary_time:String(payload.daily_summary_time||'19:30'),velocity_enabled:Boolean(payload.velocity_enabled),velocity_window_minutes:Math.max(15,Math.min(1440,Number(payload.velocity_window_minutes)||60)),velocity_percent:Math.max(1,Math.min(300,Number(payload.velocity_percent)||100)),recommendations_enabled:Boolean(payload.recommendations_enabled),evolution_phone:String(payload.evolution_phone||'').replace(/\D/g,'').slice(0,15),evolution_instance:String(payload.evolution_instance||'').slice(0,100),evolution_group_jid:String(payload.evolution_group_jid||'').slice(0,120),evolution_group_name:String(payload.evolution_group_name||'').slice(0,160)};
       const encoded=Buffer.from(JSON.stringify(config,null,2)).toString('base64');
       const remote=`mkdir -p /opt/meta-ads-cli/data/alerts && echo ${encoded} | base64 -d > /opt/meta-ads-cli/data/alerts/config.json && chmod 600 /opt/meta-ads-cli/data/alerts/config.json`;
       return runMonitorCommand(remote,{timeout:30000},(commandError,stdout,stderr)=>commandError?jsonResponse(res,502,{error:'Falha ao salvar configuração',detail:stderr.trim()}):jsonResponse(res,200,{ok:true,config}));
