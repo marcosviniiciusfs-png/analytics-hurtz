@@ -15,9 +15,7 @@ Restart=always
 RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/analytics-hurtz/Meta\x20Ads\x20Monitor
 
 [Install]
 WantedBy=multi-user.target
