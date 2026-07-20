@@ -1,0 +1,11 @@
+[Unit]
+Description=Verifica alertas Meta Ads a cada 15 minutos
+
+[Timer]
+OnCalendar=*:0/15
+RandomizedDelaySec=30s
+Persistent=true
+Unit=meta-ads-alerts.service
+
+[Install]
+WantedBy=timers.target

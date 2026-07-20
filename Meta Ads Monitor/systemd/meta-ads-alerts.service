@@ -1,0 +1,15 @@
+[Unit]
+Description=Alertas WhatsApp do Monitor Meta Ads Hurtz
+After=network-online.target meta-ads-audit@today.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/meta-ads-cli/monitor
+EnvironmentFile=/opt/meta-ads-cli/secrets/.env
+ExecStart=-/usr/bin/python3 /opt/meta-ads-cli/monitor/scheduled_audit.py --window today
+ExecStart=/usr/bin/python3 /opt/meta-ads-cli/monitor/alert_engine.py --mode all
+User=root
+UMask=0077
+Nice=10
+TimeoutStartSec=5min

@@ -25,7 +25,7 @@
         <a href="#accounts"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c1.1 1.4 2.4 2.1 4 2.1 2.4 0 4-1.2 4-3 0-2-1.8-2.5-4-3-2.2-.5-4-1-4-3 0-1.8 1.6-3 4-3 1.6 0 2.9.6 4 1.9M12 5v14"/></svg></span><span class="nav-label">Contas</span></a>
         <a href="#analysis" id="analysisNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/><path d="M2 19h21"/></svg></span><span class="nav-label">Análise</span></a>
         <a href="#reports" id="reportsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5M9 12h7M9 16h7"/></svg></span><span class="nav-label">Relatórios</span></a>
-        <a href="#"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg></span><span class="nav-label">Alertas</span><b class="pill" id="alertPill">0</b></a>
+        <a href="#alerts" id="alertsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg></span><span class="nav-label">Alertas</span><b class="pill" id="alertPill">0</b></a>
         <a href="#"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span><span class="nav-label">Configurações</span></a>
       </nav>
       <div class="sidebar-foot"><span class="live-dot"></span><div><strong>Monitoramento ativo</strong><small>Atualiza a cada 15 min</small></div></div>
@@ -119,6 +119,37 @@
         </div>
         <div class="report-status" id="reportStatus">Selecione pelo menos uma conta para iniciar.</div>
         <div class="report-output" id="reportOutput" hidden></div>
+      </section>
+
+      <section class="alerts-view" id="alerts" hidden>
+        <div class="alerts-heading"><div><p class="eyebrow">AUTOMAÇÕES NO WHATSAPP</p><h2>Central de alertas</h2><p>Configure avisos operacionais e recomendações auditadas para o grupo responsável.</p></div><span class="alert-connection" id="alertConnection">Verificando Evolution API...</span></div>
+        <div class="alert-stats" id="alertStats"></div>
+        <div class="alerts-layout">
+          <form class="alert-settings" id="alertSettings">
+            <div class="alert-settings-head"><div><h3>Regras de notificação</h3><p>O gasto do dia é provisório; recomendações usam somente períodos auditados.</p></div><label class="switch-field"><input type="checkbox" id="alertsEnabled"><span></span>Ativar alertas</label></div>
+            <div class="alert-rule-grid">
+              <label>Estágios do limite diário<input id="alertThresholds" value="75, 90, 100, 120" placeholder="75, 90, 100, 120"><small>Percentuais separados por vírgula.</small></label>
+              <label>Início do horário silencioso<input type="time" id="alertQuietStart" value="21:00"></label>
+              <label>Fim do horário silencioso<input type="time" id="alertQuietEnd" value="07:00"></label>
+              <label>Resumo diário<input type="time" id="alertSummaryTime" value="19:30"></label>
+            </div>
+            <div class="alert-checks">
+              <label><input type="checkbox" id="alertVelocity" checked><span><b>Ritmo elevado de gasto</b><small>Projeta o consumo pelo horário e avisa antes de ultrapassar o limite.</small></span></label>
+              <label><input type="checkbox" id="alertRecommendations" checked><span><b>Recomendações de 90 dias</b><small>Oportunidades somente com campanhas comparáveis e auditadas.</small></span></label>
+              <label><input type="checkbox" id="alertDryRun" checked><span><b>Modo de validação</b><small>Registra os alertas sem enviar mensagens ao WhatsApp.</small></span></label>
+            </div>
+            <div class="alert-actions"><button type="submit">Salvar configurações</button><button type="button" id="sendAlertTest">Enviar mensagem de teste</button></div>
+            <p class="alert-form-status" id="alertFormStatus"></p>
+          </form>
+          <aside class="alert-catalog"><h3>Monitoramentos ativos</h3><div class="alert-catalog-list">
+            <article><span class="alert-dot warning"></span><div><b>Limite diário</b><small>75%, 90%, 100% e 120%, sem mensagens repetidas.</small></div></article>
+            <article><span class="alert-dot warning"></span><div><b>Velocidade de gasto</b><small>Detecta consumo acelerado antes do fim do dia.</small></div></article>
+            <article><span class="alert-dot critical"></span><div><b>Saldo e previsão</b><small>Consumo do depósito e término antecipado do planejamento.</small></div></article>
+            <article><span class="alert-dot recommendation"></span><div><b>Desempenho e oportunidades</b><small>CPL, campanhas sem resultado e histórico de até 90 dias.</small></div></article>
+            <article><span class="alert-dot technical"></span><div><b>Saúde do monitor</b><small>Coleta atrasada, divergência, token, serviço e WhatsApp.</small></div></article>
+          </div></aside>
+        </div>
+        <section class="alert-history"><div class="alert-history-head"><div><h3>Histórico de notificações</h3><p>Contas aparecem somente dentro do evento correspondente, não como uma lista de alertas.</p></div><button type="button" id="refreshAlerts">Atualizar histórico</button></div><div id="alertHistory"></div></section>
       </section>
     </main>
   </div>

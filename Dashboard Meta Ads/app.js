@@ -94,7 +94,11 @@ function loadPlans(){
     if(saved[a.id])a.plan={...a.plan,...saved[a.id]};
   });
 }
-function savePlans(){localStorage.setItem('hurtz-balance-plans',JSON.stringify(Object.fromEntries(accounts.map(a=>[a.id,a.plan]))))}
+function savePlans(){
+  const plans=Object.fromEntries(accounts.map(a=>[a.id,a.plan]));
+  localStorage.setItem('hurtz-balance-plans',JSON.stringify(plans));
+  fetch('/api/alert-plans',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({plans})}).catch(()=>{});
+}
 function metrics(a){
   const start=parsePlanStart(a.plan);
   const elapsedExact=Math.max(0,(NOW-start)/86400000);
@@ -917,4 +921,45 @@ async function downloadAllPngReports(button){
   }catch(error){alert(`Não foi possível gerar o ZIP: ${error.message}`)}finally{showReportLoader(false);button.disabled=false}
 }
 document.addEventListener('click',event=>{const button=event.target.closest('#downloadAllPngReports');if(button)openBulkPngEditor()});
-if(location.hash==='#analysis')showDashboardView('analysis');else if(location.hash==='#reports')showDashboardView('reports');
+let alertsInitialized=false;
+function alertKindLabel(kind){return ({daily_limit:'Limite diário',spend_velocity:'Ritmo de gasto',opportunity:'Oportunidade',test:'Teste',technical:'Monitoramento técnico'})[kind]||'Notificação'}
+function alertTone(kind,severity){if(severity==='critical')return'critical';if(severity==='recommendation')return'recommendation';if(kind==='technical')return'technical';return'warning'}
+function renderAlertHistory(payload){
+  const history=payload.history||[],delivered=history.filter(item=>item.delivered).length,failed=history.filter(item=>!item.delivered).length,today=new Date().toLocaleDateString('en-CA'),todayCount=history.filter(item=>String(item.created_at||'').slice(0,10)===today).length;
+  document.querySelector('#alertStats').innerHTML=[['Alertas hoje',todayCount],['Entregues',delivered],['Falhas',failed],['Última execução',payload.last_run?new Date(payload.last_run).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'—']].map(([label,value])=>`<article class="alert-stat"><span>${label}</span><strong>${value}</strong></article>`).join('');
+  const connection=document.querySelector('#alertConnection');connection.textContent=payload.evolution_configured?'Evolution API configurada':'Evolution API pendente';connection.classList.toggle('connected',payload.evolution_configured);
+  document.querySelector('#alertPill').textContent=failed;
+  document.querySelector('#alertHistory').innerHTML=history.length?`<div class="alert-history-list">${history.map(item=>`<article class="alert-event"><span class="alert-dot ${alertTone(item.kind,item.severity)}"></span><div><b>${alertKindLabel(item.kind)}</b><small>${escapeHtml(item.account_name||'Sistema')} • ${new Date(item.created_at).toLocaleString('pt-BR')}</small></div><div class="alert-event-message">${escapeHtml(item.message)}</div><span class="alert-delivery ${item.delivered?'':'failed'}">${item.delivered?(item.delivery==='dry-run'?'Validado sem envio':'Entregue'):'Falhou'}<small>${escapeHtml(item.delivery||'')}</small></span></article>`).join('')}</div>`:'<div class="alert-empty">Nenhuma notificação registrada. Salve as regras e faça um teste controlado.</div>';
+  const config=payload.config||{};
+  document.querySelector('#alertsEnabled').checked=Boolean(config.enabled);
+  document.querySelector('#alertDryRun').checked=config.dry_run!==false;
+  document.querySelector('#alertVelocity').checked=config.velocity_enabled!==false;
+  document.querySelector('#alertRecommendations').checked=config.recommendations_enabled!==false;
+  document.querySelector('#alertThresholds').value=(config.thresholds||[75,90,100,120]).join(', ');
+  document.querySelector('#alertQuietStart').value=config.quiet_start||'21:00';document.querySelector('#alertQuietEnd').value=config.quiet_end||'07:00';document.querySelector('#alertSummaryTime').value=config.daily_summary_time||'19:30';
+}
+async function loadAlerts(trigger=null){
+  if(trigger)setButtonLoading(trigger,true,'Atualizando alertas...');
+  try{const response=await fetch('/api/alerts');const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Falha ao carregar alertas');renderAlertHistory(payload)}catch(error){document.querySelector('#alertHistory').innerHTML=`<div class="alert-empty">${escapeHtml(error.message)}</div>`}finally{if(trigger)setButtonLoading(trigger,false)}
+}
+function initializeAlerts(){if(alertsInitialized)return loadAlerts();alertsInitialized=true;loadAlerts()}
+document.querySelector('#alertSettings').addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.submitter,status=document.querySelector('#alertFormStatus'),thresholds=document.querySelector('#alertThresholds').value.split(',').map(value=>Number(value.trim())).filter(Number.isFinite);
+  if(!thresholds.length)return status.textContent='Informe pelo menos um percentual válido.';
+  const config={enabled:document.querySelector('#alertsEnabled').checked,dry_run:document.querySelector('#alertDryRun').checked,velocity_enabled:document.querySelector('#alertVelocity').checked,recommendations_enabled:document.querySelector('#alertRecommendations').checked,thresholds,quiet_start:document.querySelector('#alertQuietStart').value,quiet_end:document.querySelector('#alertQuietEnd').value,daily_summary_time:document.querySelector('#alertSummaryTime').value};
+  setButtonLoading(button,true,'Salvando regras...');try{const response=await fetch('/api/alerts/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)}),payload=await response.json();if(!response.ok)throw new Error(payload.error);status.textContent='Configurações salvas na VPS.';await loadAlerts()}catch(error){status.textContent=error.message||'Falha ao salvar.'}finally{setButtonLoading(button,false)}
+});
+document.querySelector('#sendAlertTest').onclick=async event=>{const button=event.currentTarget,status=document.querySelector('#alertFormStatus');setButtonLoading(button,true,'Testando WhatsApp...');try{const response=await fetch('/api/alerts/test',{method:'POST'}),payload=await response.json();if(!response.ok)throw new Error(payload.error);status.textContent=payload.dry_run?'Teste registrado em modo de validação; nenhuma mensagem foi enviada.':'Mensagem de teste enviada ao grupo.';await loadAlerts()}catch(error){status.textContent=error.message||'Falha no teste.'}finally{setButtonLoading(button,false)}};
+document.querySelector('#refreshAlerts').onclick=event=>loadAlerts(event.currentTarget);
+const showDashboardViewBeforeAlerts=showDashboardView;
+showDashboardView=function(view){
+  if(view!=='alerts'){document.querySelector('#alerts').hidden=true;return showDashboardViewBeforeAlerts(view)}
+  document.querySelector('main>header').hidden=true;document.querySelector('#analysis').hidden=true;document.querySelector('#reports').hidden=true;document.querySelector('#alerts').hidden=false;document.querySelector('#summaryCards').hidden=true;document.querySelector('#accounts').hidden=true;
+  document.querySelectorAll('.sidebar nav a').forEach(link=>link.classList.toggle('active',link.id==='alertsNav'));initializeAlerts();
+};
+document.querySelector('#alertsNav').onclick=event=>{event.preventDefault();history.replaceState(null,'','#alerts');showDashboardView('alerts')};
+['analysisNav','reportsNav'].forEach(id=>document.querySelector(`#${id}`).addEventListener('click',()=>document.querySelector('#alerts').hidden=true));
+document.querySelectorAll('.sidebar nav a[href="#"],.sidebar nav a[href="#accounts"]').forEach(link=>link.addEventListener('click',()=>document.querySelector('#alerts').hidden=true));
+async function hydrateAlertPlans(){try{const response=await fetch('/api/alert-plans'),payload=await response.json(),remotePlans=payload.plans||{};if(Object.keys(remotePlans).length){for(const account of accounts)if(remotePlans[account.id])account.plan={...account.plan,...remotePlans[account.id]}}else savePlans();renderSummary();renderAccounts(document.querySelector('#searchInput').value)}catch{}}
+hydrateAlertPlans();
+if(location.hash==='#analysis')showDashboardView('analysis');else if(location.hash==='#reports')showDashboardView('reports');else if(location.hash==='#alerts')showDashboardView('alerts');

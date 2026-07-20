@@ -8,6 +8,11 @@ const port = Number(process.env.PORT || 8091);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.svg':'image/svg+xml'};
 const analysisResponseCache = new Map();
 const ANALYSIS_CACHE_TTL = 15 * 60 * 1000;
+const alertDataDir = process.env.META_ALERT_DATA_DIR || (process.platform === 'win32' ? path.join(root,'.alert-data') : '/opt/meta-ads-cli/data/alerts');
+const readJsonFile = (file,fallback={}) => { try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return fallback} };
+const writeJsonFile = (file,value) => { fs.mkdirSync(path.dirname(file),{recursive:true});const temporary=`${file}.tmp`;fs.writeFileSync(temporary,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',mode:0o600});fs.renameSync(temporary,file) };
+const readBody = (req,callback) => {let body='';req.on('data',chunk=>{body+=chunk;if(body.length>512*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
+const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(payload))};
 const runMonitorCommand = (command,options,callback) => {
   if (process.platform === 'win32') {
     const key = path.join(process.env.USERPROFILE, '.ssh', 'id_ed25519_contabo_monitor');
@@ -18,6 +23,43 @@ const runMonitorCommand = (command,options,callback) => {
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+  if (requestUrl.pathname === '/api/alert-plans') {
+    const file=path.join(alertDataDir,'plans.json');
+    if(req.method==='GET')return jsonResponse(res,200,readJsonFile(file,{plans:{}}));
+    if(req.method==='PUT')return readBody(req,(error,payload)=>{
+      if(error||!payload?.plans||typeof payload.plans!=='object')return jsonResponse(res,400,{error:'Planejamentos inválidos'});
+      const plans={};
+      for(const [id,plan] of Object.entries(payload.plans)){
+        if(!/^act_\d+$/.test(id))continue;
+        plans[id]={deposit:Number(plan.deposit)||0,depositDate:String(plan.depositDate||''),depositTime:String(plan.depositTime||'00:00'),plannedDays:Math.max(1,Number(plan.plannedDays)||1),dailyLimit:Number(plan.dailyLimit)||0};
+      }
+      try{writeJsonFile(file,{updated_at:new Date().toISOString(),plans});jsonResponse(res,200,{ok:true,count:Object.keys(plans).length})}catch{return jsonResponse(res,500,{error:'Falha ao salvar planejamentos'})}
+    });
+  }
+  if (requestUrl.pathname === '/api/alerts') {
+    const remote = `META_ALERT_DATA_DIR=/opt/meta-ads-cli/data/alerts python3 /opt/meta-ads-cli/monitor/alert_status.py`;
+    return runMonitorCommand(remote,{timeout:30000,maxBuffer:2*1024*1024},(error,stdout,stderr)=>{
+      if(error)return jsonResponse(res,502,{error:'Falha ao consultar alertas',detail:stderr.trim()});
+      try{return jsonResponse(res,200,JSON.parse(stdout))}catch{return jsonResponse(res,502,{error:'Resposta inválida dos alertas'})}
+    });
+  }
+  if (requestUrl.pathname === '/api/alerts/config' && req.method === 'PUT') {
+    return readBody(req,(error,payload)=>{
+      if(error)return jsonResponse(res,400,{error:'Configuração inválida'});
+      const thresholds=(payload.thresholds||[]).map(Number).filter(value=>value>=1&&value<=300).slice(0,8);
+      const config={enabled:Boolean(payload.enabled),dry_run:Boolean(payload.dry_run),thresholds:thresholds.length?thresholds:[75,90,100,120],balance_thresholds:[50,75,90,100],quiet_start:String(payload.quiet_start||'21:00'),quiet_end:String(payload.quiet_end||'07:00'),daily_summary_time:String(payload.daily_summary_time||'19:30'),velocity_enabled:Boolean(payload.velocity_enabled),recommendations_enabled:Boolean(payload.recommendations_enabled)};
+      const encoded=Buffer.from(JSON.stringify(config,null,2)).toString('base64');
+      const remote=`mkdir -p /opt/meta-ads-cli/data/alerts && echo ${encoded} | base64 -d > /opt/meta-ads-cli/data/alerts/config.json && chmod 600 /opt/meta-ads-cli/data/alerts/config.json`;
+      return runMonitorCommand(remote,{timeout:30000},(commandError,stdout,stderr)=>commandError?jsonResponse(res,502,{error:'Falha ao salvar configuração',detail:stderr.trim()}):jsonResponse(res,200,{ok:true,config}));
+    });
+  }
+  if (requestUrl.pathname === '/api/alerts/test' && req.method === 'POST') {
+    const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/alert_engine.py --mode test`;
+    return runMonitorCommand(remote,{timeout:60000,maxBuffer:1024*1024},(error,stdout,stderr)=>{
+      if(error)return jsonResponse(res,502,{error:'Falha ao enviar teste',detail:stderr.trim()});
+      try{return jsonResponse(res,200,JSON.parse(stdout))}catch{return jsonResponse(res,502,{error:'Resposta inválida do teste'})}
+    });
+  }
   if (requestUrl.pathname === '/api/meta-monitor-config/sync' && req.method === 'POST') {
     let body='';
     req.on('data',chunk=>{body+=chunk;if(body.length>256*1024)req.destroy()});
