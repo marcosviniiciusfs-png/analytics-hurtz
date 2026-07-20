@@ -1,0 +1,23 @@
+[Unit]
+Description=Analytics Hurtz - Dashboard Meta Ads
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/analytics-hurtz/Dashboard Meta Ads
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=8091
+ExecStart=/usr/bin/node preview-server.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/analytics-hurtz/Meta Ads Monitor
+
+[Install]
+WantedBy=multi-user.target
