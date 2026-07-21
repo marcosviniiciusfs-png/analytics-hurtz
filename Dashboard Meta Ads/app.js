@@ -2,6 +2,23 @@ const MONITOR_API_BASE=location.hostname==='analytics.hurtzcompany.com'?'https:/
 const MONITOR_SESSION_KEY='hurtz-monitor-session';
 const browserFetch=window.fetch.bind(window);
 window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input?.url||'',isMonitorApi=url.startsWith('/api/'),token=localStorage.getItem(MONITOR_SESSION_KEY);if(!isMonitorApi||!MONITOR_API_BASE)return browserFetch(input,options);return browserFetch(`${MONITOR_API_BASE}${url}`,{...options,headers:{...(options.headers||{}),...(token?{Authorization:`Bearer ${token}`}:{})}})};
+const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
+async function fetchJsonWithRetry(url,{attempts=3,delay=700,...options}={}){
+  let lastError;
+  for(let attempt=1;attempt<=attempts;attempt+=1){
+    try{
+      const response=await fetch(url,options);
+      const payload=await response.json().catch(()=>null);
+      if(!response.ok)throw new Error(payload?.detail||payload?.error||`Falha HTTP ${response.status}`);
+      if(!payload)throw new Error('A API retornou uma resposta vazia.');
+      return payload;
+    }catch(error){
+      lastError=error;
+      if(attempt<attempts)await wait(delay*attempt);
+    }
+  }
+  throw lastError;
+}
 const buttonLoadingState=new WeakMap();
 let globalLoadingCount=0;
 function setButtonLoading(button,loading,label){
@@ -104,10 +121,13 @@ function loadPlans(){
     if(saved[a.id])a.plan={...a.plan,...saved[a.id]};
   });
 }
-function savePlans(){
+async function savePlans(){
   const plans=Object.fromEntries(accounts.map(a=>[a.id,a.plan]));
   localStorage.setItem('hurtz-balance-plans',JSON.stringify(plans));
-  fetch('/api/alert-plans',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({plans})}).catch(()=>{});
+  const response=await fetch('/api/alert-plans',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({plans})});
+  const payload=await response.json().catch(()=>null);
+  if(!response.ok||!payload?.ok)throw new Error(payload?.error||'A VPS não confirmou o salvamento dos limites.');
+  return payload;
 }
 function metrics(a){
   const start=parsePlanStart(a.plan);
@@ -375,11 +395,9 @@ async function loadSelectedAccountAudit(){
   const accountId=selectedAccount.id,from=parseDate(document.querySelector('#dateFrom').value),to=parseDate(document.querySelector('#dateTo').value),key=`${iso(from)}|${iso(to)}`;
   document.querySelector('#campaignCount').textContent='Auditando Meta...';
   try{
-    const response=await fetch(`/api/meta-spend?from=${iso(from)}&to=${iso(to)}&accounts=${encodeURIComponent(accountId)}`);
-    if(!response.ok)throw new Error('Falha na coleta');
-    const payload=await response.json();storeAuditPayload(key,payload);
+    const payload=await fetchJsonWithRetry(`/api/meta-spend?from=${iso(from)}&to=${iso(to)}&accounts=${encodeURIComponent(accountId)}`,{attempts:3,delay:800});storeAuditPayload(key,payload);
     if(selectedAccount?.id===accountId){renderSummary();renderAccounts(document.querySelector('#searchInput').value);renderModal();if(isCreditAccount(selectedAccount))await loadCreditAccountPeriods(accountId)}
-  }catch(error){if(selectedAccount?.id===accountId)document.querySelector('#campaignCount').textContent='Falha na auditoria'}
+  }catch(error){if(selectedAccount?.id===accountId){document.querySelector('#campaignCount').textContent='Falha na auditoria';document.querySelector('#campaignBody').innerHTML=`<tr><td colspan="6" class="audit-empty">Não foi possível consultar esta conta agora. ${escapeHtml(error.message||'Tente novamente.')}</td></tr>`}}
 }
 async function loadCreditAccountPeriods(accountId){
   const account=accounts.find(item=>item.id===accountId),current=new Date(),today=parseDate(iso(current)),weekStart=startOfWeeklyCycle(current,account?.plan?.weekStartDay),periods=[[today,today],[weekStart,today]];
@@ -554,7 +572,25 @@ function renderModal(){
   document.querySelector('#campaignCount').textContent=p.complete?`${p.campaigns?.length||0} campanhas auditadas`:'Auditoria pendente';updatePeriodLabel();
 }
 function renderNetBudgetPreview(){const credit=document.querySelector('#paymentType').value==='credit',deposit=Number(document.querySelector('#depositAmount').value)||0,daily=Number(document.querySelector('#dailyLimit').value)||0,weekly=Number(document.querySelector('#weeklyLimit').value)||0,cycle=Number(document.querySelector('#weekStartDay').value)===0?'domingo às 23:55':'segunda às 00:05';document.querySelector('#netBudgetPreview').innerHTML=credit?`<span>Limite diário: <b>${brl(daily)}</b></span><strong>${brl(weekly)} disponíveis • reset ${cycle}</strong>`:`<span>Taxa de 12,15%: <b>${brl(feeAmount(deposit))}</b></span><strong>Disponível para anúncios: ${brl(netBudget(deposit))}</strong>`}
-planForm.addEventListener('submit',e=>{e.preventDefault();const previous=selectedAccount.plan,paymentType=document.querySelector('#paymentType').value;selectedAccount.plan={paymentType,deposit:paymentType==='credit'?0:Number(document.querySelector('#depositAmount').value),depositDate:document.querySelector('#depositDate').value||previous.depositDate||iso(NOW),depositTime:document.querySelector('#depositTime').value||'00:00',plannedDays:paymentType==='credit'?1:Number(document.querySelector('#plannedDays').value),dailyLimit:Number(document.querySelector('#dailyLimit').value),weeklyLimit:paymentType==='credit'?Number(document.querySelector('#weeklyLimit').value):0,weekStartDay:paymentType==='credit'?Number(document.querySelector('#weekStartDay').value):1};document.querySelector('#modalSubtitle').textContent=`${selectedAccount.id} • ${paymentType==='credit'?'controle de gastos no cartão':'planejamento conciliado da conta'}`;savePlans();renderSummary();renderAccounts(document.querySelector('#searchInput').value);renderModal();togglePlan(false);if(paymentType==='credit')loadCreditAccountPeriods(selectedAccount.id)});
+planForm.addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(!selectedAccount)return;
+  const button=document.querySelector('#savePaymentPlan'),previous={...selectedAccount.plan},paymentType=document.querySelector('#paymentType').value;
+  const nextPlan={paymentType,deposit:paymentType==='credit'?0:Number(document.querySelector('#depositAmount').value),depositDate:document.querySelector('#depositDate').value||previous.depositDate||iso(NOW),depositTime:document.querySelector('#depositTime').value||'00:00',plannedDays:paymentType==='credit'?1:Number(document.querySelector('#plannedDays').value),dailyLimit:Number(document.querySelector('#dailyLimit').value),weeklyLimit:paymentType==='credit'?Number(document.querySelector('#weeklyLimit').value):0,weekStartDay:paymentType==='credit'?Number(document.querySelector('#weekStartDay').value):1};
+  if(!(nextPlan.dailyLimit>0)||paymentType==='credit'&&!(nextPlan.weeklyLimit>0)){document.querySelector('#netBudgetPreview').innerHTML='<strong>Informe limites diário e semanal maiores que zero.</strong>';return}
+  selectedAccount.plan=nextPlan;button.disabled=true;button.textContent='Salvando...';
+  try{
+    await savePlans();
+    document.querySelector('#modalSubtitle').textContent=`${selectedAccount.id} • ${paymentType==='credit'?'controle de gastos no cartão':'planejamento conciliado da conta'}`;
+    renderSummary();renderAccounts(document.querySelector('#searchInput').value);renderModal();togglePlan(false);
+    if(paymentType==='credit')await loadCreditAccountPeriods(selectedAccount.id);
+  }catch(error){
+    selectedAccount.plan=previous;localStorage.setItem('hurtz-balance-plans',JSON.stringify(Object.fromEntries(accounts.map(a=>[a.id,a.plan]))));
+    document.querySelector('#netBudgetPreview').innerHTML=`<strong>Não foi possível salvar: ${escapeHtml(error.message)}</strong>`;
+  }finally{
+    button.disabled=false;syncPaymentTypeFields();
+  }
+});
 document.querySelector('#depositAmount').addEventListener('input',renderNetBudgetPreview);
 document.querySelector('#dailyLimit').addEventListener('input',renderNetBudgetPreview);
 document.querySelector('#weeklyLimit').addEventListener('input',renderNetBudgetPreview);
