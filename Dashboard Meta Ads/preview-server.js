@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execFile } = require('child_process');
 
 const root = __dirname;
@@ -12,7 +13,12 @@ const alertDataDir = process.env.META_ALERT_DATA_DIR || (process.platform === 'w
 const readJsonFile = (file,fallback={}) => { try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return fallback} };
 const writeJsonFile = (file,value) => { fs.mkdirSync(path.dirname(file),{recursive:true});const temporary=`${file}.tmp`;fs.writeFileSync(temporary,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',mode:0o600});fs.renameSync(temporary,file) };
 const readBody = (req,callback) => {let body='';req.on('data',chunk=>{body+=chunk;if(body.length>512*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
-const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Credentials':'true','Access-Control-Allow-Methods':'GET,PUT,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type'});res.end(JSON.stringify(payload))};
+const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});res.end(JSON.stringify(payload))};
+const authFile=process.env.API_AUTH_FILE||'/opt/meta-ads-cli/secrets/analytics-api-basic.env';
+const authConfig=()=>{const values={};try{fs.readFileSync(authFile,'utf8').split(/\r?\n/).forEach(line=>{const index=line.indexOf('=');if(index>0)values[line.slice(0,index)]=line.slice(index+1)})}catch{}return values};
+const safeEqual=(left,right)=>{const a=Buffer.from(String(left||'')),b=Buffer.from(String(right||''));return a.length===b.length&&crypto.timingSafeEqual(a,b)};
+const loginAttempts=new Map();
+const clientIp=req=>String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();
 const runMonitorCommand = (command,options,callback) => {
   if (process.platform === 'win32') {
     const key = path.join(process.env.USERPROFILE, '.ssh', 'id_ed25519_contabo_monitor');
@@ -23,7 +29,19 @@ const runMonitorCommand = (command,options,callback) => {
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
-  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Credentials':'true','Access-Control-Allow-Methods':'GET,PUT,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type'});return res.end()}
+  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});return res.end()}
+  if(process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){
+    if(requestUrl.pathname==='/api/session'&&req.method==='POST')return readBody(req,(error,payload)=>{
+      const ip=clientIp(req),now=Date.now(),attempt=(loginAttempts.get(ip)||{count:0,until:0});
+      if(attempt.until>now)return jsonResponse(res,429,{error:'Muitas tentativas. Aguarde 15 minutos.'});
+      const config=authConfig(),valid=!error&&safeEqual(payload.username,config.API_USER)&&safeEqual(payload.password,config.API_PASSWORD);
+      if(!valid){attempt.count+=1;if(attempt.count>=5){attempt.until=now+15*60*1000;attempt.count=0}loginAttempts.set(ip,attempt);return jsonResponse(res,401,{error:'Usuário ou senha incorretos.'})}
+      loginAttempts.delete(ip);return jsonResponse(res,200,{ok:true,token:config.API_SESSION_TOKEN});
+    });
+    const config=authConfig(),token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
+    if(!config.API_SESSION_TOKEN||!safeEqual(token,config.API_SESSION_TOKEN))return jsonResponse(res,401,{error:'Sessão não autorizada.'});
+    if(requestUrl.pathname==='/api/session')return jsonResponse(res,200,{ok:true});
+  }
   if (requestUrl.pathname === '/api/alert-plans') {
     const file=path.join(alertDataDir,'plans.json');
     if(req.method==='GET')return jsonResponse(res,200,readJsonFile(file,{plans:{}}));

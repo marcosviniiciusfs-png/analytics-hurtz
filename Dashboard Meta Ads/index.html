@@ -122,7 +122,7 @@
       </section>
 
       <section class="alerts-view" id="alerts" hidden>
-        <div class="alerts-heading"><div><p class="eyebrow">AUTOMAÇÕES NO WHATSAPP</p><h2>Central de alertas</h2><p>Configure avisos operacionais e recomendações auditadas para o grupo responsável.</p></div><span class="alert-connection" id="alertConnection">Verificando Evolution API...</span></div>
+        <div class="alerts-heading"><div><p class="eyebrow">AUTOMAÇÕES NO WHATSAPP</p><h2>Central de alertas</h2><p>Configure avisos operacionais e recomendações auditadas para o grupo responsável.</p></div><div class="alert-session-actions"><span class="alert-connection" id="alertConnection">Verificando Evolution API...</span><button type="button" id="alertLogout">Desconectar</button></div></div>
         <div class="alert-stats" id="alertStats"></div>
         <div class="alerts-layout">
           <form class="alert-settings" id="alertSettings">
@@ -130,7 +130,7 @@
             <section class="whatsapp-setup">
               <div><h4>WhatsApp para os disparos</h4><p>Digite o número completo para verificar se ele já está conectado à Evolution API.</p></div>
               <div class="whatsapp-phone-row"><label>Número com DDI e DDD<input id="alertWhatsAppPhone" inputmode="tel" placeholder="5594999999999"></label><button type="button" id="checkWhatsAppPhone">Verificar número</button></div>
-              <div class="whatsapp-connection-result" id="whatsappConnectionResult">Nenhum número verificado. <a href="https://analytics-api.161-97-148-99.sslip.io/api/alerts" target="_blank" rel="noopener">Autorizar API segura</a></div>
+              <div class="whatsapp-connection-result" id="whatsappConnectionResult">Nenhum número verificado.</div>
               <div class="whatsapp-destination" id="whatsappDestination" hidden><label>Instância conectada<select id="alertEvolutionInstance"></select></label><label>Grupo para receber alertas<select id="alertEvolutionGroup"><option value="">Selecione um grupo</option></select></label></div>
             </section>
             <div class="alert-rule-grid">
@@ -171,6 +171,16 @@
   <div class="report-loader" id="reportLoader" role="status" aria-live="polite" hidden><div class="report-loader-content"><div id="reportLottie"></div><strong>Criando relatório auditado...</strong><span>Consultando contas e conciliando campanhas com a Meta.</span></div></div>
   <div class="modal-backdrop png-report-backdrop" id="pngReportModal" aria-hidden="true"><section class="png-report-modal" role="dialog" aria-modal="true" aria-labelledby="pngReportModalTitle"><div class="png-report-modal-head"><div><span>RELATÓRIO EM IMAGEM</span><h2 id="pngReportModalTitle">Relatório de Performance</h2></div><button type="button" id="closePngReport" aria-label="Fechar">×</button></div><div class="png-report-controls"><label>Nome exibido no relatório<input id="pngReportName" maxlength="70" /></label><button type="button" id="updatePngReport">Atualizar prévia</button><button class="primary" type="button" id="downloadPngReport">Baixar PNG</button></div><section class="bulk-png-editor" id="bulkPngEditor" hidden><div><strong>Nomes exibidos nos relatórios</strong><span>Edite o texto de cada arte e clique em visualizar para conferir.</span></div><div class="bulk-png-name-list" id="bulkPngNames"></div></section><div class="png-report-preview"><canvas id="pngReportCanvas" width="1600" height="900"></canvas></div></section></div>
 
+  <div class="alert-login-backdrop" id="alertLoginModal" hidden>
+    <form class="alert-login-card" id="alertLoginForm">
+      <img src="hurtz-logo.png" alt="Hurtz">
+      <p class="eyebrow">ACESSO PROTEGIDO</p><h2>Entrar no monitoramento</h2>
+      <p>Faça login uma vez para configurar os alertas. O acesso ficará salvo neste navegador.</p>
+      <label>Usuário<input id="alertLoginUser" autocomplete="username" required></label>
+      <label>Senha<input id="alertLoginPassword" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Entrar</button><span id="alertLoginStatus"></span>
+    </form>
+  </div>
   <div class="modal-backdrop" id="accountModal" aria-hidden="true">
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal-head"><div><span class="modal-kicker">DETALHES DA CONTA</span><h2 id="modalTitle"></h2><p id="modalSubtitle"></p></div><div class="modal-head-actions"><button class="plan-toggle" id="planToggle">Configurar saldo</button><button class="close-button" id="closeModal" aria-label="Fechar">×</button></div></div>
