@@ -1,3 +1,7 @@
+const MONITOR_API_BASE=location.hostname==='analytics.hurtzcompany.com'?'https://analytics-api.161-97-148-99.sslip.io':'';
+const MONITOR_SESSION_KEY='hurtz-monitor-session';
+const browserFetch=window.fetch.bind(window);
+window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input?.url||'',isMonitorApi=url.startsWith('/api/'),token=localStorage.getItem(MONITOR_SESSION_KEY);if(!isMonitorApi||!MONITOR_API_BASE)return browserFetch(input,options);return browserFetch(`${MONITOR_API_BASE}${url}`,{...options,headers:{...(options.headers||{}),...(token?{Authorization:`Bearer ${token}`}:{})}})};
 const buttonLoadingState=new WeakMap();
 let globalLoadingCount=0;
 function setButtonLoading(button,loading,label){
@@ -922,8 +926,8 @@ async function downloadAllPngReports(button){
 }
 document.addEventListener('click',event=>{const button=event.target.closest('#downloadAllPngReports');if(button)openBulkPngEditor()});
 let alertsInitialized=false;
-const ALERT_API_BASE=location.hostname==='analytics.hurtzcompany.com'?'https://analytics-api.161-97-148-99.sslip.io':'';
-const ALERT_SESSION_KEY='hurtz-monitor-session';
+const ALERT_API_BASE=MONITOR_API_BASE;
+const ALERT_SESSION_KEY=MONITOR_SESSION_KEY;
 function showAlertLogin(message=''){document.querySelector('#alertLoginModal').hidden=false;document.querySelector('#alertLoginStatus').textContent=message;setTimeout(()=>document.querySelector('#alertLoginUser').focus(),50)}
 function hideAlertLogin(){document.querySelector('#alertLoginModal').hidden=true;document.querySelector('#alertLoginPassword').value='';document.querySelector('#alertLoginStatus').textContent=''}
 async function alertFetchJson(url,options={}){const token=localStorage.getItem(ALERT_SESSION_KEY);if(ALERT_API_BASE&&!token){showAlertLogin();throw new Error('Faça login para acessar o monitoramento.')}let response;try{response=await fetch(`${ALERT_API_BASE}${url}`,{...options,headers:{...(options.headers||{}),...(token?{Authorization:`Bearer ${token}`}:{})}})}catch{throw new Error('A API segura da VPS não respondeu.')}const type=response.headers.get('content-type')||'';if(response.status===401){localStorage.removeItem(ALERT_SESSION_KEY);showAlertLogin('Sua sessão expirou. Entre novamente.');throw new Error('Sessão expirada.')}if(!type.includes('application/json'))throw new Error('A API de monitoramento respondeu em formato inválido.');const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Falha na consulta.');return payload}
@@ -951,7 +955,7 @@ async function loadAlerts(trigger=null){
   try{renderAlertHistory(await alertFetchJson('/api/alerts'))}catch(error){document.querySelector('#alertConnection').textContent='API de monitoramento indisponível';document.querySelector('#alertHistory').innerHTML=`<div class="alert-empty">${escapeHtml(error.message)}</div>`}finally{if(trigger)setButtonLoading(trigger,false)}
 }
 function initializeAlerts(){if(ALERT_API_BASE&&!localStorage.getItem(ALERT_SESSION_KEY))return showAlertLogin();if(alertsInitialized)return loadAlerts();alertsInitialized=true;loadAlerts()}
-document.querySelector('#alertLoginForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter,status=document.querySelector('#alertLoginStatus'),username=document.querySelector('#alertLoginUser').value.trim(),password=document.querySelector('#alertLoginPassword').value;button.disabled=true;status.textContent='Entrando...';try{const response=await fetch(`${ALERT_API_BASE}/api/session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})}),payload=await response.json();if(!response.ok)throw new Error(payload.error||'Não foi possível entrar.');localStorage.setItem(ALERT_SESSION_KEY,payload.token);hideAlertLogin();alertsInitialized=true;await loadAlerts()}catch(error){status.textContent=error.message||'Falha no login.'}finally{button.disabled=false}});
+document.querySelector('#alertLoginForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter,status=document.querySelector('#alertLoginStatus'),username=document.querySelector('#alertLoginUser').value.trim(),password=document.querySelector('#alertLoginPassword').value;button.disabled=true;status.textContent='Entrando...';try{const response=await fetch(`${ALERT_API_BASE}/api/session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})}),payload=await response.json();if(!response.ok)throw new Error(payload.error||'Não foi possível entrar.');localStorage.setItem(ALERT_SESSION_KEY,payload.token);location.reload()}catch(error){status.textContent=error.message||'Falha no login.'}finally{button.disabled=false}});
 document.querySelector('#alertLogout').onclick=()=>{localStorage.removeItem(ALERT_SESSION_KEY);alertsInitialized=false;showAlertLogin('Acesso desconectado deste navegador.')};
 document.querySelector('#alertSettings').addEventListener('submit',async event=>{
   event.preventDefault();const button=event.submitter,status=document.querySelector('#alertFormStatus'),thresholds=document.querySelector('#alertThresholds').value.split(',').map(value=>Number(value.trim())).filter(Number.isFinite);
@@ -976,9 +980,12 @@ showDashboardView=function(view){
   document.querySelector('main>header').hidden=true;document.querySelector('#analysis').hidden=true;document.querySelector('#reports').hidden=true;document.querySelector('#alerts').hidden=false;document.querySelector('#summaryCards').hidden=true;document.querySelector('#accounts').hidden=true;
   document.querySelectorAll('.sidebar nav a').forEach(link=>link.classList.toggle('active',link.id==='alertsNav'));initializeAlerts();
 };
-document.querySelector('#alertsNav').onclick=event=>{event.preventDefault();history.replaceState(null,'','#alerts');showDashboardView('alerts')};
+document.querySelector('#alertsNav').onclick=null;
 ['analysisNav','reportsNav'].forEach(id=>document.querySelector(`#${id}`).addEventListener('click',()=>document.querySelector('#alerts').hidden=true));
 document.querySelectorAll('.sidebar nav a[href="#"],.sidebar nav a[href="#accounts"]').forEach(link=>link.addEventListener('click',()=>document.querySelector('#alerts').hidden=true));
 async function hydrateAlertPlans(){try{const response=await fetch('/api/alert-plans'),payload=await response.json(),remotePlans=payload.plans||{};if(Object.keys(remotePlans).length){for(const account of accounts)if(remotePlans[account.id])account.plan={...account.plan,...remotePlans[account.id]}}else savePlans();renderSummary();renderAccounts(document.querySelector('#searchInput').value)}catch{}}
 hydrateAlertPlans();
-if(location.hash==='#analysis')showDashboardView('analysis');else if(location.hash==='#reports')showDashboardView('reports');else if(location.hash==='#alerts')showDashboardView('alerts');
+document.querySelector('#analysisNav').onclick=null;document.querySelector('#reportsNav').onclick=null;
+const requestedView=new URLSearchParams(location.search).get('view');
+if(requestedView==='analysis')showDashboardView('analysis');else if(requestedView==='reports')showDashboardView('reports');else if(requestedView==='alerts')showDashboardView('alerts');
+if(MONITOR_API_BASE&&!localStorage.getItem(MONITOR_SESSION_KEY))showAlertLogin();
