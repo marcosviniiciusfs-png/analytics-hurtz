@@ -65,13 +65,13 @@ http.createServer((req,res)=>{
   if (requestUrl.pathname === '/api/evolution/phone') {
     const phone=(requestUrl.searchParams.get('phone')||'').replace(/\D/g,'');
     if(phone.length<10||phone.length>15)return jsonResponse(res,400,{error:'Digite o número completo com DDI e DDD'});
-    const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/evolution_catalog.py --phone ${phone}`;
+    const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; export EVOLUTION_API_URL='${process.env.EVOLUTION_API_URL||'http://127.0.0.1:8080'}'; python3 /opt/meta-ads-cli/monitor/evolution_catalog.py --phone ${phone}`;
     return runMonitorCommand(remote,{timeout:60000,maxBuffer:2*1024*1024},(error,stdout,stderr)=>{try{const payload=JSON.parse(stdout);return jsonResponse(res,error?502:200,payload)}catch{return jsonResponse(res,502,{error:'Resposta inválida da Evolution API'})}});
   }
   if (requestUrl.pathname === '/api/evolution/groups') {
     const instance=requestUrl.searchParams.get('instance')||'';
     if(!/^[\w .-]{1,100}$/.test(instance))return jsonResponse(res,400,{error:'Instância inválida'});
-    const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/evolution_catalog.py --groups '${instance}'`;
+    const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; export EVOLUTION_API_URL='${process.env.EVOLUTION_API_URL||'http://127.0.0.1:8080'}'; python3 /opt/meta-ads-cli/monitor/evolution_catalog.py --groups '${instance}'`;
     return runMonitorCommand(remote,{timeout:60000,maxBuffer:5*1024*1024},(error,stdout,stderr)=>{try{const payload=JSON.parse(stdout);return jsonResponse(res,error?502:200,payload)}catch{return jsonResponse(res,502,{error:'Resposta inválida da Evolution API'})}});
   }
   if (requestUrl.pathname === '/api/alerts/config' && req.method === 'PUT') {
