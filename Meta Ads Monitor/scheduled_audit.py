@@ -74,6 +74,19 @@ def main() -> int:
         latest_temp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         os.chmod(latest_temp, 0o600)
         latest_temp.replace(latest)
+        try:
+            sync = subprocess.run(
+                [sys.executable, str(ROOT / "supabase_sync.py"), str(snapshot), "--window", args.window],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            result["supabase"] = json.loads(sync.stdout)
+        except Exception as error:
+            result["warnings"].append(f"Supabase: snapshot local preservado, mas a persistência remota falhou: {error}")
+        status.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.chmod(status, 0o600)
     print(json.dumps({**result, "snapshot": str(snapshot)}, ensure_ascii=False))
     return 0 if result["ok"] else 2
 
