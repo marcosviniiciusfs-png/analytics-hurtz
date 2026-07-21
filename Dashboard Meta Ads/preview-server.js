@@ -56,7 +56,7 @@ http.createServer((req,res)=>{
       const plans={};
       for(const [id,plan] of Object.entries(payload.plans)){
         if(!/^act_\d+$/.test(id))continue;
-        plans[id]={deposit:Number(plan.deposit)||0,depositDate:String(plan.depositDate||''),depositTime:String(plan.depositTime||'00:00'),plannedDays:Math.max(1,Number(plan.plannedDays)||1),dailyLimit:Number(plan.dailyLimit)||0};
+        plans[id]={paymentType:plan.paymentType==='credit'?'credit':'prepaid',deposit:Number(plan.deposit)||0,depositDate:String(plan.depositDate||''),depositTime:String(plan.depositTime||'00:00'),plannedDays:Math.max(1,Number(plan.plannedDays)||1),dailyLimit:Number(plan.dailyLimit)||0,weeklyLimit:Number(plan.weeklyLimit)||0};
       }
       try{writeJsonFile(file,{updated_at:new Date().toISOString(),plans});jsonResponse(res,200,{ok:true,count:Object.keys(plans).length})}catch{return jsonResponse(res,500,{error:'Falha ao salvar planejamentos'})}
     });

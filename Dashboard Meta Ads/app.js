@@ -86,12 +86,15 @@ const fmtDate=d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:
 const fmtDateTime=d=>`${fmtDate(d)} às ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
 const feeAmount=deposit=>(Number(deposit)||0)*META_FEE_RATE;
 const netBudget=deposit=>Math.max(0,(Number(deposit)||0)-feeAmount(deposit));
+const isCreditAccount=account=>account?.plan?.paymentType==='credit';
 
 function loadPlans(){
   const saved=JSON.parse(localStorage.getItem('hurtz-balance-plans')||'{}');
   const idMigrations={act_90821734:'act_478905369997301',act_31177642:'act_767057339654401',act_55902811:'act_1467904571001656',act_21746390:'act_36589456883979012',act_66412098:'act_2797573667298980',act_78133025:'act_1505271587761873'};
   Object.entries(idMigrations).forEach(([oldId,newId])=>{if(saved[oldId]&&!saved[newId])saved[newId]=saved[oldId]});
   accounts.forEach(a=>{
+    if(!a.plan.paymentType)a.plan.paymentType='prepaid';
+    if(a.plan.weeklyLimit==null)a.plan.weeklyLimit=0;
     if(!a.plan.depositTime)a.plan.depositTime='00:00';
     a.trackingStart=a.plan.depositDate;
     a.trackedSpend=a.cycleSpend;
@@ -112,8 +115,8 @@ function metrics(a){
   const balance=Math.max(0,availableBudget-spendInCycle);
   const plannedEnd=addDays(start,a.plan.plannedDays);
   const calendarDaysRemaining=Math.max(0,Math.ceil((plannedEnd-NOW)/86400000));
-  const status=balance<=0?'empty':calendarDaysRemaining<=3?'attention':'active';
-  return {start,elapsed,availableBudget,fee:feeAmount(a.plan.deposit),spendInCycle,balance,plannedEnd,calendarDaysRemaining,status};
+  const credit=isCreditAccount(a),status=credit?'active':balance<=0?'empty':calendarDaysRemaining<=3?'attention':'active';
+  return {credit,start,elapsed,availableBudget:credit?0:availableBudget,fee:credit?0:feeAmount(a.plan.deposit),spendInCycle:credit?0:spendInCycle,balance:credit?null:balance,plannedEnd,calendarDaysRemaining:credit?null:calendarDaysRemaining,status};
 }
 const statusLabel={active:'Saudável',attention:'Até 3 dias',empty:'Saldo esgotado'};
 function isAccountActive(account){return account.activeCampaignCount==null?account.status==='active':account.activeCampaignCount>0}
@@ -420,8 +423,8 @@ function renderSummary(){
   const monitored=accounts.filter(account=>selectedAccountIds.has(account.id));
   const calculated=monitored.map(a=>metrics(a));
   const active=monitored.filter(isAccountActive).length;
-  const empty=calculated.filter(m=>m.balance<=0).length;
-  const ending=calculated.filter(m=>m.balance>0&&m.calendarDaysRemaining<=3).length;
+  const empty=calculated.filter(m=>!m.credit&&m.balance<=0).length;
+  const ending=calculated.filter(m=>!m.credit&&m.balance>0&&m.calendarDaysRemaining<=3).length;
   const exceeded=dailyLimitBreaches();
   document.querySelector('#alertPill').textContent=empty+ending;
   summaryCards.innerHTML=`
@@ -438,6 +441,7 @@ function renderSummary(){
 
 function forecastCell(a){
   const m=metrics(a);
+  if(m.credit)return `<span class="forecast safe">Cartão de crédito</span><small class="forecast-date">Teto semanal ${brl(a.plan.weeklyLimit)}</small>`;
   return `<span class="forecast ${m.status==='attention'?'warning':'safe'}">${a.plan.plannedDays} dias de duração</span><small class="forecast-date">Termina ${fmtDate(m.plannedEnd)}</small>`;
 }
 function heatCell(content,tone,reason,classes=''){
@@ -454,20 +458,20 @@ function spendHeat(a,p){
   return {tone:'good',reason:`Verde: maior gasto diário ${brl(maxDaily)}, abaixo de 90% do limite de ${brl(a.plan.dailyLimit)}.`};
 }
 function renderAccounts(filter=''){
-  const matchesSummary=a=>{const m=metrics(a);if(activeSummaryFilter==='active')return isAccountActive(a);if(activeSummaryFilter==='empty')return m.balance<=0;if(activeSummaryFilter==='ending')return m.balance>0&&m.calendarDaysRemaining<=3;if(activeSummaryFilter==='exceeded')return exceedsDailyLimit(a);return true};
+  const matchesSummary=a=>{const m=metrics(a);if(activeSummaryFilter==='active')return isAccountActive(a);if(activeSummaryFilter==='empty')return !m.credit&&m.balance<=0;if(activeSummaryFilter==='ending')return !m.credit&&m.balance>0&&m.calendarDaysRemaining<=3;if(activeSummaryFilter==='exceeded')return exceedsDailyLimit(a);return true};
   const list=accounts.filter(a=>selectedAccountIds.has(a.id)&&matchesSummary(a)&&a.name.toLowerCase().includes(filter.toLowerCase()));
-  accountsBody.innerHTML=list.map(a=>{const m=metrics(a),p=performanceForPeriod(a),status=metaAccountStatus(a),spendState=spendHeat(a,p),balanceRatio=m.availableBudget?m.balance/m.availableBudget:0,balanceState=m.balance<=0?{tone:'danger',reason:'Vermelho: o saldo estimado do planejamento chegou a zero.'}:balanceRatio<=.3?{tone:'warning',reason:`Amarelo: resta ${Math.round(balanceRatio*100)}% da verba líquida planejada.`}:{tone:'good',reason:`Verde: resta ${Math.round(balanceRatio*100)}% da verba líquida planejada.`},forecastState=m.calendarDaysRemaining<=0?{tone:'danger',reason:'Vermelho: a data planejada de término já chegou.'}:m.calendarDaysRemaining<=3?{tone:'warning',reason:`Amarelo: faltam ${m.calendarDaysRemaining} dias para o fim planejado.`}:{tone:'good',reason:`Verde: faltam ${m.calendarDaysRemaining} dias para o fim planejado.`};return `<tr>
+  accountsBody.innerHTML=list.map(a=>{const m=metrics(a),p=performanceForPeriod(a),status=metaAccountStatus(a),spendState=spendHeat(a,p),balanceRatio=m.availableBudget?m.balance/m.availableBudget:0,balanceState=m.credit?{tone:'neutral',reason:'Conta no cartão: não existe saldo pré-pago para estimar.'}:m.balance<=0?{tone:'danger',reason:'Vermelho: o saldo estimado do planejamento chegou a zero.'}:balanceRatio<=.3?{tone:'warning',reason:`Amarelo: resta ${Math.round(balanceRatio*100)}% da verba líquida planejada.`}:{tone:'good',reason:`Verde: resta ${Math.round(balanceRatio*100)}% da verba líquida planejada.`},forecastState=m.credit?{tone:'neutral',reason:`Cartão: acompanhamento pelo teto diário de ${brl(a.plan.dailyLimit)} e semanal de ${brl(a.plan.weeklyLimit)}.`}:m.calendarDaysRemaining<=0?{tone:'danger',reason:'Vermelho: a data planejada de término já chegou.'}:m.calendarDaysRemaining<=3?{tone:'warning',reason:`Amarelo: faltam ${m.calendarDaysRemaining} dias para o fim planejado.`}:{tone:'good',reason:`Verde: faltam ${m.calendarDaysRemaining} dias para o fim planejado.`};return `<tr>
     <td><div class="account-cell">${a.businessPicture?`<img class="account-logo account-photo" src="${a.businessPicture}" alt="" referrerpolicy="no-referrer" />`:`<span class="account-logo" style="background:${a.color}">${a.initials}</span>`}<div><button class="account-link" data-open="${a.id}">${a.name}</button><small class="account-id">${a.id}</small></div></div></td>
     ${heatCell(`<span class="status ${status.css}">${status.label}</span>`,a.activeCampaignCount==null?'warning':a.activeCampaignCount>0?'good':'danger',a.activeCampaignCount==null?'Amarelo: aguardando a consulta de campanhas na Meta.':a.activeCampaignCount>0?`Verde: ${a.activeCampaignCount} campanhas estão ativas na Meta.`:'Vermelho: nenhuma campanha ativa foi encontrada.')}
     ${heatCell(`<div class="objective">${a.objectives.map(o=>`<span class="tag">${o}</span>`).join('')}</div>`,'neutral','Neutro: objetivo da campanha é informativo e não representa desempenho.')}
     ${heatCell(`<strong>${p.leads?brl(p.cpl):'—'}</strong>`,'neutral',p.leads?'Neutro: configure uma meta de CPL para ativar a comparação.':'Neutro: CPL sem resultado auditado no período.','number')}
-    ${heatCell(`<strong>${brl(a.plan.deposit)}</strong><small class="table-sub">${fmtDateTime(m.start)} • líquido ${brl(m.availableBudget)}</small>`,a.plan.deposit>0?'good':'danger',a.plan.deposit>0?`Verde: depósito de ${brl(a.plan.deposit)} configurado no planejamento.`:'Vermelho: nenhum depósito foi configurado.','number')}
-    ${heatCell(`<strong>${brl(m.spendInCycle)}</strong><small class="table-sub">Projeção pelo teto diário</small>`,'neutral','Neutro: projeção calculada pelo limite diário e tempo transcorrido; não é gasto real da Meta.','number')}
+    ${m.credit?heatCell(`<strong>Cartão de crédito</strong><small class="table-sub">Sem depósito ou saldo pré-pago</small>`,'neutral','Conta configurada para acompanhar somente os gastos auditados.','number'):heatCell(`<strong>${brl(a.plan.deposit)}</strong><small class="table-sub">${fmtDateTime(m.start)} • líquido ${brl(m.availableBudget)}</small>`,a.plan.deposit>0?'good':'danger',a.plan.deposit>0?`Verde: depósito de ${brl(a.plan.deposit)} configurado no planejamento.`:'Vermelho: nenhum depósito foi configurado.','number')}
+    ${m.credit?heatCell(`<strong>${brl(a.plan.dailyLimit)}/dia</strong><small class="table-sub">${brl(a.plan.weeklyLimit)}/semana</small>`,'neutral','Limites de gasto configurados para o cartão.','number'):heatCell(`<strong>${brl(m.spendInCycle)}</strong><small class="table-sub">Projeção pelo teto diário</small>`,'neutral','Neutro: projeção calculada pelo limite diário e tempo transcorrido; não é gasto real da Meta.','number')}
     ${heatCell(`<strong>${brlExact(p.spend)}</strong><small class="table-sub">${p.complete?(p.leads==null?'API auditada • resultados pendentes':`API auditada • ${num(p.leads)} leads`):'Período não auditado'}</small>`,spendState.tone,spendState.reason,'number')}
-    ${heatCell(`<strong>${brl(m.balance)}</strong><small>Limite ${brl(a.plan.dailyLimit)}/dia</small>`,balanceState.tone,balanceState.reason,'number balance')}
+    ${heatCell(m.credit?`<strong>Não se aplica</strong><small>Gasto auditado pela Meta</small>`:`<strong>${brl(m.balance)}</strong><small>Limite ${brl(a.plan.dailyLimit)}/dia</small>`,balanceState.tone,balanceState.reason,'number balance')}
     ${heatCell(forecastCell(a),forecastState.tone,forecastState.reason)}
-    <td><button class="plan-button" data-plan="${a.id}" title="Configurar saldo">⚙</button><button class="arrow-button" data-open="${a.id}">›</button></td></tr>`}).join('');
-  const performances=list.map(a=>performanceForPeriod(a)),allAudited=performances.every(p=>p.complete),allLeadsAudited=allAudited&&performances.every(p=>p.leads!=null),spend=allAudited?performances.reduce((s,p)=>s+p.spend,0):null,leads=allLeadsAudited?performances.reduce((s,p)=>s+p.leads,0):null,deposit=list.reduce((s,a)=>s+a.plan.deposit,0),cycle=list.reduce((s,a)=>s+metrics(a).spendInCycle,0),balance=list.reduce((s,a)=>s+metrics(a).balance,0);
+    <td><button class="plan-button" data-plan="${a.id}" title="Configurar pagamento e limites">⚙</button><button class="arrow-button" data-open="${a.id}">›</button></td></tr>`}).join('');
+  const performances=list.map(a=>performanceForPeriod(a)),allAudited=performances.every(p=>p.complete),allLeadsAudited=allAudited&&performances.every(p=>p.leads!=null),spend=allAudited?performances.reduce((s,p)=>s+p.spend,0):null,leads=allLeadsAudited?performances.reduce((s,p)=>s+p.leads,0):null,prepaid=list.filter(a=>!isCreditAccount(a)),deposit=prepaid.reduce((s,a)=>s+a.plan.deposit,0),cycle=prepaid.reduce((s,a)=>s+metrics(a).spendInCycle,0),balance=prepaid.reduce((s,a)=>s+metrics(a).balance,0);
   accountsFoot.innerHTML=`<tr><td colspan="3">GERAL • ${list.length} CONTAS</td><td class="number">${leads?brl(spend/leads):'—'}</td><td class="number">${brl(deposit)}</td><td class="number">${brl(cycle)}</td><td class="number">${brlExact(spend)}</td><td class="number">${brl(balance)}</td><td colspan="2">${allAudited?'Auditoria concluída':'Auditoria pendente'}</td></tr>`;
   const filterNames={active:'Contas ativas',empty:'Contas sem saldo',ending:'Plano termina em até 3 dias',exceeded:'Acima do limite diário'};
   document.querySelector('#accountCount').textContent=`Exibindo ${list.length} de ${accounts.length} contas${activeSummaryFilter!=='all'?` • ${filterNames[activeSummaryFilter]}`:''}`;
@@ -493,26 +497,39 @@ document.querySelectorAll('[data-campaign-goal]').forEach(button=>button.onclick
 document.querySelector('#closeCampaignGoal').onclick=closeCampaignGoal;
 document.querySelector('#campaignGoalPanel').onsubmit=event=>{event.preventDefault();if(!selectedAccount||!selectedCampaignGoal)return;const all=readCampaignGoals(),values={};new FormData(event.currentTarget).forEach((value,key)=>values[key]=value);const number=name=>values[name]===''?null:Number(values[name]);if(number('min')!=null&&number('ideal')!=null&&number('min')>number('ideal')){alert('O valor mínimo não pode ser maior que o ideal.');return}if(number('ideal')!=null&&number('max')!=null&&number('ideal')>number('max')){alert('O valor ideal não pode ser maior que o máximo.');return}all[selectedAccount.id]??={};all[selectedAccount.id][selectedCampaignGoal]=values;localStorage.setItem(CAMPAIGN_GOALS_KEY,JSON.stringify(all));closeCampaignGoal();renderModal()};
 document.querySelector('#clearCampaignGoal').onclick=()=>{if(!selectedAccount||!selectedCampaignGoal)return;const all=readCampaignGoals();if(all[selectedAccount.id])delete all[selectedAccount.id][selectedCampaignGoal];localStorage.setItem(CAMPAIGN_GOALS_KEY,JSON.stringify(all));closeCampaignGoal();renderModal()};
-function openAccount(id,showPlan=false){closeCampaignGoal();selectedAccount=accounts.find(a=>a.id===id);document.querySelector('#modalTitle').textContent=selectedAccount.name;document.querySelector('#modalSubtitle').textContent=`${selectedAccount.id} • planejamento conciliado da conta`;fillPlan();syncModalDates();renderModal();togglePlan(showPlan);modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';loadSelectedAccountAudit()}
-function fillPlan(){const p=selectedAccount.plan;document.querySelector('#depositAmount').value=p.deposit;document.querySelector('#depositDate').value=p.depositDate;document.querySelector('#depositTime').value=p.depositTime||'00:00';document.querySelector('#plannedDays').value=p.plannedDays;document.querySelector('#dailyLimit').value=p.dailyLimit;renderNetBudgetPreview()}
-function togglePlan(show){planForm.hidden=!show;document.querySelector('#planToggle').textContent=show?'Fechar configuração':'Configurar saldo'}
+function openAccount(id,showPlan=false){closeCampaignGoal();selectedAccount=accounts.find(a=>a.id===id);document.querySelector('#modalTitle').textContent=selectedAccount.name;document.querySelector('#modalSubtitle').textContent=`${selectedAccount.id} • ${isCreditAccount(selectedAccount)?'controle de gastos no cartão':'planejamento conciliado da conta'}`;fillPlan();syncModalDates();renderModal();togglePlan(showPlan);modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';loadSelectedAccountAudit()}
+function fillPlan(){const p=selectedAccount.plan;document.querySelector('#paymentType').value=p.paymentType||'prepaid';document.querySelector('#depositAmount').value=p.deposit;document.querySelector('#depositDate').value=p.depositDate;document.querySelector('#depositTime').value=p.depositTime||'00:00';document.querySelector('#plannedDays').value=p.plannedDays;document.querySelector('#dailyLimit').value=p.dailyLimit;document.querySelector('#weeklyLimit').value=p.weeklyLimit||'';syncPaymentTypeFields();renderNetBudgetPreview()}
+function syncPaymentTypeFields(){const credit=document.querySelector('#paymentType').value==='credit';document.querySelectorAll('[data-prepaid-field]').forEach(field=>{field.hidden=credit;field.querySelector('input').required=!credit});document.querySelectorAll('[data-credit-field]').forEach(field=>{field.hidden=!credit;field.querySelector('input').required=credit});document.querySelector('#planFormTitle').textContent=credit?'Controle de gastos no cartão':'Planejamento do depósito';document.querySelector('#planFormDescription').textContent=credit?'A Meta será auditada pelos tetos diário e semanal; saldo e depósito não se aplicam.':'O ciclo considera somente gastos posteriores à data e ao horário do depósito.'}
+function togglePlan(show){planForm.hidden=!show;document.querySelector('#planToggle').textContent=show?'Fechar configuração':'Configurar pagamento'}
 function renderModal(){
   const a=selectedAccount,m=metrics(a),from=parseDate(document.querySelector('#dateFrom').value),to=parseDate(document.querySelector('#dateTo').value),p=performanceForPeriod(a,from,to),cpl=p.cpl;
+  const credit=m.credit,periodDays=diffDays(to,from),periodLimit=Math.min((a.plan.weeklyLimit||Infinity)*Math.ceil(periodDays/7),(a.plan.dailyLimit||Infinity)*periodDays),periodRatio=p.complete&&Number.isFinite(periodLimit)&&periodLimit>0?p.spend/periodLimit:null;
   const planStatus=m.start>NOW?'Ainda não iniciado':m.calendarDaysRemaining===0?'Finalizado':'Em andamento';
-  document.querySelector('#modalSummary').innerHTML=[
+  document.querySelector('#modalSummary').innerHTML=(credit?[
+    ['Forma de pagamento','Cartão de crédito','Conta acompanhada exclusivamente pelo gasto oficial da Meta.'],
+    ['Gasto no período',brlExact(p.spend),p.complete?'Valor usado auditado para o filtro selecionado.':'Aguardando auditoria da Meta.'],
+    ['Limite diário',brl(a.plan.dailyLimit),'Valor máximo configurado para gastar em um dia.'],
+    ['Limite semanal',brl(a.plan.weeklyLimit),'Valor máximo configurado para gastar de segunda a domingo.'],
+    ['Uso do limite',periodRatio==null?'—':`${Math.round(periodRatio*100)}%`,'Comparação do gasto auditado com o menor teto aplicável ao período.'],
+    ['Auditoria',p.complete?'Conciliada':'Pendente','O gasto só é exibido como válido após conta e campanhas reconciliarem.']
+  ]:[
     ['Saldo estimado',brl(m.balance),'Verba disponível menos o consumo calculado desde o depósito.'],
     ['Valor depositado',brl(a.plan.deposit),'Valor bruto informado no depósito da conta.'],
     ['Taxa Meta (12,15%)',brl(m.fee),'Parcela de 12,15% descontada do valor depositado.'],
     ['Verba disponível',brl(m.availableBudget),'Valor líquido que poderá ser usado nos anúncios.'],
     ['Duração',`${a.plan.plannedDays} dias`,'Quantidade de dias definida para o saldo durar.'],
     ['Fim previsto',fmtDate(m.plannedEnd),'Data do depósito somada à duração planejada.']
-  ].map(([l,v,h])=>`<div class="modal-stat">${metricLabel(l,h)}<strong>${v}</strong></div>`).join('');
-  document.querySelector('#planStrip').innerHTML=`
+  ]).map(([l,v,h])=>`<div class="modal-stat">${metricLabel(l,h)}<strong>${v}</strong></div>`).join('');
+  document.querySelector('#planStrip').innerHTML=credit?`
+    <div>${metricLabel('Gasto acompanhado','Somente valores oficiais auditados retornados pela Meta.')}<strong>${brlExact(p.spend)}</strong></div>
+    <div>${metricLabel('Teto diário','Valor máximo permitido por dia.')}<strong>${brl(a.plan.dailyLimit)}</strong></div>
+    <div>${metricLabel('Teto semanal','Valor máximo permitido de segunda a domingo.')}<strong>${brl(a.plan.weeklyLimit)}</strong></div>
+    <div>${metricLabel('Status do controle','Compara o gasto auditado com os limites configurados.')}<strong>${periodRatio==null?'Aguardando auditoria':periodRatio>1?'Acima do limite':periodRatio>=.9?'Próximo do limite':'Dentro do limite'}</strong></div>`:`
     <div>${metricLabel('Data e hora do depósito','Momento exato a partir do qual os gastos entram no ciclo.')}<strong>${fmtDateTime(m.start)}</strong></div>
     <div>${metricLabel('Limite diário','Valor máximo planejado para gastar por dia.')}<strong>${brl(a.plan.dailyLimit)}</strong></div>
     <div>${metricLabel('Dias transcorridos','Dias completos desde o depósito dentro deste planejamento.')}<strong>${Math.min(m.elapsed,a.plan.plannedDays)} de ${a.plan.plannedDays}</strong></div>
     <div>${metricLabel('Status do planejamento','Mostra se o ciclo ainda vai começar, está ativo ou terminou.')}<strong>${planStatus}</strong></div>`;
-  const goalSettings=campaignGoals(a.id),periodDays=diffDays(to,from);
+  const goalSettings=campaignGoals(a.id);
   document.querySelector('#campaignBody').innerHTML=p.complete&&p.campaigns?.length?p.campaigns.map(campaign=>{
     const investmentState=metricGoalState('investment',campaign,periodDays,goalSettings.investment);
     const resultState=metricGoalState('results',campaign,periodDays,goalSettings.results);
@@ -524,9 +541,12 @@ function renderModal(){
   document.querySelector('#campaignFoot').innerHTML=displayedCampaigns.length?`<tr><td colspan="3"><strong>TOTAL • ${displayedCampaigns.length} CAMPANHAS</strong><small>Todas as campanhas com veiculação no período, incluindo pausadas</small></td><td class="number"><strong>${brl(totalSpend)}</strong><small>Valor usado</small></td><td class="number"><strong>${totalResults==null?'—':num(totalResults)}</strong><small>Resultados auditados</small></td><td class="number"><strong>${generalCost==null?'—':brl(generalCost)}</strong><small>${generalCostLabel}</small></td></tr><tr class="campaign-audit-row"><td colspan="6"><strong>✓ AUDITORIA META CONCLUÍDA</strong><small>Conta ${brl(p.accountSpend)} = soma de todas as campanhas com veiculação ${brl(p.campaignSum)}.</small></td></tr>`:'';
   document.querySelector('#campaignCount').textContent=p.complete?`${p.campaigns?.length||0} campanhas auditadas`:'Auditoria pendente';updatePeriodLabel();
 }
-function renderNetBudgetPreview(){const deposit=Number(document.querySelector('#depositAmount').value)||0;document.querySelector('#netBudgetPreview').innerHTML=`<span>Taxa de 12,15%: <b>${brl(feeAmount(deposit))}</b></span><strong>Disponível para anúncios: ${brl(netBudget(deposit))}</strong>`}
-planForm.addEventListener('submit',e=>{e.preventDefault();selectedAccount.plan={deposit:Number(document.querySelector('#depositAmount').value),depositDate:document.querySelector('#depositDate').value,depositTime:document.querySelector('#depositTime').value,plannedDays:Number(document.querySelector('#plannedDays').value),dailyLimit:Number(document.querySelector('#dailyLimit').value)};savePlans();renderSummary();renderAccounts(document.querySelector('#searchInput').value);renderModal();togglePlan(false)});
+function renderNetBudgetPreview(){const credit=document.querySelector('#paymentType').value==='credit',deposit=Number(document.querySelector('#depositAmount').value)||0,daily=Number(document.querySelector('#dailyLimit').value)||0,weekly=Number(document.querySelector('#weeklyLimit').value)||0;document.querySelector('#netBudgetPreview').innerHTML=credit?`<span>Limite diário: <b>${brl(daily)}</b></span><strong>Limite semanal: ${brl(weekly)}</strong>`:`<span>Taxa de 12,15%: <b>${brl(feeAmount(deposit))}</b></span><strong>Disponível para anúncios: ${brl(netBudget(deposit))}</strong>`}
+planForm.addEventListener('submit',e=>{e.preventDefault();const previous=selectedAccount.plan,paymentType=document.querySelector('#paymentType').value;selectedAccount.plan={paymentType,deposit:paymentType==='credit'?0:Number(document.querySelector('#depositAmount').value),depositDate:document.querySelector('#depositDate').value||previous.depositDate||iso(NOW),depositTime:document.querySelector('#depositTime').value||'00:00',plannedDays:paymentType==='credit'?1:Number(document.querySelector('#plannedDays').value),dailyLimit:Number(document.querySelector('#dailyLimit').value),weeklyLimit:paymentType==='credit'?Number(document.querySelector('#weeklyLimit').value):0};savePlans();renderSummary();renderAccounts(document.querySelector('#searchInput').value);renderModal();togglePlan(false)});
 document.querySelector('#depositAmount').addEventListener('input',renderNetBudgetPreview);
+document.querySelector('#dailyLimit').addEventListener('input',renderNetBudgetPreview);
+document.querySelector('#weeklyLimit').addEventListener('input',renderNetBudgetPreview);
+document.querySelector('#paymentType').addEventListener('change',()=>{syncPaymentTypeFields();renderNetBudgetPreview()});
 document.querySelector('#planToggle').onclick=()=>togglePlan(planForm.hidden);
 document.querySelector('#globalDateButton').onclick=e=>{e.stopPropagation();const panel=document.querySelector('#dateFilterPanel');toggleDatePanel(panel.hidden,e.currentTarget)};
 document.querySelector('#tableDateFilter').onclick=e=>{e.stopPropagation();const panel=document.querySelector('#dateFilterPanel');toggleDatePanel(panel.hidden,e.currentTarget)};
