@@ -202,7 +202,7 @@
         <label data-prepaid-field>Duração planejada<input type="number" id="plannedDays" min="1" step="1" required /><small>dias</small></label>
         <label>Máximo por dia<input type="number" id="dailyLimit" min="0" step="0.01" required /></label>
         <label data-credit-field hidden>Máximo por semana<input type="number" id="weeklyLimit" min="0" step="0.01" /></label>
-        <button type="submit">Salvar planejamento</button>
+        <button type="submit" id="savePaymentPlan">Salvar planejamento</button>
         <div class="net-budget-preview" id="netBudgetPreview" aria-live="polite"></div>
       </form>
       <div class="modal-toolbar"><div class="quick-dates" id="quickDates"><button data-range="today">Hoje</button><button class="active" data-range="yesterday">Ontem</button><button data-range="7">Últimos 7 dias</button><button data-range="30">Últimos 30 dias</button></div><label class="custom-date">Período <input type="date" id="dateFrom" /><span>até</span><input type="date" id="dateTo" /></label></div>

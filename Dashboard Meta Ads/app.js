@@ -81,6 +81,7 @@ const parseDate=s=>new Date(`${s}T12:00:00`);
 const parsePlanStart=plan=>new Date(`${plan.depositDate}T${plan.depositTime||'00:00'}:00`);
 const iso=d=>d.toISOString().slice(0,10);
 const addDays=(date,days)=>{const d=new Date(date);d.setDate(d.getDate()+days);return d};
+const mondayOfWeek=date=>{const d=new Date(date);d.setHours(12,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d};
 const diffDays=(a,b)=>Math.max(1,Math.floor((a-b)/86400000)+1);
 const fmtDate=d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}).replace('.','');
 const fmtDateTime=d=>`${fmtDate(d)} às ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
@@ -375,8 +376,17 @@ async function loadSelectedAccountAudit(){
     const response=await fetch(`/api/meta-spend?from=${iso(from)}&to=${iso(to)}&accounts=${encodeURIComponent(accountId)}`);
     if(!response.ok)throw new Error('Falha na coleta');
     const payload=await response.json();storeAuditPayload(key,payload);
-    if(selectedAccount?.id===accountId){renderSummary();renderAccounts(document.querySelector('#searchInput').value);renderModal()}
+    if(selectedAccount?.id===accountId){renderSummary();renderAccounts(document.querySelector('#searchInput').value);renderModal();if(isCreditAccount(selectedAccount))await loadCreditAccountPeriods(accountId)}
   }catch(error){if(selectedAccount?.id===accountId)document.querySelector('#campaignCount').textContent='Falha na auditoria'}
+}
+async function loadCreditAccountPeriods(accountId){
+  const today=parseDate(iso(NOW)),weekStart=mondayOfWeek(NOW),periods=[[today,today],[weekStart,today]];
+  for(const [from,to] of periods){
+    const key=`${iso(from)}|${iso(to)}`;
+    if(LIVE_PERIOD_DATA[key]?.[accountId])continue;
+    try{const response=await fetch(`/api/meta-spend?from=${iso(from)}&to=${iso(to)}&accounts=${encodeURIComponent(accountId)}`);if(!response.ok)continue;storeAuditPayload(key,await response.json())}catch{}
+  }
+  if(selectedAccount?.id===accountId)renderModal();
 }
 function lastThreeDays(){const to=new Date(NOW),from=new Date(NOW);from.setDate(from.getDate()-2);return {from,to,key:`${iso(from)}|${iso(to)}`}}
 function dailyLimitBreaches(){
@@ -499,19 +509,19 @@ document.querySelector('#campaignGoalPanel').onsubmit=event=>{event.preventDefau
 document.querySelector('#clearCampaignGoal').onclick=()=>{if(!selectedAccount||!selectedCampaignGoal)return;const all=readCampaignGoals();if(all[selectedAccount.id])delete all[selectedAccount.id][selectedCampaignGoal];localStorage.setItem(CAMPAIGN_GOALS_KEY,JSON.stringify(all));closeCampaignGoal();renderModal()};
 function openAccount(id,showPlan=false){closeCampaignGoal();selectedAccount=accounts.find(a=>a.id===id);document.querySelector('#modalTitle').textContent=selectedAccount.name;document.querySelector('#modalSubtitle').textContent=`${selectedAccount.id} • ${isCreditAccount(selectedAccount)?'controle de gastos no cartão':'planejamento conciliado da conta'}`;fillPlan();syncModalDates();renderModal();togglePlan(showPlan);modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';loadSelectedAccountAudit()}
 function fillPlan(){const p=selectedAccount.plan;document.querySelector('#paymentType').value=p.paymentType||'prepaid';document.querySelector('#depositAmount').value=p.deposit;document.querySelector('#depositDate').value=p.depositDate;document.querySelector('#depositTime').value=p.depositTime||'00:00';document.querySelector('#plannedDays').value=p.plannedDays;document.querySelector('#dailyLimit').value=p.dailyLimit;document.querySelector('#weeklyLimit').value=p.weeklyLimit||'';syncPaymentTypeFields();renderNetBudgetPreview()}
-function syncPaymentTypeFields(){const credit=document.querySelector('#paymentType').value==='credit';document.querySelectorAll('[data-prepaid-field]').forEach(field=>{field.hidden=credit;field.querySelector('input').required=!credit});document.querySelectorAll('[data-credit-field]').forEach(field=>{field.hidden=!credit;field.querySelector('input').required=credit});document.querySelector('#planFormTitle').textContent=credit?'Controle de gastos no cartão':'Planejamento do depósito';document.querySelector('#planFormDescription').textContent=credit?'A Meta será auditada pelos tetos diário e semanal; saldo e depósito não se aplicam.':'O ciclo considera somente gastos posteriores à data e ao horário do depósito.'}
+function syncPaymentTypeFields(){const credit=document.querySelector('#paymentType').value==='credit';document.querySelectorAll('[data-prepaid-field]').forEach(field=>{field.hidden=credit;field.querySelector('input').required=!credit});document.querySelectorAll('[data-credit-field]').forEach(field=>{field.hidden=!credit;field.querySelector('input').required=credit});document.querySelector('#planFormTitle').textContent=credit?'Controle de gastos no cartão':'Planejamento do depósito';document.querySelector('#planFormDescription').textContent=credit?'Defina os tetos de gasto. A semana é calculada de segunda-feira a domingo; não há saldo ou depósito.':'O ciclo considera somente gastos posteriores à data e ao horário do depósito.';document.querySelector('#savePaymentPlan').textContent=credit?'Salvar limites':'Salvar planejamento'}
 function togglePlan(show){planForm.hidden=!show;document.querySelector('#planToggle').textContent=show?'Fechar configuração':'Configurar pagamento'}
 function renderModal(){
   const a=selectedAccount,m=metrics(a),from=parseDate(document.querySelector('#dateFrom').value),to=parseDate(document.querySelector('#dateTo').value),p=performanceForPeriod(a,from,to),cpl=p.cpl;
-  const credit=m.credit,periodDays=diffDays(to,from),periodLimit=Math.min((a.plan.weeklyLimit||Infinity)*Math.ceil(periodDays/7),(a.plan.dailyLimit||Infinity)*periodDays),periodRatio=p.complete&&Number.isFinite(periodLimit)&&periodLimit>0?p.spend/periodLimit:null;
+  const credit=m.credit,today=parseDate(iso(NOW)),weekStart=mondayOfWeek(NOW),todaySpend=performanceForPeriod(a,today,today),weekSpend=performanceForPeriod(a,weekStart,today),dailyUsed=todaySpend.complete?todaySpend.spend:null,weeklyUsed=weekSpend.complete?weekSpend.spend:null,dailyRemaining=dailyUsed==null?null:Math.max(0,a.plan.dailyLimit-dailyUsed),weeklyRemaining=weeklyUsed==null?null:Math.max(0,a.plan.weeklyLimit-weeklyUsed),dailyRatio=dailyUsed!=null&&a.plan.dailyLimit>0?dailyUsed/a.plan.dailyLimit:null,weeklyRatio=weeklyUsed!=null&&a.plan.weeklyLimit>0?weeklyUsed/a.plan.weeklyLimit:null;
   const planStatus=m.start>NOW?'Ainda não iniciado':m.calendarDaysRemaining===0?'Finalizado':'Em andamento';
   document.querySelector('#modalSummary').innerHTML=(credit?[
     ['Forma de pagamento','Cartão de crédito','Conta acompanhada exclusivamente pelo gasto oficial da Meta.'],
-    ['Gasto no período',brlExact(p.spend),p.complete?'Valor usado auditado para o filtro selecionado.':'Aguardando auditoria da Meta.'],
-    ['Limite diário',brl(a.plan.dailyLimit),'Valor máximo configurado para gastar em um dia.'],
-    ['Limite semanal',brl(a.plan.weeklyLimit),'Valor máximo configurado para gastar de segunda a domingo.'],
-    ['Uso do limite',periodRatio==null?'—':`${Math.round(periodRatio*100)}%`,'Comparação do gasto auditado com o menor teto aplicável ao período.'],
-    ['Auditoria',p.complete?'Conciliada':'Pendente','O gasto só é exibido como válido após conta e campanhas reconciliarem.']
+    ['Gasto hoje',brlExact(dailyUsed),'Valor usado retornado pela Meta hoje; permanece provisório até o fechamento diário.'],
+    ['Restante hoje',dailyRemaining==null?'—':brl(dailyRemaining),'Limite diário menos o gasto provisório de hoje.'],
+    ['Uso diário',dailyRatio==null?'—':`${Math.round(dailyRatio*100)}%`,'Percentual consumido do limite diário configurado.'],
+    ['Gasto na semana',brlExact(weeklyUsed),'Soma de segunda-feira até hoje; provisória enquanto o dia atual estiver aberto.'],
+    ['Restante na semana',weeklyRemaining==null?'—':brl(weeklyRemaining),'Limite semanal menos o gasto acumulado desde segunda-feira.']
   ]:[
     ['Saldo estimado',brl(m.balance),'Verba disponível menos o consumo calculado desde o depósito.'],
     ['Valor depositado',brl(a.plan.deposit),'Valor bruto informado no depósito da conta.'],
@@ -521,10 +531,10 @@ function renderModal(){
     ['Fim previsto',fmtDate(m.plannedEnd),'Data do depósito somada à duração planejada.']
   ]).map(([l,v,h])=>`<div class="modal-stat">${metricLabel(l,h)}<strong>${v}</strong></div>`).join('');
   document.querySelector('#planStrip').innerHTML=credit?`
-    <div>${metricLabel('Gasto acompanhado','Somente valores oficiais auditados retornados pela Meta.')}<strong>${brlExact(p.spend)}</strong></div>
     <div>${metricLabel('Teto diário','Valor máximo permitido por dia.')}<strong>${brl(a.plan.dailyLimit)}</strong></div>
-    <div>${metricLabel('Teto semanal','Valor máximo permitido de segunda a domingo.')}<strong>${brl(a.plan.weeklyLimit)}</strong></div>
-    <div>${metricLabel('Status do controle','Compara o gasto auditado com os limites configurados.')}<strong>${periodRatio==null?'Aguardando auditoria':periodRatio>1?'Acima do limite':periodRatio>=.9?'Próximo do limite':'Dentro do limite'}</strong></div>`:`
+    <div>${metricLabel('Teto semanal','Valor máximo permitido de segunda-feira a domingo.')}<strong>${brl(a.plan.weeklyLimit)}</strong></div>
+    <div>${metricLabel('Uso semanal','Percentual consumido do limite semanal configurado.')}<strong>${weeklyRatio==null?'Aguardando Meta':`${Math.round(weeklyRatio*100)}%`}</strong></div>
+    <div>${metricLabel('Status do controle','Considera o pior estado entre os limites diário e semanal.')}<strong>${dailyRatio==null||weeklyRatio==null?'Aguardando dados':Math.max(dailyRatio,weeklyRatio)>1?'Acima do limite':Math.max(dailyRatio,weeklyRatio)>=.9?'Próximo do limite':'Dentro do limite'}</strong></div>`:`
     <div>${metricLabel('Data e hora do depósito','Momento exato a partir do qual os gastos entram no ciclo.')}<strong>${fmtDateTime(m.start)}</strong></div>
     <div>${metricLabel('Limite diário','Valor máximo planejado para gastar por dia.')}<strong>${brl(a.plan.dailyLimit)}</strong></div>
     <div>${metricLabel('Dias transcorridos','Dias completos desde o depósito dentro deste planejamento.')}<strong>${Math.min(m.elapsed,a.plan.plannedDays)} de ${a.plan.plannedDays}</strong></div>
@@ -542,7 +552,7 @@ function renderModal(){
   document.querySelector('#campaignCount').textContent=p.complete?`${p.campaigns?.length||0} campanhas auditadas`:'Auditoria pendente';updatePeriodLabel();
 }
 function renderNetBudgetPreview(){const credit=document.querySelector('#paymentType').value==='credit',deposit=Number(document.querySelector('#depositAmount').value)||0,daily=Number(document.querySelector('#dailyLimit').value)||0,weekly=Number(document.querySelector('#weeklyLimit').value)||0;document.querySelector('#netBudgetPreview').innerHTML=credit?`<span>Limite diário: <b>${brl(daily)}</b></span><strong>Limite semanal: ${brl(weekly)}</strong>`:`<span>Taxa de 12,15%: <b>${brl(feeAmount(deposit))}</b></span><strong>Disponível para anúncios: ${brl(netBudget(deposit))}</strong>`}
-planForm.addEventListener('submit',e=>{e.preventDefault();const previous=selectedAccount.plan,paymentType=document.querySelector('#paymentType').value;selectedAccount.plan={paymentType,deposit:paymentType==='credit'?0:Number(document.querySelector('#depositAmount').value),depositDate:document.querySelector('#depositDate').value||previous.depositDate||iso(NOW),depositTime:document.querySelector('#depositTime').value||'00:00',plannedDays:paymentType==='credit'?1:Number(document.querySelector('#plannedDays').value),dailyLimit:Number(document.querySelector('#dailyLimit').value),weeklyLimit:paymentType==='credit'?Number(document.querySelector('#weeklyLimit').value):0};savePlans();renderSummary();renderAccounts(document.querySelector('#searchInput').value);renderModal();togglePlan(false)});
+planForm.addEventListener('submit',e=>{e.preventDefault();const previous=selectedAccount.plan,paymentType=document.querySelector('#paymentType').value;selectedAccount.plan={paymentType,deposit:paymentType==='credit'?0:Number(document.querySelector('#depositAmount').value),depositDate:document.querySelector('#depositDate').value||previous.depositDate||iso(NOW),depositTime:document.querySelector('#depositTime').value||'00:00',plannedDays:paymentType==='credit'?1:Number(document.querySelector('#plannedDays').value),dailyLimit:Number(document.querySelector('#dailyLimit').value),weeklyLimit:paymentType==='credit'?Number(document.querySelector('#weeklyLimit').value):0};document.querySelector('#modalSubtitle').textContent=`${selectedAccount.id} • ${paymentType==='credit'?'controle de gastos no cartão':'planejamento conciliado da conta'}`;savePlans();renderSummary();renderAccounts(document.querySelector('#searchInput').value);renderModal();togglePlan(false);if(paymentType==='credit')loadCreditAccountPeriods(selectedAccount.id)});
 document.querySelector('#depositAmount').addEventListener('input',renderNetBudgetPreview);
 document.querySelector('#dailyLimit').addEventListener('input',renderNetBudgetPreview);
 document.querySelector('#weeklyLimit').addEventListener('input',renderNetBudgetPreview);
