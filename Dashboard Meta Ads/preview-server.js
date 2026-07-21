@@ -29,6 +29,12 @@ const runMonitorCommand = (command,options,callback) => {
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+  if(requestUrl.pathname.startsWith('/api/')){
+    res.setHeader('Access-Control-Allow-Origin','https://analytics.hurtzcompany.com');
+    res.setHeader('Access-Control-Allow-Methods','GET,PUT,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');
+    res.setHeader('Vary','Origin');
+  }
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});return res.end()}
   if(process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){
     if(requestUrl.pathname==='/api/session'&&req.method==='POST')return readBody(req,(error,payload)=>{
