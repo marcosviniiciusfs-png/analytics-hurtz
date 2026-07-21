@@ -533,6 +533,7 @@ function syncPaymentTypeFields(){const credit=document.querySelector('#paymentTy
 function togglePlan(show){planForm.hidden=!show;document.querySelector('#planToggle').textContent=show?'Fechar configuração':'Configurar pagamento'}
 function renderModal(){
   const a=selectedAccount,m=metrics(a),from=parseDate(document.querySelector('#dateFrom').value),to=parseDate(document.querySelector('#dateTo').value),p=performanceForPeriod(a,from,to),cpl=p.cpl;
+  const periodDays=Math.max(1,Math.floor((to-from)/86400000)+1);
   const credit=m.credit,current=new Date(),today=parseDate(iso(current)),cycleWindow=weeklyCycleWindow(current,a.plan.weekStartDay),weekStart=cycleWindow.start,todaySpend=performanceForPeriod(a,today,today),weekSpend=performanceForPeriod(a,weekStart,today),dailyUsed=todaySpend.complete?todaySpend.spend:null,weeklyUsed=weekSpend.complete?weekSpend.spend:null,dailyRemaining=dailyUsed==null?null:Math.max(0,a.plan.dailyLimit-dailyUsed),weeklyRemaining=weeklyUsed==null?null:Math.max(0,a.plan.weeklyLimit-weeklyUsed),dailyRatio=dailyUsed!=null&&a.plan.dailyLimit>0?dailyUsed/a.plan.dailyLimit:null,weeklyRatio=weeklyUsed!=null&&a.plan.weeklyLimit>0?weeklyUsed/a.plan.weeklyLimit:null,cycleLabel=Number(a.plan.weekStartDay)===0?'Domingo às 23:55':'Segunda às 00:05';
   const planStatus=m.start>NOW?'Ainda não iniciado':m.calendarDaysRemaining===0?'Finalizado':'Em andamento';
   document.querySelector('#modalSummary').innerHTML=(credit?[
