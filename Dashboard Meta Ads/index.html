@@ -181,6 +181,15 @@
       <button type="submit">Entrar</button><span id="alertLoginStatus"></span>
     </form>
   </div>
+  <div class="alert-test-backdrop" id="alertTestModal" hidden>
+    <section class="alert-test-card" role="dialog" aria-modal="true" aria-labelledby="alertTestTitle">
+      <div class="alert-test-head"><div><p class="eyebrow">PRÉ-VISUALIZAÇÃO</p><h2 id="alertTestTitle">Mensagem de teste</h2></div><button type="button" id="closeAlertTest">×</button></div>
+      <div class="alert-test-destination"><div><span>Número remetente</span><strong id="alertTestPhone"></strong></div><div><span>Instância</span><strong id="alertTestInstance"></strong></div><div><span>Grupo de destino</span><strong id="alertTestGroup"></strong></div></div>
+      <label class="alert-test-message">Mensagem<textarea id="alertTestMessage" maxlength="2000" rows="7"></textarea></label>
+      <p class="alert-test-warning">Esta confirmação envia uma mensagem real. Os alertas automáticos continuam em modo de validação.</p>
+      <div class="alert-test-actions"><button type="button" id="cancelAlertTest">Cancelar</button><button type="button" id="confirmAlertTest">Confirmar e enviar</button></div><span id="alertTestStatus"></span>
+    </section>
+  </div>
   <div class="modal-backdrop" id="accountModal" aria-hidden="true">
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal-head"><div><span class="modal-kicker">DETALHES DA CONTA</span><h2 id="modalTitle"></h2><p id="modalSubtitle"></p></div><div class="modal-head-actions"><button class="plan-toggle" id="planToggle">Configurar saldo</button><button class="close-button" id="closeModal" aria-label="Fechar">×</button></div></div>

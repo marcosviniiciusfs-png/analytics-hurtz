@@ -85,10 +85,15 @@ http.createServer((req,res)=>{
     });
   }
   if (requestUrl.pathname === '/api/alerts/test' && req.method === 'POST') {
-    const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/alert_engine.py --mode test`;
-    return runMonitorCommand(remote,{timeout:60000,maxBuffer:1024*1024},(error,stdout,stderr)=>{
-      if(error)return jsonResponse(res,502,{error:'Falha ao enviar teste',detail:stderr.trim()});
-      try{return jsonResponse(res,200,JSON.parse(stdout))}catch{return jsonResponse(res,502,{error:'Resposta inválida do teste'})}
+    return readBody(req,(bodyError,payload)=>{
+      const message=String(payload?.message||'').trim();
+      if(bodyError||!message||message.length>2000)return jsonResponse(res,400,{error:'Mensagem de teste inválida'});
+      const encoded=Buffer.from(message,'utf8').toString('base64');
+      const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; export EVOLUTION_API_URL='${process.env.EVOLUTION_API_URL||'http://127.0.0.1:8080'}'; python3 /opt/meta-ads-cli/monitor/alert_engine.py --mode test --force-send --message-base64 ${encoded}`;
+      return runMonitorCommand(remote,{timeout:60000,maxBuffer:1024*1024},(error,stdout,stderr)=>{
+        if(error)return jsonResponse(res,502,{error:'Falha ao enviar teste',detail:stderr.trim()});
+        try{return jsonResponse(res,200,JSON.parse(stdout))}catch{return jsonResponse(res,502,{error:'Resposta inválida do teste'})}
+      });
     });
   }
   if (requestUrl.pathname === '/api/meta-monitor-config/sync' && req.method === 'POST') {

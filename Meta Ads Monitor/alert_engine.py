@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import subprocess
@@ -222,11 +223,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Motor de alertas do Monitor Meta Ads Hurtz")
     parser.add_argument("--mode", choices=("financial", "recommendations", "all", "test"), default="all")
     parser.add_argument("--message", default="✅ Teste do Monitor Meta Ads Hurtz. A integração de alertas está funcionando.")
+    parser.add_argument("--message-base64")
+    parser.add_argument("--force-send", action="store_true")
     args = parser.parse_args()
     config = {**DEFAULT_CONFIG, **read_json(CONFIG_PATH, {})}
     state = read_json(STATE_PATH, {"sent": {}})
     if args.mode == "test":
-        ok = emit("test", "info", None, args.message, f"test:{datetime.now(TZ).timestamp()}", state, config, force=True)
+        if args.force_send:
+            config["dry_run"] = False
+        message = base64.b64decode(args.message_base64).decode("utf-8") if args.message_base64 else args.message
+        ok = emit("test", "info", None, message[:2000], f"test:{datetime.now(TZ).timestamp()}", state, config, force=True)
         write_json(STATE_PATH, state)
         print(json.dumps({"ok": ok, "dry_run": config.get("dry_run", True)}, ensure_ascii=False))
         return 0 if ok else 1
