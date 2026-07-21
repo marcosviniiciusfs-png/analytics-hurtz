@@ -97,6 +97,7 @@ const num=v=>(Number(v)||0).toLocaleString('pt-BR');
 const parseDate=s=>new Date(`${s}T12:00:00`);
 const parsePlanStart=plan=>new Date(`${plan.depositDate}T${plan.depositTime||'00:00'}:00`);
 const iso=d=>d.toISOString().slice(0,10);
+const localIso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const addDays=(date,days)=>{const d=new Date(date);d.setDate(d.getDate()+days);return d};
 const weeklyCycleWindow=(date,startDay=1)=>{const now=new Date(date),day=Number(startDay)===0?0:1,start=new Date(now);start.setDate(start.getDate()-((start.getDay()-day+7)%7));start.setHours(day===0?23:0,day===0?55:5,0,0);if(start>now)start.setDate(start.getDate()-7);const nextReset=new Date(start);nextReset.setDate(nextReset.getDate()+7);return{start,nextReset}};
 const startOfWeeklyCycle=(date,startDay=1)=>weeklyCycleWindow(date,startDay).start;
@@ -399,12 +400,12 @@ async function loadSelectedAccountAudit(){
     if(selectedAccount?.id===accountId){renderSummary();renderAccounts(document.querySelector('#searchInput').value);renderModal();if(isCreditAccount(selectedAccount))await loadCreditAccountPeriods(accountId)}
   }catch(error){if(selectedAccount?.id===accountId){document.querySelector('#campaignCount').textContent='Falha na auditoria';document.querySelector('#campaignBody').innerHTML=`<tr><td colspan="6" class="audit-empty">Não foi possível consultar esta conta agora. ${escapeHtml(error.message||'Tente novamente.')}</td></tr>`}}
 }
-async function loadCreditAccountPeriods(accountId){
+async function loadCreditAccountPeriods(accountId,force=false){
   const account=accounts.find(item=>item.id===accountId),current=new Date(),today=parseDate(iso(current)),weekStart=startOfWeeklyCycle(current,account?.plan?.weekStartDay),periods=[[today,today],[weekStart,today]];
   for(const [from,to] of periods){
-    const key=`${iso(from)}|${iso(to)}`;
-    if(LIVE_PERIOD_DATA[key]?.[accountId])continue;
-    try{const response=await fetch(`/api/meta-spend?from=${iso(from)}&to=${iso(to)}&accounts=${encodeURIComponent(accountId)}`);if(!response.ok)continue;storeAuditPayload(key,await response.json())}catch{}
+    const fromKey=localIso(from),toKey=localIso(to),key=`${fromKey}|${toKey}`;
+    if(!force&&LIVE_PERIOD_DATA[key]?.[accountId]?.spend!=null)continue;
+    try{const payload=await fetchJsonWithRetry(`/api/meta-spend?from=${fromKey}&to=${toKey}&accounts=${encodeURIComponent(accountId)}`,{attempts:2,delay:600});storeAuditPayload(key,payload)}catch{}
   }
   if(selectedAccount?.id===accountId)renderModal();
 }
@@ -447,6 +448,12 @@ function performanceForPeriod(a,from=globalPeriod.from,to=globalPeriod.to){
     campaigns.set(campaign.id,current);
   });
   return {complete:true,spend,leads,cpl:leads?spend/leads:null,campaigns:[...campaigns.values()],source:rows.map(row=>row.source).join(' • ')};
+}
+function officialSpendForPeriod(a,from,to){
+  const live=LIVE_PERIOD_DATA[`${localIso(from)}|${localIso(to)}`]?.[a.id];
+  if(!live||live.spend==null||!Number.isFinite(Number(live.spend)))return {available:false,value:null,audited:false,provisional:false};
+  const includesToday=localIso(to)>=localIso(new Date());
+  return {available:true,value:Number(live.spend),audited:live.reconciled===true&&!includesToday,provisional:live.reconciled!==true||includesToday};
 }
 
 function renderSummary(){
@@ -534,14 +541,14 @@ function togglePlan(show){planForm.hidden=!show;document.querySelector('#planTog
 function renderModal(){
   const a=selectedAccount,m=metrics(a),from=parseDate(document.querySelector('#dateFrom').value),to=parseDate(document.querySelector('#dateTo').value),p=performanceForPeriod(a,from,to),cpl=p.cpl;
   const periodDays=Math.max(1,Math.floor((to-from)/86400000)+1);
-  const credit=m.credit,current=new Date(),today=parseDate(iso(current)),cycleWindow=weeklyCycleWindow(current,a.plan.weekStartDay),weekStart=cycleWindow.start,todaySpend=performanceForPeriod(a,today,today),weekSpend=performanceForPeriod(a,weekStart,today),dailyUsed=todaySpend.complete?todaySpend.spend:null,weeklyUsed=weekSpend.complete?weekSpend.spend:null,dailyRemaining=dailyUsed==null?null:Math.max(0,a.plan.dailyLimit-dailyUsed),weeklyRemaining=weeklyUsed==null?null:Math.max(0,a.plan.weeklyLimit-weeklyUsed),dailyRatio=dailyUsed!=null&&a.plan.dailyLimit>0?dailyUsed/a.plan.dailyLimit:null,weeklyRatio=weeklyUsed!=null&&a.plan.weeklyLimit>0?weeklyUsed/a.plan.weeklyLimit:null,cycleLabel=Number(a.plan.weekStartDay)===0?'Domingo às 23:55':'Segunda às 00:05';
+  const credit=m.credit,current=new Date(),today=parseDate(localIso(current)),cycleWindow=weeklyCycleWindow(current,a.plan.weekStartDay),weekStart=parseDate(localIso(cycleWindow.start)),todaySpend=officialSpendForPeriod(a,today,today),weekSpend=officialSpendForPeriod(a,weekStart,today),dailyUsed=todaySpend.available?todaySpend.value:null,weeklyUsed=weekSpend.available?weekSpend.value:null,dailyRemaining=dailyUsed==null?null:Math.max(0,a.plan.dailyLimit-dailyUsed),weeklyRemaining=weeklyUsed==null?null:Math.max(0,a.plan.weeklyLimit-weeklyUsed),dailyRatio=dailyUsed!=null&&a.plan.dailyLimit>0?dailyUsed/a.plan.dailyLimit:null,weeklyRatio=weeklyUsed!=null&&a.plan.weeklyLimit>0?weeklyUsed/a.plan.weeklyLimit:null,cycleLabel=Number(a.plan.weekStartDay)===0?'Domingo às 23:55':'Segunda às 00:05',spendState=todaySpend.audited?'Auditado pela Meta':todaySpend.provisional?'Oficial da Meta • provisório':'Aguardando Meta',cycleSpendState=weekSpend.audited?'Auditado pela Meta':weekSpend.provisional?'Oficial da Meta • provisório':'Aguardando Meta';
   const planStatus=m.start>NOW?'Ainda não iniciado':m.calendarDaysRemaining===0?'Finalizado':'Em andamento';
   document.querySelector('#modalSummary').innerHTML=(credit?[
     ['Forma de pagamento','Cartão de crédito','Conta acompanhada exclusivamente pelo gasto oficial da Meta.'],
-    ['Gasto hoje',brlExact(dailyUsed),'Valor usado retornado pela Meta hoje; permanece provisório até o fechamento diário.'],
+    ['Gasto hoje',brlExact(dailyUsed),`Valor usado retornado diretamente pela Meta. Status: ${spendState}.`],
     ['Restante hoje',dailyRemaining==null?'—':brl(dailyRemaining),'Limite diário menos o gasto provisório de hoje.'],
     ['Uso diário',dailyRatio==null?'—':`${Math.round(dailyRatio*100)}%`,'Percentual consumido do limite diário configurado.'],
-    ['Gasto no ciclo',brlExact(weeklyUsed),`Soma desde a última virada, ${cycleLabel.toLowerCase()}; o dia da virada é provisório pela granularidade da Meta.`],
+    ['Gasto no ciclo',brlExact(weeklyUsed),`Gasto oficial desde a última virada, ${cycleLabel.toLowerCase()}. Status: ${cycleSpendState}.`],
     ['Restante na semana',weeklyRemaining==null?'—':brl(weeklyRemaining),'Limite semanal menos o gasto acumulado desde segunda-feira.']
   ]:[
     ['Saldo estimado',brl(m.balance),'Verba disponível menos o consumo calculado desde o depósito.'],
@@ -554,7 +561,7 @@ function renderModal(){
   document.querySelector('#planStrip').innerHTML=credit?`
     <div>${metricLabel('Teto diário','Valor máximo permitido por dia.')}<strong>${brl(a.plan.dailyLimit)}</strong></div>
     <div>${metricLabel('Verba semanal','Valor total disponível durante os sete dias do ciclo.')}<strong>${brl(a.plan.weeklyLimit)}</strong></div>
-    <div>${metricLabel('Uso semanal','Percentual consumido do limite semanal configurado.')}<strong>${weeklyRatio==null?'Aguardando Meta':`${Math.round(weeklyRatio*100)}%`}</strong></div>
+    <div>${metricLabel('Uso semanal',`Percentual do limite semanal consumido pelo gasto oficial. Status: ${cycleSpendState}.`)}<strong>${weeklyRatio==null?'Aguardando Meta':`${Math.round(weeklyRatio*100)}%`}</strong></div>
     <div>${metricLabel('Próximo reset','Momento em que o painel inicia um novo ciclo sem apagar o histórico.')}<strong>${fmtDateTime(cycleWindow.nextReset)}</strong></div>`:`
     <div>${metricLabel('Data e hora do depósito','Momento exato a partir do qual os gastos entram no ciclo.')}<strong>${fmtDateTime(m.start)}</strong></div>
     <div>${metricLabel('Limite diário','Valor máximo planejado para gastar por dia.')}<strong>${brl(a.plan.dailyLimit)}</strong></div>
@@ -596,7 +603,7 @@ document.querySelector('#depositAmount').addEventListener('input',renderNetBudge
 document.querySelector('#dailyLimit').addEventListener('input',renderNetBudgetPreview);
 document.querySelector('#weeklyLimit').addEventListener('input',renderNetBudgetPreview);
 document.querySelector('#weekStartDay').addEventListener('change',renderNetBudgetPreview);
-setInterval(()=>{if(selectedAccount&&isCreditAccount(selectedAccount)){renderModal();loadCreditAccountPeriods(selectedAccount.id)}},60000);
+setInterval(()=>{if(selectedAccount&&isCreditAccount(selectedAccount))loadCreditAccountPeriods(selectedAccount.id,true)},300000);
 document.querySelector('#paymentType').addEventListener('change',()=>{syncPaymentTypeFields();renderNetBudgetPreview()});
 document.querySelector('#planToggle').onclick=()=>togglePlan(planForm.hidden);
 document.querySelector('#globalDateButton').onclick=e=>{e.stopPropagation();const panel=document.querySelector('#dateFilterPanel');toggleDatePanel(panel.hidden,e.currentTarget)};

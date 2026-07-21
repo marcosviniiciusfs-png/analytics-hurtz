@@ -123,7 +123,19 @@ def audit(account_id, period):
             result_reconciled = all(campaign["objective_label"] != "Resultado ambíguo" for campaign in campaigns)
             return {"id": account_id, "name": account_daily[0].get("account_name") if account_daily else None, "spend": float(account_spend), "campaign_sum": float(campaign_sum), "reconciled": True, "result_reconciled": result_reconciled, "account_action_totals_match": account_action_totals_match, "daily": daily, "campaigns": campaigns, "active_campaign_count": active_campaign_count, "attempts": attempts}
         time.sleep(1)
-    return {"id": account_id, "spend": None, "campaign_sum": None, "reconciled": False, "result_reconciled": False, "daily": [], "campaigns": [], "active_campaign_count": active_campaign_count, "attempts": attempts}
+    return {
+        "id": account_id,
+        "name": account_daily[0].get("account_name") if account_daily else None,
+        "spend": float(account_spend),
+        "campaign_sum": float(campaign_sum),
+        "reconciled": False,
+        "result_reconciled": False,
+        "provisional": True,
+        "daily": daily,
+        "campaigns": [],
+        "active_campaign_count": active_campaign_count,
+        "attempts": attempts,
+    }
 
 
 def main():
