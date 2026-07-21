@@ -201,7 +201,8 @@
         <label data-prepaid-field>Horário do depósito<input type="time" id="depositTime" required /></label>
         <label data-prepaid-field>Duração planejada<input type="number" id="plannedDays" min="1" step="1" required /><small>dias</small></label>
         <label>Máximo por dia<input type="number" id="dailyLimit" min="0" step="0.01" required /></label>
-        <label data-credit-field hidden>Máximo por semana<input type="number" id="weeklyLimit" min="0" step="0.01" /></label>
+        <label data-credit-field hidden>Valor disponível na semana<input type="number" id="weeklyLimit" min="0" step="0.01" /></label>
+        <label data-credit-field hidden>Início do ciclo semanal<select id="weekStartDay"><option value="1">Segunda a domingo</option><option value="0">Domingo a domingo</option></select></label>
         <button type="submit" id="savePaymentPlan">Salvar planejamento</button>
         <div class="net-budget-preview" id="netBudgetPreview" aria-live="polite"></div>
       </form>
