@@ -401,7 +401,7 @@ async function loadSelectedAccountAudit(){
   }catch(error){if(selectedAccount?.id===accountId){document.querySelector('#campaignCount').textContent='Falha na auditoria';document.querySelector('#campaignBody').innerHTML=`<tr><td colspan="6" class="audit-empty">Não foi possível consultar esta conta agora. ${escapeHtml(error.message||'Tente novamente.')}</td></tr>`}}
 }
 async function loadCreditAccountPeriods(accountId,force=false){
-  const account=accounts.find(item=>item.id===accountId),current=new Date(),today=parseDate(iso(current)),weekStart=startOfWeeklyCycle(current,account?.plan?.weekStartDay),periods=[[today,today],[weekStart,today]];
+  const account=accounts.find(item=>item.id===accountId),periodEnd=parseDate(document.querySelector('#dateTo').value),cycleStart=parseDate(localIso(startOfWeeklyCycle(periodEnd,account?.plan?.weekStartDay))),periods=[[cycleStart,periodEnd]];
   for(const [from,to] of periods){
     const fromKey=localIso(from),toKey=localIso(to),key=`${fromKey}|${toKey}`;
     if(!force&&LIVE_PERIOD_DATA[key]?.[accountId]?.spend!=null)continue;
@@ -454,6 +454,15 @@ function officialSpendForPeriod(a,from,to){
   if(!live||live.spend==null||!Number.isFinite(Number(live.spend)))return {available:false,value:null,audited:false,provisional:false};
   const includesToday=localIso(to)>=localIso(new Date());
   return {available:true,value:Number(live.spend),audited:live.reconciled===true&&!includesToday,provisional:live.reconciled!==true||includesToday};
+}
+function applicableCreditLimit(from,to,plan){
+  const daysByCycle=new Map(),cursor=parseDate(localIso(from)),end=parseDate(localIso(to));
+  while(cursor<=end){
+    const cycleKey=localIso(startOfWeeklyCycle(cursor,plan.weekStartDay));
+    daysByCycle.set(cycleKey,(daysByCycle.get(cycleKey)||0)+1);
+    cursor.setDate(cursor.getDate()+1);
+  }
+  return [...daysByCycle.values()].reduce((total,days)=>total+Math.min(Number(plan.weeklyLimit)||0,(Number(plan.dailyLimit)||0)*days),0);
 }
 
 function renderSummary(){
@@ -541,15 +550,15 @@ function togglePlan(show){planForm.hidden=!show;document.querySelector('#planTog
 function renderModal(){
   const a=selectedAccount,m=metrics(a),from=parseDate(document.querySelector('#dateFrom').value),to=parseDate(document.querySelector('#dateTo').value),p=performanceForPeriod(a,from,to),cpl=p.cpl;
   const periodDays=Math.max(1,Math.floor((to-from)/86400000)+1);
-  const credit=m.credit,current=new Date(),today=parseDate(localIso(current)),cycleWindow=weeklyCycleWindow(current,a.plan.weekStartDay),weekStart=parseDate(localIso(cycleWindow.start)),todaySpend=officialSpendForPeriod(a,today,today),weekSpend=officialSpendForPeriod(a,weekStart,today),dailyUsed=todaySpend.available?todaySpend.value:null,weeklyUsed=weekSpend.available?weekSpend.value:null,dailyRemaining=dailyUsed==null?null:Math.max(0,a.plan.dailyLimit-dailyUsed),weeklyRemaining=weeklyUsed==null?null:Math.max(0,a.plan.weeklyLimit-weeklyUsed),dailyRatio=dailyUsed!=null&&a.plan.dailyLimit>0?dailyUsed/a.plan.dailyLimit:null,weeklyRatio=weeklyUsed!=null&&a.plan.weeklyLimit>0?weeklyUsed/a.plan.weeklyLimit:null,cycleLabel=Number(a.plan.weekStartDay)===0?'Domingo às 23:55':'Segunda às 00:05',spendState=todaySpend.audited?'Auditado pela Meta':todaySpend.provisional?'Oficial da Meta • provisório':'Aguardando Meta',cycleSpendState=weekSpend.audited?'Auditado pela Meta':weekSpend.provisional?'Oficial da Meta • provisório':'Aguardando Meta';
+  const credit=m.credit,cycleWindow=weeklyCycleWindow(to,a.plan.weekStartDay),cycleStart=parseDate(localIso(cycleWindow.start)),periodSpend=officialSpendForPeriod(a,from,to),cycleSpend=officialSpendForPeriod(a,cycleStart,to),periodUsed=periodSpend.available?periodSpend.value:null,cycleUsed=cycleSpend.available?cycleSpend.value:null,periodLimit=applicableCreditLimit(from,to,a.plan),periodRemaining=periodUsed==null?null:Math.max(0,periodLimit-periodUsed),cycleRemaining=cycleUsed==null?null:Math.max(0,a.plan.weeklyLimit-cycleUsed),periodRatio=periodUsed!=null&&periodLimit>0?periodUsed/periodLimit:null,cycleRatio=cycleUsed!=null&&a.plan.weeklyLimit>0?cycleUsed/a.plan.weeklyLimit:null,averageDaily=periodUsed==null?null:periodUsed/periodDays,cycleLabel=Number(a.plan.weekStartDay)===0?'Domingo às 23:55':'Segunda às 00:05',spendState=periodSpend.audited?'Auditado pela Meta':periodSpend.provisional?'Oficial da Meta • provisório':'Aguardando Meta',cycleSpendState=cycleSpend.audited?'Auditado pela Meta':cycleSpend.provisional?'Oficial da Meta • provisório':'Aguardando Meta';
   const planStatus=m.start>NOW?'Ainda não iniciado':m.calendarDaysRemaining===0?'Finalizado':'Em andamento';
   document.querySelector('#modalSummary').innerHTML=(credit?[
     ['Forma de pagamento','Cartão de crédito','Conta acompanhada exclusivamente pelo gasto oficial da Meta.'],
-    ['Gasto hoje',brlExact(dailyUsed),`Valor usado retornado diretamente pela Meta. Status: ${spendState}.`],
-    ['Restante hoje',dailyRemaining==null?'—':brl(dailyRemaining),'Limite diário menos o gasto provisório de hoje.'],
-    ['Uso diário',dailyRatio==null?'—':`${Math.round(dailyRatio*100)}%`,'Percentual consumido do limite diário configurado.'],
-    ['Gasto no ciclo',brlExact(weeklyUsed),`Gasto oficial desde a última virada, ${cycleLabel.toLowerCase()}. Status: ${cycleSpendState}.`],
-    ['Restante na semana',weeklyRemaining==null?'—':brl(weeklyRemaining),'Limite semanal menos o gasto acumulado desde segunda-feira.']
+    ['Gasto no período',brlExact(periodUsed),`Valor usado na Meta entre ${from.toLocaleDateString('pt-BR')} e ${to.toLocaleDateString('pt-BR')}. Status: ${spendState}.`],
+    ['Restante no período',periodRemaining==null?'—':brl(periodRemaining),`Limite aplicável de ${brl(periodLimit)} menos o gasto oficial do período.`],
+    ['Uso do período',periodRatio==null?'—':`${Math.round(periodRatio*100)}%`,'Percentual consumido do limite aplicável ao período selecionado.'],
+    ['Gasto no ciclo',brlExact(cycleUsed),`Gasto oficial no ciclo que contém ${to.toLocaleDateString('pt-BR')}, iniciado ${cycleLabel.toLowerCase()}. Status: ${cycleSpendState}.`],
+    ['Restante no ciclo',cycleRemaining==null?'—':brl(cycleRemaining),'Verba semanal menos o gasto do ciclo que contém a data final do filtro.']
   ]:[
     ['Saldo estimado',brl(m.balance),'Verba disponível menos o consumo calculado desde o depósito.'],
     ['Valor depositado',brl(a.plan.deposit),'Valor bruto informado no depósito da conta.'],
@@ -561,7 +570,8 @@ function renderModal(){
   document.querySelector('#planStrip').innerHTML=credit?`
     <div>${metricLabel('Teto diário','Valor máximo permitido por dia.')}<strong>${brl(a.plan.dailyLimit)}</strong></div>
     <div>${metricLabel('Verba semanal','Valor total disponível durante os sete dias do ciclo.')}<strong>${brl(a.plan.weeklyLimit)}</strong></div>
-    <div>${metricLabel('Uso semanal',`Percentual do limite semanal consumido pelo gasto oficial. Status: ${cycleSpendState}.`)}<strong>${weeklyRatio==null?'Aguardando Meta':`${Math.round(weeklyRatio*100)}%`}</strong></div>
+    <div>${metricLabel('Média diária','Gasto oficial do período dividido pela quantidade de dias selecionados.')}<strong>${averageDaily==null?'Aguardando Meta':brl(averageDaily)}</strong></div>
+    <div>${metricLabel('Uso do ciclo',`Percentual da verba semanal consumido no ciclo da data final. Status: ${cycleSpendState}.`)}<strong>${cycleRatio==null?'Aguardando Meta':`${Math.round(cycleRatio*100)}%`}</strong></div>
     <div>${metricLabel('Próximo reset','Momento em que o painel inicia um novo ciclo sem apagar o histórico.')}<strong>${fmtDateTime(cycleWindow.nextReset)}</strong></div>`:`
     <div>${metricLabel('Data e hora do depósito','Momento exato a partir do qual os gastos entram no ciclo.')}<strong>${fmtDateTime(m.start)}</strong></div>
     <div>${metricLabel('Limite diário','Valor máximo planejado para gastar por dia.')}<strong>${brl(a.plan.dailyLimit)}</strong></div>
@@ -603,7 +613,7 @@ document.querySelector('#depositAmount').addEventListener('input',renderNetBudge
 document.querySelector('#dailyLimit').addEventListener('input',renderNetBudgetPreview);
 document.querySelector('#weeklyLimit').addEventListener('input',renderNetBudgetPreview);
 document.querySelector('#weekStartDay').addEventListener('change',renderNetBudgetPreview);
-setInterval(()=>{if(selectedAccount&&isCreditAccount(selectedAccount))loadCreditAccountPeriods(selectedAccount.id,true)},300000);
+setInterval(()=>{if(selectedAccount&&isCreditAccount(selectedAccount))loadSelectedAccountAudit()},300000);
 document.querySelector('#paymentType').addEventListener('change',()=>{syncPaymentTypeFields();renderNetBudgetPreview()});
 document.querySelector('#planToggle').onclick=()=>togglePlan(planForm.hidden);
 document.querySelector('#globalDateButton').onclick=e=>{e.stopPropagation();const panel=document.querySelector('#dateFilterPanel');toggleDatePanel(panel.hidden,e.currentTarget)};
