@@ -26,6 +26,15 @@ const runMonitorCommand = (command,options,callback) => {
   }
   return execFile('/bin/bash',['-lc',command],options,callback);
 };
+const supabaseRequest = async (resource, options={}) => {
+  const base=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
+  const key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if(!base||!key)throw new Error('Banco de tarefas não configurado');
+  const response=await fetch(`${base}/rest/v1/${resource}`,{...options,headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json',Prefer:'return=representation',...(options.headers||{})}});
+  const text=await response.text();let payload=null;try{payload=text?JSON.parse(text):null}catch{payload={error:text}}
+  if(!response.ok)throw new Error(payload?.message||payload?.error||'Falha no banco de tarefas');
+  return payload;
+};
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
@@ -60,6 +69,30 @@ http.createServer((req,res)=>{
       }
       try{writeJsonFile(file,{updated_at:new Date().toISOString(),plans});jsonResponse(res,200,{ok:true,count:Object.keys(plans).length})}catch{return jsonResponse(res,500,{error:'Falha ao salvar planejamentos'})}
     });
+  }
+  if (requestUrl.pathname === '/api/tasks') {
+    if(req.method==='GET')return Promise.all([
+      supabaseRequest('task_columns?select=id,title,position&order=position.asc'),
+      supabaseRequest('tasks?select=id,column_id,title,description,assignee,priority,due_date,position,created_at,updated_at&order=position.asc')
+    ]).then(([columns,tasks])=>jsonResponse(res,200,{columns,tasks})).catch(error=>jsonResponse(res,502,{error:error.message}));
+    if(req.method==='POST')return readBody(req,(error,payload)=>{
+      if(error||!String(payload?.title||'').trim()||!payload?.column_id)return jsonResponse(res,400,{error:'Preencha o título e a etapa'});
+      const row={title:String(payload.title).trim().slice(0,180),description:String(payload.description||'').trim().slice(0,2000),assignee:String(payload.assignee||'').trim().slice(0,100),priority:['low','medium','high'].includes(payload.priority)?payload.priority:'medium',due_date:payload.due_date||null,column_id:String(payload.column_id),position:Number(payload.position)||0};
+      supabaseRequest('tasks',{method:'POST',body:JSON.stringify(row)}).then(data=>jsonResponse(res,201,data?.[0]||row)).catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
+    });
+    if(req.method==='PUT')return readBody(req,(error,payload)=>{
+      const id=String(payload?.id||'');if(error||!/^[0-9a-f-]{36}$/i.test(id))return jsonResponse(res,400,{error:'Tarefa inválida'});
+      const row={};for(const key of ['title','description','assignee','priority','due_date','column_id','position'])if(Object.hasOwn(payload,key))row[key]=payload[key]||(['description','assignee'].includes(key)?'':null);
+      if(row.title!==undefined)row.title=String(row.title).trim().slice(0,180);
+      if(row.description!==undefined)row.description=String(row.description).trim().slice(0,2000);
+      if(row.assignee!==undefined)row.assignee=String(row.assignee).trim().slice(0,100);
+      supabaseRequest(`tasks?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(row)}).then(data=>jsonResponse(res,200,data?.[0]||row)).catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
+    });
+    if(req.method==='DELETE'){
+      const id=requestUrl.searchParams.get('id')||'';if(!/^[0-9a-f-]{36}$/i.test(id))return jsonResponse(res,400,{error:'Tarefa inválida'});
+      return supabaseRequest(`tasks?id=eq.${encodeURIComponent(id)}`,{method:'DELETE'}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,502,{error:error.message}));
+    }
+    return jsonResponse(res,405,{error:'Método não permitido'});
   }
   if (requestUrl.pathname === '/api/alerts') {
     const remote = `set -a; . /opt/meta-ads-cli/secrets/.env; set +a; META_ALERT_DATA_DIR=/opt/meta-ads-cli/data/alerts python3 /opt/meta-ads-cli/monitor/alert_status.py`;

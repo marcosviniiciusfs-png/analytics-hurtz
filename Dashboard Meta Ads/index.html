@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260718-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260727-01" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260727-02" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -124,24 +124,30 @@
 
       <section class="tasks-view" id="tasks" hidden>
         <div class="tasks-heading">
-          <div><p class="eyebrow">GESTÃO DE TRABALHO</p><h2>Tarefas</h2><p>Quadros Kanban colaborativos da Hurtz, com cartões, responsáveis, prazos e atualizações em tempo real.</p></div>
-          <span class="tasks-status"><i></i> PLANKA conectado</span>
+          <div><p class="eyebrow">GESTÃO DE TRABALHO</p><h2>Tarefas</h2><p>Organize demandas, responsáveis e prazos sem sair do Analytics Hurtz.</p></div>
+          <button class="task-primary-button" id="newTaskButton" type="button">+ Nova tarefa</button>
         </div>
-        <div class="tasks-launch">
-          <div class="tasks-board-preview" aria-hidden="true">
-            <div><span>A fazer</span><b></b><b></b><b></b></div>
-            <div><span>Em andamento</span><b></b><b></b></div>
-            <div><span>Concluído</span><b></b><b></b><b></b></div>
-          </div>
-          <div class="tasks-launch-copy">
-            <span>AMBIENTE INTERNO</span>
-            <h3>Organize as tarefas da equipe em um só lugar</h3>
-            <p>O quadro abre em uma página segura separada para manter a sessão e as atualizações em tempo real funcionando corretamente.</p>
-            <a href="https://tarefas.161-97-148-99.sslip.io" target="_blank" rel="noopener">Abrir quadro de tarefas <strong>→</strong></a>
-            <small>Os dados do Planka são armazenados separadamente do monitoramento Meta Ads.</small>
-          </div>
-        </div>
+        <div class="tasks-toolbar"><div><b id="taskCount">0 tarefas</b><span>Arraste os cartões para atualizar o andamento.</span></div><button id="refreshTasks" type="button">↻ Atualizar</button></div>
+        <div class="tasks-board" id="tasksBoard" aria-live="polite"></div>
       </section>
+
+      <div class="task-modal" id="taskModal" hidden>
+        <form class="task-dialog" id="taskForm">
+          <button class="task-modal-close" type="button" id="closeTaskModal" aria-label="Fechar">×</button>
+          <p class="eyebrow">TAREFA</p><h3 id="taskModalTitle">Nova tarefa</h3>
+          <input type="hidden" id="taskId" />
+          <label>TÍTULO<input id="taskTitle" maxlength="180" required /></label>
+          <label>DESCRIÇÃO<textarea id="taskDescription" maxlength="2000" rows="4"></textarea></label>
+          <div class="task-form-grid">
+            <label>RESPONSÁVEL<input id="taskAssignee" maxlength="100" placeholder="Nome da pessoa" /></label>
+            <label>PRIORIDADE<select id="taskPriority"><option value="low">Baixa</option><option value="medium" selected>Média</option><option value="high">Alta</option></select></label>
+            <label>PRAZO<input id="taskDueDate" type="date" /></label>
+            <label>ETAPA<select id="taskColumn"></select></label>
+          </div>
+          <div class="task-form-actions"><button class="task-delete-button" id="deleteTask" type="button" hidden>Excluir</button><button class="task-primary-button" type="submit">Salvar tarefa</button></div>
+          <span class="task-form-status" id="taskFormStatus"></span>
+        </form>
+      </div>
 
       <section class="alerts-view" id="alerts" hidden>
         <div class="alerts-heading"><div><p class="eyebrow">AUTOMAÇÕES NO WHATSAPP</p><h2>Central de alertas</h2><p>Configure avisos operacionais e recomendações auditadas para o grupo responsável.</p></div><div class="alert-session-actions"><span class="alert-connection" id="alertConnection">Verificando Evolution API...</span><button type="button" id="alertLogout">Desconectar</button></div></div>
@@ -240,6 +246,6 @@
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="app.js?v=20260727-01"></script>
+  <script src="app.js?v=20260727-02"></script>
 </body>
 </html>

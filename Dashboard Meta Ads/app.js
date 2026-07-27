@@ -1088,6 +1088,32 @@ async function hydrateAlertPlans(){try{const response=await fetch('/api/alert-pl
 hydrateAlertPlans();
 document.querySelector('#analysisNav').onclick=null;document.querySelector('#reportsNav').onclick=null;
 const requestedView=new URLSearchParams(location.search).get('view');
+let nativeTasks={columns:[],tasks:[]},tasksInitialized=false,draggedTaskId=null;
+const taskApi=async(url,options={})=>{const response=await fetch(url,options),payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'Não foi possível atualizar as tarefas');return payload};
+const taskDateLabel=value=>value?new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR'):'';
+function renderNativeTasks(){
+  const board=document.querySelector('#tasksBoard'),count=document.querySelector('#taskCount');
+  count.textContent=`${nativeTasks.tasks.length} ${nativeTasks.tasks.length===1?'tarefa':'tarefas'}`;
+  board.innerHTML=nativeTasks.columns.map(column=>{
+    const items=nativeTasks.tasks.filter(task=>task.column_id===column.id);
+    return `<section class="task-column" data-task-column="${column.id}"><header class="task-column-header"><h3>${escapeHtml(column.title)}</h3><span>${items.length}</span></header><div class="task-list">${items.length?items.map(task=>`<article class="task-card" draggable="true" data-task-id="${task.id}"><div class="task-card-top"><span class="task-priority ${task.priority}">${task.priority==='high'?'Alta':task.priority==='low'?'Baixa':'Média'}</span><button class="task-edit" type="button" aria-label="Editar tarefa" data-edit-task="${task.id}">•••</button></div><h4>${escapeHtml(task.title)}</h4>${task.description?`<p>${escapeHtml(task.description)}</p>`:''}<div class="task-meta">${task.assignee?`<span>👤 ${escapeHtml(task.assignee)}</span>`:''}${task.due_date?`<span>◷ ${taskDateLabel(task.due_date)}</span>`:''}</div></article>`).join(''):'<div class="task-empty">Solte uma tarefa aqui</div>'}</div></section>`;
+  }).join('');
+  board.querySelectorAll('[data-edit-task]').forEach(button=>button.onclick=()=>openTaskModal(nativeTasks.tasks.find(task=>task.id===button.dataset.editTask)));
+  board.querySelectorAll('.task-card').forEach(card=>{card.ondragstart=()=>{draggedTaskId=card.dataset.taskId;card.style.opacity='.55'};card.ondragend=()=>{draggedTaskId=null;card.style.opacity=''}});
+  board.querySelectorAll('.task-column').forEach(column=>{column.ondragover=event=>{event.preventDefault();column.classList.add('drag-over')};column.ondragleave=()=>column.classList.remove('drag-over');column.ondrop=async event=>{event.preventDefault();column.classList.remove('drag-over');const task=nativeTasks.tasks.find(item=>item.id===draggedTaskId);if(!task||task.column_id===column.dataset.taskColumn)return;const previous=task.column_id;task.column_id=column.dataset.taskColumn;renderNativeTasks();try{await taskApi('/api/tasks',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:task.id,column_id:task.column_id,position:nativeTasks.tasks.filter(item=>item.column_id===task.column_id).length})})}catch(error){task.column_id=previous;renderNativeTasks();alert(error.message)}}});
+}
+async function loadNativeTasks(){
+  const board=document.querySelector('#tasksBoard');board.innerHTML='<div class="task-error">Carregando quadro...</div>';
+  try{nativeTasks=await taskApi('/api/tasks');renderNativeTasks()}catch(error){board.innerHTML=`<div class="task-error">${escapeHtml(error.message)}</div>`}
+}
+function openTaskModal(task=null){
+  const modal=document.querySelector('#taskModal'),form=document.querySelector('#taskForm');form.reset();document.querySelector('#taskFormStatus').textContent='';
+  document.querySelector('#taskColumn').innerHTML=nativeTasks.columns.map(column=>`<option value="${column.id}">${escapeHtml(column.title)}</option>`).join('');
+  document.querySelector('#taskModalTitle').textContent=task?'Editar tarefa':'Nova tarefa';document.querySelector('#taskId').value=task?.id||'';
+  document.querySelector('#taskTitle').value=task?.title||'';document.querySelector('#taskDescription').value=task?.description||'';document.querySelector('#taskAssignee').value=task?.assignee||'';document.querySelector('#taskPriority').value=task?.priority||'medium';document.querySelector('#taskDueDate').value=task?.due_date||'';document.querySelector('#taskColumn').value=task?.column_id||nativeTasks.columns[0]?.id||'';document.querySelector('#deleteTask').hidden=!task;modal.hidden=false;document.querySelector('#taskTitle').focus();
+}
+function closeTaskModal(){document.querySelector('#taskModal').hidden=true}
+async function initializeNativeTasks(){if(tasksInitialized)return;tasksInitialized=true;document.querySelector('#newTaskButton').onclick=()=>openTaskModal();document.querySelector('#refreshTasks').onclick=loadNativeTasks;document.querySelector('#closeTaskModal').onclick=closeTaskModal;document.querySelector('#taskModal').onclick=event=>{if(event.target.id==='taskModal')closeTaskModal()};document.querySelector('#taskForm').onsubmit=async event=>{event.preventDefault();const id=document.querySelector('#taskId').value,status=document.querySelector('#taskFormStatus'),button=event.submitter,payload={id,title:document.querySelector('#taskTitle').value,description:document.querySelector('#taskDescription').value,assignee:document.querySelector('#taskAssignee').value,priority:document.querySelector('#taskPriority').value,due_date:document.querySelector('#taskDueDate').value||null,column_id:document.querySelector('#taskColumn').value,position:nativeTasks.tasks.filter(task=>task.column_id===document.querySelector('#taskColumn').value).length};button.disabled=true;status.textContent='Salvando...';try{await taskApi('/api/tasks',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});closeTaskModal();await loadNativeTasks()}catch(error){status.textContent=error.message}finally{button.disabled=false}};document.querySelector('#deleteTask').onclick=async()=>{const id=document.querySelector('#taskId').value;if(!id||!confirm('Excluir esta tarefa?'))return;const status=document.querySelector('#taskFormStatus');status.textContent='Excluindo...';try{await taskApi(`/api/tasks?id=${encodeURIComponent(id)}`,{method:'DELETE'});closeTaskModal();await loadNativeTasks()}catch(error){status.textContent=error.message}};await loadNativeTasks()}
 const showDashboardViewBeforeTasks=showDashboardView;
 showDashboardView=function(view){
   const tasks=document.querySelector('#tasks');
@@ -1100,6 +1126,7 @@ showDashboardView=function(view){
   document.querySelector('#accounts').hidden=true;
   tasks.hidden=false;
   document.querySelectorAll('.sidebar nav a').forEach(link=>link.classList.toggle('active',link.id==='tasksNav'));
+  initializeNativeTasks();
 };
 document.querySelector('#tasksNav').onclick=event=>{event.preventDefault();history.replaceState(null,'','?view=tasks');showDashboardView('tasks')};
 if(requestedView==='analysis')showDashboardView('analysis');else if(requestedView==='reports')showDashboardView('reports');else if(requestedView==='alerts')showDashboardView('alerts');else if(requestedView==='tasks')showDashboardView('tasks');
