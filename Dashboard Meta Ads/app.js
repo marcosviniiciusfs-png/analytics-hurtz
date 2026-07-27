@@ -1088,5 +1088,19 @@ async function hydrateAlertPlans(){try{const response=await fetch('/api/alert-pl
 hydrateAlertPlans();
 document.querySelector('#analysisNav').onclick=null;document.querySelector('#reportsNav').onclick=null;
 const requestedView=new URLSearchParams(location.search).get('view');
-if(requestedView==='analysis')showDashboardView('analysis');else if(requestedView==='reports')showDashboardView('reports');else if(requestedView==='alerts')showDashboardView('alerts');
+const showDashboardViewBeforeTasks=showDashboardView;
+showDashboardView=function(view){
+  const tasks=document.querySelector('#tasks');
+  if(view!=='tasks'){tasks.hidden=true;return showDashboardViewBeforeTasks(view)}
+  document.querySelector('main>header').hidden=true;
+  document.querySelector('#analysis').hidden=true;
+  document.querySelector('#reports').hidden=true;
+  document.querySelector('#alerts').hidden=true;
+  document.querySelector('#summaryCards').hidden=true;
+  document.querySelector('#accounts').hidden=true;
+  tasks.hidden=false;
+  document.querySelectorAll('.sidebar nav a').forEach(link=>link.classList.toggle('active',link.id==='tasksNav'));
+};
+document.querySelector('#tasksNav').onclick=event=>{event.preventDefault();history.replaceState(null,'','?view=tasks');showDashboardView('tasks')};
+if(requestedView==='analysis')showDashboardView('analysis');else if(requestedView==='reports')showDashboardView('reports');else if(requestedView==='alerts')showDashboardView('alerts');else if(requestedView==='tasks')showDashboardView('tasks');
 if(MONITOR_API_BASE&&!localStorage.getItem(MONITOR_SESSION_KEY))showAlertLogin();

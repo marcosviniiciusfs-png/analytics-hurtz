@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260718-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260723-02" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260727-01" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -25,6 +25,7 @@
         <a href="./#accounts"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c1.1 1.4 2.4 2.1 4 2.1 2.4 0 4-1.2 4-3 0-2-1.8-2.5-4-3-2.2-.5-4-1-4-3 0-1.8 1.6-3 4-3 1.6 0 2.9.6 4 1.9M12 5v14"/></svg></span><span class="nav-label">Contas</span></a>
         <a href="?view=analysis" id="analysisNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/><path d="M2 19h21"/></svg></span><span class="nav-label">Análise</span></a>
         <a href="?view=reports" id="reportsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5M9 12h7M9 16h7"/></svg></span><span class="nav-label">Relatórios</span></a>
+        <a href="?view=tasks" id="tasksNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/></svg></span><span class="nav-label">Tarefas</span></a>
         <a href="?view=alerts" id="alertsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg></span><span class="nav-label">Alertas</span><b class="pill" id="alertPill">0</b></a>
         <a href="#"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span><span class="nav-label">Configurações</span></a>
       </nav>
@@ -119,6 +120,27 @@
         </div>
         <div class="report-status" id="reportStatus">Selecione pelo menos uma conta para iniciar.</div>
         <div class="report-output" id="reportOutput" hidden></div>
+      </section>
+
+      <section class="tasks-view" id="tasks" hidden>
+        <div class="tasks-heading">
+          <div><p class="eyebrow">GESTÃO DE TRABALHO</p><h2>Tarefas</h2><p>Quadros Kanban colaborativos da Hurtz, com cartões, responsáveis, prazos e atualizações em tempo real.</p></div>
+          <span class="tasks-status"><i></i> PLANKA conectado</span>
+        </div>
+        <div class="tasks-launch">
+          <div class="tasks-board-preview" aria-hidden="true">
+            <div><span>A fazer</span><b></b><b></b><b></b></div>
+            <div><span>Em andamento</span><b></b><b></b></div>
+            <div><span>Concluído</span><b></b><b></b><b></b></div>
+          </div>
+          <div class="tasks-launch-copy">
+            <span>AMBIENTE INTERNO</span>
+            <h3>Organize as tarefas da equipe em um só lugar</h3>
+            <p>O quadro abre em uma página segura separada para manter a sessão e as atualizações em tempo real funcionando corretamente.</p>
+            <a href="https://tarefas.161-97-148-99.sslip.io" target="_blank" rel="noopener">Abrir quadro de tarefas <strong>→</strong></a>
+            <small>Os dados do Planka são armazenados separadamente do monitoramento Meta Ads.</small>
+          </div>
+        </div>
       </section>
 
       <section class="alerts-view" id="alerts" hidden>
@@ -218,6 +240,6 @@
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="app.js?v=20260723-03"></script>
+  <script src="app.js?v=20260727-01"></script>
 </body>
 </html>
