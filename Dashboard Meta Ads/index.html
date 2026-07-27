@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260718-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260727-02" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260727-03" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -127,7 +127,15 @@
           <div><p class="eyebrow">GESTÃO DE TRABALHO</p><h2>Tarefas</h2><p>Organize demandas, responsáveis e prazos sem sair do Analytics Hurtz.</p></div>
           <button class="task-primary-button" id="newTaskButton" type="button">+ Nova tarefa</button>
         </div>
-        <div class="tasks-toolbar"><div><b id="taskCount">0 tarefas</b><span>Arraste os cartões para atualizar o andamento.</span></div><button id="refreshTasks" type="button">↻ Atualizar</button></div>
+        <div class="tasks-toolbar">
+          <div class="tasks-summary"><b id="taskCount">0 tarefas</b><span id="taskSummary">Arraste os cartões para atualizar o andamento.</span></div>
+          <div class="tasks-controls">
+            <label class="task-search"><span>⌕</span><input id="taskSearch" placeholder="Buscar tarefa..." /></label>
+            <select id="taskPriorityFilter" aria-label="Filtrar por prioridade"><option value="">Todas as prioridades</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select>
+            <select id="taskAssigneeFilter" aria-label="Filtrar por responsável"><option value="">Todos os responsáveis</option></select>
+            <button id="refreshTasks" type="button">↻ Atualizar</button>
+          </div>
+        </div>
         <div class="tasks-board" id="tasksBoard" aria-live="polite"></div>
       </section>
 
@@ -138,6 +146,7 @@
           <input type="hidden" id="taskId" />
           <label>TÍTULO<input id="taskTitle" maxlength="180" required /></label>
           <label>DESCRIÇÃO<textarea id="taskDescription" maxlength="2000" rows="4"></textarea></label>
+          <label>ETIQUETAS<input id="taskLabels" maxlength="240" placeholder="Ex.: Meta Ads, Cliente, Urgente" /><small>Separe as etiquetas por vírgula.</small></label>
           <div class="task-form-grid">
             <label>RESPONSÁVEL<input id="taskAssignee" maxlength="100" placeholder="Nome da pessoa" /></label>
             <label>PRIORIDADE<select id="taskPriority"><option value="low">Baixa</option><option value="medium" selected>Média</option><option value="high">Alta</option></select></label>
@@ -246,6 +255,6 @@
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="app.js?v=20260727-02"></script>
+  <script src="app.js?v=20260727-03"></script>
 </body>
 </html>

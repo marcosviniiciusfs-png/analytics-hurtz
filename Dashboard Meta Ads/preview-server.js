@@ -75,19 +75,20 @@ http.createServer((req,res)=>{
   if (requestUrl.pathname === '/api/tasks') {
     if(req.method==='GET')return Promise.all([
       supabaseRequest('task_columns?select=id,title,position&order=position.asc'),
-      supabaseRequest('tasks?select=id,column_id,title,description,assignee,priority,due_date,position,created_at,updated_at&order=position.asc')
+      supabaseRequest('tasks?select=id,column_id,title,description,assignee,priority,due_date,labels,position,created_at,updated_at&order=position.asc')
     ]).then(([columns,tasks])=>jsonResponse(res,200,{columns,tasks})).catch(error=>jsonResponse(res,502,{error:error.message}));
     if(req.method==='POST')return readBody(req,(error,payload)=>{
       if(error||!String(payload?.title||'').trim()||!payload?.column_id)return jsonResponse(res,400,{error:'Preencha o título e a etapa'});
-      const row={title:String(payload.title).trim().slice(0,180),description:String(payload.description||'').trim().slice(0,2000),assignee:String(payload.assignee||'').trim().slice(0,100),priority:['low','medium','high'].includes(payload.priority)?payload.priority:'medium',due_date:payload.due_date||null,column_id:String(payload.column_id),position:Number(payload.position)||0};
+      const row={title:String(payload.title).trim().slice(0,180),description:String(payload.description||'').trim().slice(0,2000),assignee:String(payload.assignee||'').trim().slice(0,100),priority:['low','medium','high'].includes(payload.priority)?payload.priority:'medium',due_date:payload.due_date||null,labels:Array.isArray(payload.labels)?payload.labels.map(item=>String(item).trim().slice(0,40)).filter(Boolean).slice(0,8):[],column_id:String(payload.column_id),position:Number(payload.position)||0};
       supabaseRequest('tasks',{method:'POST',body:JSON.stringify(row)}).then(data=>jsonResponse(res,201,data?.[0]||row)).catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
     });
     if(req.method==='PUT')return readBody(req,(error,payload)=>{
       const id=String(payload?.id||'');if(error||!/^[0-9a-f-]{36}$/i.test(id))return jsonResponse(res,400,{error:'Tarefa inválida'});
-      const row={};for(const key of ['title','description','assignee','priority','due_date','column_id','position'])if(Object.hasOwn(payload,key))row[key]=payload[key]||(['description','assignee'].includes(key)?'':null);
+      const row={};for(const key of ['title','description','assignee','priority','due_date','labels','column_id','position'])if(Object.hasOwn(payload,key))row[key]=payload[key]||(['description','assignee'].includes(key)?'':key==='labels'?[]:null);
       if(row.title!==undefined)row.title=String(row.title).trim().slice(0,180);
       if(row.description!==undefined)row.description=String(row.description).trim().slice(0,2000);
       if(row.assignee!==undefined)row.assignee=String(row.assignee).trim().slice(0,100);
+      if(row.labels!==undefined)row.labels=Array.isArray(row.labels)?row.labels.map(item=>String(item).trim().slice(0,40)).filter(Boolean).slice(0,8):[];
       supabaseRequest(`tasks?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(row)}).then(data=>jsonResponse(res,200,data?.[0]||row)).catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
     });
     if(req.method==='DELETE'){
