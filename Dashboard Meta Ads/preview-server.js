@@ -28,7 +28,9 @@ const runMonitorCommand = (command,options,callback) => {
 };
 const supabaseRequest = async (resource, options={}) => {
   const base=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
-  const key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secretFile=process.env.SUPABASE_SECRET_KEY__FILE;
+  let fileKey='';if(secretFile){try{fileKey=fs.readFileSync(secretFile,'utf8').trim()}catch{}}
+  const key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY||fileKey;
   if(!base||!key)throw new Error('Banco de tarefas não configurado');
   const response=await fetch(`${base}/rest/v1/${resource}`,{...options,headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json',Prefer:'return=representation',...(options.headers||{})}});
   const text=await response.text();let payload=null;try{payload=text?JSON.parse(text):null}catch{payload={error:text}}
