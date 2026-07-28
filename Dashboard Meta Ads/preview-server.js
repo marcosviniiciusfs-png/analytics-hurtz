@@ -9,6 +9,8 @@ const port = Number(process.env.PORT || 8091);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.svg':'image/svg+xml'};
 const analysisResponseCache = new Map();
 const ANALYSIS_CACHE_TTL = 15 * 60 * 1000;
+const taskDataCache={payload:null,expiresAt:0};
+const TASK_CACHE_TTL=30*1000;
 const alertDataDir = process.env.META_ALERT_DATA_DIR || (process.platform === 'win32' ? path.join(root,'.alert-data') : '/opt/meta-ads-cli/data/alerts');
 const readJsonFile = (file,fallback={}) => { try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return fallback} };
 const writeJsonFile = (file,value) => { fs.mkdirSync(path.dirname(file),{recursive:true});const temporary=`${file}.tmp`;fs.writeFileSync(temporary,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',mode:0o600});fs.renameSync(temporary,file) };
@@ -36,6 +38,7 @@ const supabaseRequest = async (resource, options={}) => {
   const response=await fetch(`${base}/rest/v1/${resource}`,{...options,headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json',Prefer:'return=representation',...(options.headers||{})}});
   const text=await response.text();let payload=null;try{payload=text?JSON.parse(text):null}catch{payload={error:text}}
   if(!response.ok)throw new Error(payload?.message||payload?.error||'Falha no banco de tarefas');
+  if((options.method||'GET').toUpperCase()!=='GET'&&/^(tasks|task_)/.test(resource)){taskDataCache.payload=null;taskDataCache.expiresAt=0}
   return payload;
 };
 const taskActivity=(taskId,action,details={})=>supabaseRequest('task_activities',{method:'POST',body:JSON.stringify({task_id:taskId||null,action,details})}).catch(()=>null);
@@ -49,6 +52,19 @@ const taskStorageRequest=async(pathname,options={})=>{
   if(!response.ok){const text=await response.text();throw new Error(text||'Falha no armazenamento')}
   return response;
 };
+const cleanupExpiredTasks=async()=>{
+  try{
+    const expired=await supabaseRequest(`tasks?expires_at=lt.${encodeURIComponent(new Date().toISOString())}&select=id`);
+    if(!expired?.length)return 0;
+    const ids=expired.map(item=>item.id),filter=ids.map(id=>`task_id.eq.${id}`).join(',');
+    const files=await supabaseRequest(`task_attachments?or=(${filter})&select=storage_path`);
+    if(files?.length)await taskStorageRequest('object/task-attachments',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefixes:files.map(file=>file.storage_path)})});
+    await supabaseRequest(`tasks?id=in.(${ids.join(',')})`,{method:'DELETE'});
+    return ids.length;
+  }catch(error){console.error('Falha na limpeza de tarefas:',error.message);return 0}
+};
+setTimeout(cleanupExpiredTasks,1500).unref();
+setInterval(cleanupExpiredTasks,15*60*1000).unref();
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
@@ -85,9 +101,12 @@ http.createServer((req,res)=>{
     });
   }
   if (requestUrl.pathname === '/api/tasks') {
-    if(req.method==='GET')return Promise.all([
+    if(req.method==='GET'){
+      if(taskDataCache.payload&&taskDataCache.expiresAt>Date.now())return jsonResponse(res,200,taskDataCache.payload);
+      cleanupExpiredTasks();
+      return Promise.all([
       supabaseRequest('task_columns?select=id,title,position&order=position.asc'),
-      supabaseRequest('tasks?select=id,column_id,project_id,module_id,cycle_id,title,description,assignee,priority,due_date,labels,estimate_minutes,completed_at,position,created_at,updated_at&order=position.asc'),
+      supabaseRequest('tasks?select=id,column_id,project_id,module_id,cycle_id,title,description,assignee,priority,due_date,labels,estimate_minutes,completed_at,expires_at,position,created_at,updated_at&order=position.asc'),
       supabaseRequest('task_projects?select=id,title,color,is_active&order=title.asc'),
       supabaseRequest('task_modules?select=id,project_id,title&order=title.asc'),
       supabaseRequest('task_cycles?select=id,project_id,title,starts_on,ends_on&order=starts_on.desc'),
@@ -95,7 +114,8 @@ http.createServer((req,res)=>{
       supabaseRequest('task_comments?select=id,task_id,author,body,created_at&order=created_at.asc'),
       supabaseRequest('task_attachments?select=id,task_id,file_name,mime_type,size_bytes,created_at&order=created_at.asc'),
       supabaseRequest('task_activities?select=id,task_id,action,details,actor,created_at&order=created_at.desc&limit=500')
-    ]).then(([columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities])=>jsonResponse(res,200,{columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities})).catch(error=>jsonResponse(res,502,{error:error.message}));
+    ]).then(([columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities])=>{const payload={columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities};taskDataCache.payload=payload;taskDataCache.expiresAt=Date.now()+TASK_CACHE_TTL;jsonResponse(res,200,payload)}).catch(error=>jsonResponse(res,502,{error:error.message}));
+    }
     if(req.method==='POST')return readBody(req,(error,payload)=>{
       if(error||!String(payload?.title||'').trim()||!payload?.column_id)return jsonResponse(res,400,{error:'Preencha o título e a etapa'});
       const row={title:String(payload.title).trim().slice(0,180),description:String(payload.description||'').trim().slice(0,2000),assignee:String(payload.assignee||'').trim().slice(0,100),priority:['low','medium','high'].includes(payload.priority)?payload.priority:'medium',due_date:payload.due_date||null,labels:Array.isArray(payload.labels)?payload.labels.map(item=>String(item).trim().slice(0,40)).filter(Boolean).slice(0,8):[],column_id:String(payload.column_id),project_id:cleanUuid(payload.project_id),module_id:cleanUuid(payload.module_id),cycle_id:cleanUuid(payload.cycle_id),estimate_minutes:Math.max(0,Number(payload.estimate_minutes)||0)||null,position:Number(payload.position)||0};
