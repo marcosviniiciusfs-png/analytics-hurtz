@@ -13,6 +13,7 @@ const alertDataDir = process.env.META_ALERT_DATA_DIR || (process.platform === 'w
 const readJsonFile = (file,fallback={}) => { try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return fallback} };
 const writeJsonFile = (file,value) => { fs.mkdirSync(path.dirname(file),{recursive:true});const temporary=`${file}.tmp`;fs.writeFileSync(temporary,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',mode:0o600});fs.renameSync(temporary,file) };
 const readBody = (req,callback) => {let body='';req.on('data',chunk=>{body+=chunk;if(body.length>512*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
+const readLargeBody = (req,callback) => {let body='';req.on('data',chunk=>{body+=chunk;if(body.length>8*1024*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
 const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});res.end(JSON.stringify(payload))};
 const authFile=process.env.API_AUTH_FILE||'/opt/meta-ads-cli/secrets/analytics-api-basic.env';
 const authConfig=()=>{const values={};try{fs.readFileSync(authFile,'utf8').split(/\r?\n/).forEach(line=>{const index=line.indexOf('=');if(index>0)values[line.slice(0,index)]=line.slice(index+1)})}catch{}return values};
@@ -36,6 +37,17 @@ const supabaseRequest = async (resource, options={}) => {
   const text=await response.text();let payload=null;try{payload=text?JSON.parse(text):null}catch{payload={error:text}}
   if(!response.ok)throw new Error(payload?.message||payload?.error||'Falha no banco de tarefas');
   return payload;
+};
+const taskActivity=(taskId,action,details={})=>supabaseRequest('task_activities',{method:'POST',body:JSON.stringify({task_id:taskId||null,action,details})}).catch(()=>null);
+const cleanUuid=value=>/^[0-9a-f-]{36}$/i.test(String(value||''))?String(value):null;
+const taskStorageRequest=async(pathname,options={})=>{
+  const base=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
+  const secretFile=process.env.SUPABASE_SECRET_KEY__FILE;let fileKey='';if(secretFile){try{fileKey=fs.readFileSync(secretFile,'utf8').trim()}catch{}}
+  const key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY||fileKey;
+  if(!base||!key)throw new Error('Armazenamento não configurado');
+  const response=await fetch(`${base}/storage/v1/${pathname}`,{...options,headers:{apikey:key,Authorization:`Bearer ${key}`,...(options.headers||{})}});
+  if(!response.ok){const text=await response.text();throw new Error(text||'Falha no armazenamento')}
+  return response;
 };
 
 http.createServer((req,res)=>{
@@ -75,27 +87,65 @@ http.createServer((req,res)=>{
   if (requestUrl.pathname === '/api/tasks') {
     if(req.method==='GET')return Promise.all([
       supabaseRequest('task_columns?select=id,title,position&order=position.asc'),
-      supabaseRequest('tasks?select=id,column_id,title,description,assignee,priority,due_date,labels,position,created_at,updated_at&order=position.asc')
-    ]).then(([columns,tasks])=>jsonResponse(res,200,{columns,tasks})).catch(error=>jsonResponse(res,502,{error:error.message}));
+      supabaseRequest('tasks?select=id,column_id,project_id,module_id,cycle_id,title,description,assignee,priority,due_date,labels,estimate_minutes,completed_at,position,created_at,updated_at&order=position.asc'),
+      supabaseRequest('task_projects?select=id,title,color,is_active&order=title.asc'),
+      supabaseRequest('task_modules?select=id,project_id,title&order=title.asc'),
+      supabaseRequest('task_cycles?select=id,project_id,title,starts_on,ends_on&order=starts_on.desc'),
+      supabaseRequest('task_subtasks?select=id,task_id,title,is_done,position&order=position.asc'),
+      supabaseRequest('task_comments?select=id,task_id,author,body,created_at&order=created_at.asc'),
+      supabaseRequest('task_attachments?select=id,task_id,file_name,mime_type,size_bytes,created_at&order=created_at.asc'),
+      supabaseRequest('task_activities?select=id,task_id,action,details,actor,created_at&order=created_at.desc&limit=500')
+    ]).then(([columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities])=>jsonResponse(res,200,{columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities})).catch(error=>jsonResponse(res,502,{error:error.message}));
     if(req.method==='POST')return readBody(req,(error,payload)=>{
       if(error||!String(payload?.title||'').trim()||!payload?.column_id)return jsonResponse(res,400,{error:'Preencha o título e a etapa'});
-      const row={title:String(payload.title).trim().slice(0,180),description:String(payload.description||'').trim().slice(0,2000),assignee:String(payload.assignee||'').trim().slice(0,100),priority:['low','medium','high'].includes(payload.priority)?payload.priority:'medium',due_date:payload.due_date||null,labels:Array.isArray(payload.labels)?payload.labels.map(item=>String(item).trim().slice(0,40)).filter(Boolean).slice(0,8):[],column_id:String(payload.column_id),position:Number(payload.position)||0};
-      supabaseRequest('tasks',{method:'POST',body:JSON.stringify(row)}).then(data=>jsonResponse(res,201,data?.[0]||row)).catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
+      const row={title:String(payload.title).trim().slice(0,180),description:String(payload.description||'').trim().slice(0,2000),assignee:String(payload.assignee||'').trim().slice(0,100),priority:['low','medium','high'].includes(payload.priority)?payload.priority:'medium',due_date:payload.due_date||null,labels:Array.isArray(payload.labels)?payload.labels.map(item=>String(item).trim().slice(0,40)).filter(Boolean).slice(0,8):[],column_id:String(payload.column_id),project_id:cleanUuid(payload.project_id),module_id:cleanUuid(payload.module_id),cycle_id:cleanUuid(payload.cycle_id),estimate_minutes:Math.max(0,Number(payload.estimate_minutes)||0)||null,position:Number(payload.position)||0};
+      supabaseRequest('tasks',{method:'POST',body:JSON.stringify(row)}).then(async data=>{const created=data?.[0]||row;await taskActivity(created.id,'task_created',{title:created.title});jsonResponse(res,201,created)}).catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
     });
     if(req.method==='PUT')return readBody(req,(error,payload)=>{
       const id=String(payload?.id||'');if(error||!/^[0-9a-f-]{36}$/i.test(id))return jsonResponse(res,400,{error:'Tarefa inválida'});
-      const row={};for(const key of ['title','description','assignee','priority','due_date','labels','column_id','position'])if(Object.hasOwn(payload,key))row[key]=payload[key]||(['description','assignee'].includes(key)?'':key==='labels'?[]:null);
+      const row={};for(const key of ['title','description','assignee','priority','due_date','labels','column_id','project_id','module_id','cycle_id','estimate_minutes','completed_at','position'])if(Object.hasOwn(payload,key))row[key]=payload[key]||(['description','assignee'].includes(key)?'':key==='labels'?[]:null);
       if(row.title!==undefined)row.title=String(row.title).trim().slice(0,180);
       if(row.description!==undefined)row.description=String(row.description).trim().slice(0,2000);
       if(row.assignee!==undefined)row.assignee=String(row.assignee).trim().slice(0,100);
       if(row.labels!==undefined)row.labels=Array.isArray(row.labels)?row.labels.map(item=>String(item).trim().slice(0,40)).filter(Boolean).slice(0,8):[];
-      supabaseRequest(`tasks?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(row)}).then(data=>jsonResponse(res,200,data?.[0]||row)).catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
+      for(const key of ['project_id','module_id','cycle_id'])if(row[key]!==undefined)row[key]=cleanUuid(row[key]);
+      if(row.estimate_minutes!==undefined)row.estimate_minutes=Math.max(0,Number(row.estimate_minutes)||0)||null;
+      supabaseRequest(`tasks?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(row)}).then(async data=>{await taskActivity(id,'task_updated',{fields:Object.keys(row)});jsonResponse(res,200,data?.[0]||row)}).catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
     });
     if(req.method==='DELETE'){
       const id=requestUrl.searchParams.get('id')||'';if(!/^[0-9a-f-]{36}$/i.test(id))return jsonResponse(res,400,{error:'Tarefa inválida'});
-      return supabaseRequest(`tasks?id=eq.${encodeURIComponent(id)}`,{method:'DELETE'}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,502,{error:error.message}));
+      return supabaseRequest(`task_attachments?task_id=eq.${encodeURIComponent(id)}&select=storage_path`).then(async files=>{if(files?.length)await taskStorageRequest('object/task-attachments',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefixes:files.map(file=>file.storage_path)})});return supabaseRequest(`tasks?id=eq.${encodeURIComponent(id)}`,{method:'DELETE'})}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,502,{error:error.message}));
     }
     return jsonResponse(res,405,{error:'Método não permitido'});
+  }
+  if(['/api/task-projects','/api/task-modules','/api/task-cycles'].includes(requestUrl.pathname)){
+    const table=requestUrl.pathname==='/api/task-projects'?'task_projects':requestUrl.pathname==='/api/task-modules'?'task_modules':'task_cycles';
+    if(req.method==='POST')return readBody(req,(error,payload)=>{
+      if(error||!String(payload?.title||'').trim())return jsonResponse(res,400,{error:'Digite um nome'});
+      const row={title:String(payload.title).trim().slice(0,100)};
+      if(table==='task_projects')row.color=/^#[0-9a-f]{6}$/i.test(payload.color||'')?payload.color:'#ef7618';
+      if(table!=='task_projects'){row.project_id=cleanUuid(payload.project_id);if(!row.project_id)return jsonResponse(res,400,{error:'Selecione um projeto'})}
+      if(table==='task_cycles'){row.starts_on=payload.starts_on;row.ends_on=payload.ends_on;if(!/^\d{4}-\d{2}-\d{2}$/.test(row.starts_on||'')||!/^\d{4}-\d{2}-\d{2}$/.test(row.ends_on||''))return jsonResponse(res,400,{error:'Período inválido'})}
+      supabaseRequest(table,{method:'POST',body:JSON.stringify(row)}).then(data=>jsonResponse(res,201,data?.[0]||row)).catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
+    });
+    if(req.method==='PUT')return readBody(req,(error,payload)=>{const id=cleanUuid(payload?.id),title=String(payload?.title||'').trim();if(error||!id||!title)return jsonResponse(res,400,{error:'Item inválido'});supabaseRequest(`${table}?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({title:title.slice(0,100)})}).then(data=>jsonResponse(res,200,data?.[0])).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
+    if(req.method==='DELETE'){const id=cleanUuid(requestUrl.searchParams.get('id'));if(!id)return jsonResponse(res,400,{error:'Item inválido'});return supabaseRequest(`${table}?id=eq.${id}`,{method:'DELETE'}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,502,{error:error.message}))}
+  }
+  if(requestUrl.pathname==='/api/task-subtasks'){
+    if(req.method==='POST')return readBody(req,(error,payload)=>{const taskId=cleanUuid(payload?.task_id),title=String(payload?.title||'').trim();if(error||!taskId||!title)return jsonResponse(res,400,{error:'Subtarefa inválida'});supabaseRequest('task_subtasks',{method:'POST',body:JSON.stringify({task_id:taskId,title:title.slice(0,180),position:Number(payload.position)||0})}).then(async data=>{await taskActivity(taskId,'subtask_created',{title});jsonResponse(res,201,data?.[0])}).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
+    if(req.method==='PUT')return readBody(req,(error,payload)=>{const id=cleanUuid(payload?.id),taskId=cleanUuid(payload?.task_id);if(error||!id||!taskId)return jsonResponse(res,400,{error:'Subtarefa inválida'});const row={};if(Object.hasOwn(payload,'title'))row.title=String(payload.title).trim().slice(0,180);if(Object.hasOwn(payload,'is_done'))row.is_done=Boolean(payload.is_done);supabaseRequest(`task_subtasks?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(row)}).then(async data=>{await taskActivity(taskId,'subtask_updated',row);jsonResponse(res,200,data?.[0])}).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
+    if(req.method==='DELETE'){const id=cleanUuid(requestUrl.searchParams.get('id')),taskId=cleanUuid(requestUrl.searchParams.get('task_id'));if(!id||!taskId)return jsonResponse(res,400,{error:'Subtarefa inválida'});return supabaseRequest(`task_subtasks?id=eq.${id}`,{method:'DELETE'}).then(async()=>{await taskActivity(taskId,'subtask_deleted');jsonResponse(res,200,{ok:true})}).catch(error=>jsonResponse(res,502,{error:error.message}))}
+  }
+  if(requestUrl.pathname==='/api/task-comments'&&req.method==='POST')return readBody(req,(error,payload)=>{const taskId=cleanUuid(payload?.task_id),body=String(payload?.body||'').trim(),author=String(payload?.author||'Equipe Hurtz').trim().slice(0,100);if(error||!taskId||!body)return jsonResponse(res,400,{error:'Comentário inválido'});supabaseRequest('task_comments',{method:'POST',body:JSON.stringify({task_id:taskId,body:body.slice(0,3000),author})}).then(async data=>{await taskActivity(taskId,'comment_created',{author});jsonResponse(res,201,data?.[0])}).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
+  if(requestUrl.pathname==='/api/task-attachments'){
+    if(req.method==='POST')return readLargeBody(req,(error,payload)=>{
+      const taskId=cleanUuid(payload?.task_id),fileName=path.basename(String(payload?.file_name||'arquivo')).slice(0,180),mime=String(payload?.mime_type||'application/octet-stream').slice(0,120);let bytes;try{bytes=Buffer.from(String(payload?.data||''),'base64')}catch{}
+      if(error||!taskId||!bytes?.length||bytes.length>5*1024*1024)return jsonResponse(res,400,{error:'Anexo inválido ou maior que 5 MB'});
+      const storagePath=`${taskId}/${crypto.randomUUID()}-${fileName.replace(/[^\w.\-]+/g,'_')}`;
+      taskStorageRequest(`object/task-attachments/${storagePath}`,{method:'POST',headers:{'Content-Type':mime,'x-upsert':'false'},body:bytes}).then(()=>supabaseRequest('task_attachments',{method:'POST',body:JSON.stringify({task_id:taskId,file_name:fileName,storage_path:storagePath,mime_type:mime,size_bytes:bytes.length})})).then(async data=>{await taskActivity(taskId,'attachment_added',{file_name:fileName});jsonResponse(res,201,data?.[0])}).catch(storageError=>jsonResponse(res,502,{error:storageError.message}));
+    });
+    if(req.method==='GET'){const id=cleanUuid(requestUrl.searchParams.get('id'));if(!id)return jsonResponse(res,400,{error:'Anexo inválido'});return supabaseRequest(`task_attachments?id=eq.${id}&select=*`).then(async rows=>{const file=rows?.[0];if(!file)throw new Error('Anexo não encontrado');const response=await taskStorageRequest(`object/task-attachments/${file.storage_path}`);const buffer=Buffer.from(await response.arrayBuffer());res.writeHead(200,{'Content-Type':file.mime_type,'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(file.file_name)}`,'Content-Length':buffer.length});res.end(buffer)}).catch(error=>jsonResponse(res,404,{error:error.message}))}
+    if(req.method==='DELETE'){const id=cleanUuid(requestUrl.searchParams.get('id'));if(!id)return jsonResponse(res,400,{error:'Anexo inválido'});return supabaseRequest(`task_attachments?id=eq.${id}&select=*`).then(async rows=>{const file=rows?.[0];if(!file)throw new Error('Anexo não encontrado');await taskStorageRequest('object/task-attachments',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefixes:[file.storage_path]})});await supabaseRequest(`task_attachments?id=eq.${id}`,{method:'DELETE'});await taskActivity(file.task_id,'attachment_deleted',{file_name:file.file_name});jsonResponse(res,200,{ok:true})}).catch(error=>jsonResponse(res,502,{error:error.message}))}
   }
   if (requestUrl.pathname === '/api/alerts') {
     const remote = `set -a; . /opt/meta-ads-cli/secrets/.env; set +a; META_ALERT_DATA_DIR=/opt/meta-ads-cli/data/alerts python3 /opt/meta-ads-cli/monitor/alert_status.py`;

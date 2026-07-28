@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260718-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260727-03" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260728-01" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -125,17 +125,22 @@
       <section class="tasks-view" id="tasks" hidden>
         <div class="tasks-heading">
           <div><p class="eyebrow">GESTÃO DE TRABALHO</p><h2>Tarefas</h2><p>Organize demandas, responsáveis e prazos sem sair do Analytics Hurtz.</p></div>
-          <button class="task-primary-button" id="newTaskButton" type="button">+ Nova tarefa</button>
+          <div class="tasks-heading-actions"><button class="task-secondary-button" id="taskStructureButton" type="button">Projetos e ciclos</button><button class="task-primary-button" id="newTaskButton" type="button">+ Nova tarefa</button></div>
         </div>
         <div class="tasks-toolbar">
           <div class="tasks-summary"><b id="taskCount">0 tarefas</b><span id="taskSummary">Arraste os cartões para atualizar o andamento.</span></div>
           <div class="tasks-controls">
             <label class="task-search"><span>⌕</span><input id="taskSearch" placeholder="Buscar tarefa..." /></label>
+            <select id="taskProjectFilter" aria-label="Filtrar por projeto"><option value="">Todos os projetos</option></select>
+            <select id="taskModuleFilter" aria-label="Filtrar por módulo"><option value="">Todos os módulos</option></select>
+            <select id="taskCycleFilter" aria-label="Filtrar por ciclo"><option value="">Todos os ciclos</option></select>
             <select id="taskPriorityFilter" aria-label="Filtrar por prioridade"><option value="">Todas as prioridades</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select>
             <select id="taskAssigneeFilter" aria-label="Filtrar por responsável"><option value="">Todos os responsáveis</option></select>
+            <div class="task-view-switch"><button class="active" type="button" data-task-view="board">Quadro</button><button type="button" data-task-view="list">Lista</button><button type="button" data-task-view="calendar">Calendário</button><button type="button" data-task-view="analytics">Resumo</button></div>
             <button id="refreshTasks" type="button">↻ Atualizar</button>
           </div>
         </div>
+        <div class="task-deadline-alerts" id="taskDeadlineAlerts" hidden></div>
         <div class="tasks-board" id="tasksBoard" aria-live="polite"></div>
       </section>
 
@@ -152,9 +157,31 @@
             <label>PRIORIDADE<select id="taskPriority"><option value="low">Baixa</option><option value="medium" selected>Média</option><option value="high">Alta</option></select></label>
             <label>PRAZO<input id="taskDueDate" type="date" /></label>
             <label>ETAPA<select id="taskColumn"></select></label>
+            <label>PROJETO<select id="taskProject"></select></label>
+            <label>MÓDULO<select id="taskModule"><option value="">Sem módulo</option></select></label>
+            <label>CICLO<select id="taskCycle"><option value="">Sem ciclo</option></select></label>
+            <label>ESTIMATIVA (MINUTOS)<input id="taskEstimate" type="number" min="0" max="100000" placeholder="Ex.: 60" /></label>
           </div>
           <div class="task-form-actions"><button class="task-delete-button" id="deleteTask" type="button" hidden>Excluir</button><button class="task-primary-button" type="submit">Salvar tarefa</button></div>
           <span class="task-form-status" id="taskFormStatus"></span>
+          <section class="task-details-suite" id="taskDetailsSuite" hidden>
+            <div class="task-detail-tabs"><button class="active" type="button" data-task-detail="checklist">Checklist</button><button type="button" data-task-detail="comments">Comentários</button><button type="button" data-task-detail="attachments">Anexos</button><button type="button" data-task-detail="activity">Histórico</button></div>
+            <div class="task-detail-panel" id="taskDetailPanel"></div>
+          </section>
+        </form>
+      </div>
+
+      <div class="task-modal" id="taskStructureModal" hidden>
+        <form class="task-dialog task-structure-dialog" id="taskStructureForm">
+          <button class="task-modal-close" type="button" id="closeTaskStructure" aria-label="Fechar">×</button>
+          <p class="eyebrow">ORGANIZAÇÃO</p><h3>Projetos, módulos e ciclos</h3>
+          <div class="task-structure-grid">
+            <label>NOVO PROJETO<input id="newTaskProjectTitle" maxlength="100" placeholder="Nome do projeto" /><button type="button" data-create-structure="project">Criar projeto</button></label>
+            <label>NOVO MÓDULO<select id="newTaskModuleProject"></select><input id="newTaskModuleTitle" maxlength="100" placeholder="Nome do módulo" /><button type="button" data-create-structure="module">Criar módulo</button></label>
+            <label>NOVO CICLO<select id="newTaskCycleProject"></select><input id="newTaskCycleTitle" maxlength="100" placeholder="Nome do ciclo" /><div><input id="newTaskCycleStart" type="date" /><input id="newTaskCycleEnd" type="date" /></div><button type="button" data-create-structure="cycle">Criar ciclo</button></label>
+          </div>
+          <div class="task-structure-existing" id="taskStructureExisting"></div>
+          <span class="task-form-status" id="taskStructureStatus"></span>
         </form>
       </div>
 
@@ -255,6 +282,6 @@
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="app.js?v=20260727-03"></script>
+  <script src="app.js?v=20260728-01"></script>
 </body>
 </html>
