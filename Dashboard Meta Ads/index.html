@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260718-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260728-04" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260731-01" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -125,7 +125,7 @@
       <section class="tasks-view" id="tasks" hidden>
         <div class="tasks-heading">
           <div><p class="eyebrow">GESTÃO DE TRABALHO</p><h2>Tarefas</h2><p>Organize demandas, responsáveis e prazos sem sair do Analytics Hurtz.</p></div>
-          <div class="tasks-heading-actions"><button class="task-secondary-button" id="taskStructureButton" type="button">Projetos e ciclos</button><button class="task-primary-button" id="newTaskButton" type="button">+ Nova tarefa</button></div>
+          <div class="tasks-heading-actions"><button class="task-secondary-button task-notification-button" id="taskNotificationsButton" type="button">Menções <span id="taskNotificationCount">0</span></button><button class="task-secondary-button" id="taskStructureButton" type="button">Etapas e organização</button><button class="task-primary-button" id="newTaskButton" type="button">+ Nova tarefa</button></div>
         </div>
         <div class="task-retention-notice" role="alert"><strong>Retenção de 72 horas</strong><span>Todas as tarefas e seus arquivos são apagados permanentemente 72 horas após a criação. Essa exclusão não pode ser desfeita.</span></div>
         <div class="tasks-toolbar">
@@ -145,13 +145,22 @@
         <div class="tasks-board" id="tasksBoard" aria-live="polite"></div>
       </section>
 
+      <div class="task-modal" id="taskNotificationsModal" hidden>
+        <section class="task-dialog task-notifications-dialog">
+          <button class="task-modal-close" type="button" id="closeTaskNotifications" aria-label="Fechar">×</button>
+          <p class="eyebrow">NOTIFICAÇÕES</p><h3>Menções em tarefas</h3>
+          <p class="task-notification-help">As menções ficam vinculadas ao responsável citado e à tarefa correspondente.</p>
+          <div class="task-notification-list" id="taskNotificationList"></div>
+        </section>
+      </div>
+
       <div class="task-modal" id="taskModal" hidden>
         <form class="task-dialog" id="taskForm">
           <button class="task-modal-close" type="button" id="closeTaskModal" aria-label="Fechar">×</button>
           <p class="eyebrow">TAREFA</p><h3 id="taskModalTitle">Nova tarefa</h3>
           <input type="hidden" id="taskId" />
           <label>TÍTULO<input id="taskTitle" maxlength="180" required /></label>
-          <label>DESCRIÇÃO<textarea id="taskDescription" maxlength="2000" rows="4"></textarea></label>
+          <label class="task-description-field">DESCRIÇÃO<textarea id="taskDescription" maxlength="2000" rows="4" placeholder="Descreva a tarefa. Digite @ para mencionar um responsável."></textarea><div class="task-mention-menu" id="taskMentionMenu" hidden></div><small>Use @Nome para mencionar e notificar uma pessoa.</small></label>
           <label>ETIQUETAS<input id="taskLabels" maxlength="240" placeholder="Ex.: Meta Ads, Cliente, Urgente" /><small>Separe as etiquetas por vírgula.</small></label>
           <div class="task-form-grid">
             <label>RESPONSÁVEL<input id="taskAssignee" maxlength="100" placeholder="Nome da pessoa" /></label>
@@ -177,6 +186,7 @@
           <button class="task-modal-close" type="button" id="closeTaskStructure" aria-label="Fechar">×</button>
           <p class="eyebrow">ORGANIZAÇÃO</p><h3>Projetos, módulos e ciclos</h3>
           <div class="task-structure-grid">
+            <label>NOVA ETAPA<input id="newTaskColumnTitle" maxlength="80" placeholder="Ex.: Em revisão" /><button type="button" data-create-structure="column">Criar etapa</button></label>
             <label>NOVO PROJETO<input id="newTaskProjectTitle" maxlength="100" placeholder="Nome do projeto" /><button type="button" data-create-structure="project">Criar projeto</button></label>
             <label>NOVO MÓDULO<select id="newTaskModuleProject"></select><input id="newTaskModuleTitle" maxlength="100" placeholder="Nome do módulo" /><button type="button" data-create-structure="module">Criar módulo</button></label>
             <label>NOVO CICLO<select id="newTaskCycleProject"></select><input id="newTaskCycleTitle" maxlength="100" placeholder="Nome do ciclo" /><div><input id="newTaskCycleStart" type="date" /><input id="newTaskCycleEnd" type="date" /></div><button type="button" data-create-structure="cycle">Criar ciclo</button></label>
@@ -283,6 +293,6 @@
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="app.js?v=20260728-02"></script>
+  <script src="app.js?v=20260731-01"></script>
 </body>
 </html>

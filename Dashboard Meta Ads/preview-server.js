@@ -16,7 +16,7 @@ const readJsonFile = (file,fallback={}) => { try{return JSON.parse(fs.readFileSy
 const writeJsonFile = (file,value) => { fs.mkdirSync(path.dirname(file),{recursive:true});const temporary=`${file}.tmp`;fs.writeFileSync(temporary,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',mode:0o600});fs.renameSync(temporary,file) };
 const readBody = (req,callback) => {let body='';req.on('data',chunk=>{body+=chunk;if(body.length>512*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
 const readLargeBody = (req,callback) => {let body='';req.on('data',chunk=>{body+=chunk;if(body.length>8*1024*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
-const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});res.end(JSON.stringify(payload))};
+const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});res.end(JSON.stringify(payload))};
 const authFile=process.env.API_AUTH_FILE||'/opt/meta-ads-cli/secrets/analytics-api-basic.env';
 const authConfig=()=>{const values={};try{fs.readFileSync(authFile,'utf8').split(/\r?\n/).forEach(line=>{const index=line.indexOf('=');if(index>0)values[line.slice(0,index)]=line.slice(index+1)})}catch{}return values};
 const safeEqual=(left,right)=>{const a=Buffer.from(String(left||'')),b=Buffer.from(String(right||''));return a.length===b.length&&crypto.timingSafeEqual(a,b)};
@@ -70,11 +70,11 @@ http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
   if(requestUrl.pathname.startsWith('/api/')){
     res.setHeader('Access-Control-Allow-Origin','https://analytics.hurtzcompany.com');
-    res.setHeader('Access-Control-Allow-Methods','GET,PUT,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods','GET,PUT,POST,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');
     res.setHeader('Vary','Origin');
   }
-  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});return res.end()}
+  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});return res.end()}
   if(process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){
     if(requestUrl.pathname==='/api/session'&&req.method==='POST')return readBody(req,(error,payload)=>{
       const ip=clientIp(req),now=Date.now(),attempt=(loginAttempts.get(ip)||{count:0,until:0});
@@ -113,8 +113,9 @@ http.createServer((req,res)=>{
       supabaseRequest('task_subtasks?select=id,task_id,title,is_done,position&order=position.asc'),
       supabaseRequest('task_comments?select=id,task_id,author,body,created_at&order=created_at.asc'),
       supabaseRequest('task_attachments?select=id,task_id,file_name,mime_type,size_bytes,created_at&order=created_at.asc'),
-      supabaseRequest('task_activities?select=id,task_id,action,details,actor,created_at&order=created_at.desc&limit=500')
-    ]).then(([columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities])=>{const payload={columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities};taskDataCache.payload=payload;taskDataCache.expiresAt=Date.now()+TASK_CACHE_TTL;jsonResponse(res,200,payload)}).catch(error=>jsonResponse(res,502,{error:error.message}));
+      supabaseRequest('task_activities?select=id,task_id,action,details,actor,created_at&order=created_at.desc&limit=500'),
+      supabaseRequest('task_notifications?select=id,task_id,recipient_name,is_read,created_at&order=created_at.desc&limit=500')
+    ]).then(([columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities,notifications])=>{const payload={columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities,notifications};taskDataCache.payload=payload;taskDataCache.expiresAt=Date.now()+TASK_CACHE_TTL;jsonResponse(res,200,payload)}).catch(error=>jsonResponse(res,502,{error:error.message}));
     }
     if(req.method==='POST')return readBody(req,(error,payload)=>{
       if(error||!String(payload?.title||'').trim()||!payload?.column_id)return jsonResponse(res,400,{error:'Preencha o título e a etapa'});
@@ -138,6 +139,13 @@ http.createServer((req,res)=>{
     }
     return jsonResponse(res,405,{error:'Método não permitido'});
   }
+  if(requestUrl.pathname==='/api/task-columns'){
+    if(req.method==='POST')return readBody(req,(error,payload)=>{const title=String(payload?.title||'').trim();if(error||!title)return jsonResponse(res,400,{error:'Digite o nome da etapa'});supabaseRequest('task_columns',{method:'POST',body:JSON.stringify({title:title.slice(0,80),position:Number(payload.position)||0})}).then(data=>jsonResponse(res,201,data?.[0])).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
+    if(req.method==='PUT')return readBody(req,(error,payload)=>{const id=cleanUuid(payload?.id),title=String(payload?.title||'').trim();if(error||!id||!title)return jsonResponse(res,400,{error:'Etapa inválida'});supabaseRequest(`task_columns?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({title:title.slice(0,80),position:Number(payload.position)||0})}).then(data=>jsonResponse(res,200,data?.[0])).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
+    if(req.method==='DELETE'){const id=cleanUuid(requestUrl.searchParams.get('id'));if(!id)return jsonResponse(res,400,{error:'Etapa inválida'});return supabaseRequest(`tasks?column_id=eq.${id}&select=id&limit=1`).then(rows=>{if(rows?.length)throw new Error('Mova as tarefas antes de excluir esta etapa.');return supabaseRequest(`task_columns?id=eq.${id}`,{method:'DELETE'})}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,409,{error:error.message}))}
+  }
+  if(requestUrl.pathname==='/api/task-order'&&req.method==='PUT')return readBody(req,async(error,payload)=>{const rows=Array.isArray(payload?.items)?payload.items.slice(0,500):[];if(error||!rows.length||rows.some(row=>!cleanUuid(row.id)||!cleanUuid(row.column_id)))return jsonResponse(res,400,{error:'Ordem das tarefas inválida'});try{for(const row of rows)await supabaseRequest(`tasks?id=eq.${cleanUuid(row.id)}`,{method:'PATCH',body:JSON.stringify({column_id:cleanUuid(row.column_id),position:Math.max(0,Number(row.position)||0),completed_at:row.completed_at||null})});jsonResponse(res,200,{ok:true,updated:rows.length})}catch(dbError){jsonResponse(res,502,{error:dbError.message})}});
+  if(requestUrl.pathname==='/api/task-notifications'&&req.method==='POST')return readBody(req,(error,payload)=>{const taskId=cleanUuid(payload?.task_id),recipients=Array.isArray(payload?.recipients)?[...new Set(payload.recipients.map(value=>String(value).trim()).filter(Boolean))].slice(0,20):[];if(error||!taskId||!recipients.length)return jsonResponse(res,400,{error:'Menção inválida'});supabaseRequest('task_notifications?on_conflict=task_id,recipient_name',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(recipients.map(recipient_name=>({task_id:taskId,recipient_name}))) }).then(data=>jsonResponse(res,201,{created:data?.length||0})).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
   if(['/api/task-projects','/api/task-modules','/api/task-cycles'].includes(requestUrl.pathname)){
     const table=requestUrl.pathname==='/api/task-projects'?'task_projects':requestUrl.pathname==='/api/task-modules'?'task_modules':'task_cycles';
     if(req.method==='POST')return readBody(req,(error,payload)=>{
