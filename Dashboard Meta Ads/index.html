@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260718-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260803-02" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260803-03" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -149,9 +149,9 @@
       <section class="creative-search-view" id="creativeSearch" hidden>
         <div class="creative-search-heading"><div><p class="eyebrow">PESQUISA AUTOMÁTICA</p><h2>Pesquisa de criativos</h2><p>Encontre vários vídeos do TikTok, visualize e baixe sem armazená-los no Analytics.</p></div><span class="creative-extension-status connected">Apify conectada</span></div>
         <div class="creative-search-card">
-          <form id="creativeSearchForm"><label><span>Termos de pesquisa</span><textarea id="creativeSearchTerms" rows="5" maxlength="1200" placeholder="Um termo por linha. Ex.:&#10;HB20 seminovo&#10;financiamento HB20&#10;comprar HB20" required></textarea><small>O sistema pesquisa cada termo separadamente e remove vídeos repetidos.</small></label>
-            <div class="creative-search-filters"><label>Vídeos por termo<input id="creativeResultLimit" type="number" min="1" max="50" value="10"></label><label>Ordenação<select id="creativeSearchSorting"><option value="MOST_RELEVANT">Mais relevantes</option><option value="MOST_LIKED">Mais curtidos</option><option value="LATEST">Mais recentes</option></select></label><label>Período<select id="creativeSearchPeriod"><option value="ALL_TIME">Todo o período</option><option value="PAST_WEEK">Última semana</option><option value="PAST_MONTH">Último mês</option><option value="LAST_3_MONTHS">Últimos 3 meses</option><option value="LAST_6_MONTHS">Últimos 6 meses</option></select></label></div>
-            <button class="creative-auto-search" type="submit">Buscar vídeos automaticamente</button>
+          <form id="creativeSearchForm" class="creative-auto-form"><label class="creative-terms-field"><span>O que você quer encontrar?</span><textarea id="creativeSearchTerms" rows="5" maxlength="1200" placeholder="Um termo por linha. Ex.:&#10;HB20 seminovo&#10;financiamento HB20&#10;comprar HB20" required></textarea><small>Use termos específicos. O sistema pesquisa cada linha e remove resultados repetidos.</small></label>
+            <div class="creative-search-filters"><label><span>Conteúdo esperado</span><select id="creativeContentType"><option value="auto">Identificar pelo termo</option><option value="car">Carros e veículos</option><option value="property">Imóveis</option><option value="any">Outro assunto</option></select></label><label><span>Vídeos por termo</span><input id="creativeResultLimit" type="number" min="1" max="30" value="10"></label><label><span>Ordenar por</span><select id="creativeSearchSorting"><option value="MOST_RELEVANT">Mais relevantes</option><option value="MOST_LIKED">Mais curtidos</option><option value="LATEST">Mais recentes</option></select></label><label><span>Período</span><select id="creativeSearchPeriod"><option value="ALL_TIME">Todo o período</option><option value="PAST_WEEK">Última semana</option><option value="PAST_MONTH">Último mês</option><option value="LAST_3_MONTHS">Últimos 3 meses</option><option value="LAST_6_MONTHS">Últimos 6 meses</option></select></label></div>
+            <div class="creative-submit-row"><div><strong>Auditoria visual ativada</strong><span>Cada vídeo é analisado antes de aparecer para confirmar o conteúdo esperado.</span></div><button class="creative-auto-search" type="submit"><span>Buscar e validar vídeos</span><b>→</b></button></div>
           </form>
           <div class="creative-search-help"><div><strong>Privacidade do conteúdo</strong><span>Os resultados ficam apenas nesta tela enquanto ela estiver aberta. Nenhum vídeo ou resultado é salvo no banco do Analytics.</span></div></div>
         </div>
@@ -308,6 +308,6 @@
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="app.js?v=20260803-02"></script>
+  <script src="app.js?v=20260803-03"></script>
 </body>
 </html>
