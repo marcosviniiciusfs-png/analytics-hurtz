@@ -742,6 +742,12 @@ const reportGroupNameByProductChannel=reportGroupName;
 reportGroupName=function(campaign){const base=reportGroupNameByProductChannel(campaign),city=reportCampaignCity(campaign.campaign_name||campaign.name);return city?`${base} - ${city}`:base};
 function reportGroupsForRow(row){const groups=new Map();(row.campaigns||[]).filter(campaign=>Number(campaign.spend)>0).forEach(campaign=>{const name=reportGroupName(campaign),group=groups.get(name)||{name,spend:0,results:0,complete:true};group.spend+=Number(campaign.spend||0);if(campaign.results==null)group.complete=false;else group.results+=Number(campaign.results||0);groups.set(name,group)});return [...groups.values()]}
 let currentReportContext=null,currentPngAccountId=null;
+const reportPngEdits=new Map();
+function createPngReportEdit(accountId,displayName,row,groups,insights,context){
+  const products=[...new Set(groups.map(group=>group.name.split(' - ')[0]).filter(name=>name!=='NÃO IDENTIFICADO'))].join(' • ')||'NÃO IDENTIFICADO';
+  return {reportTitle:'Relatório de Performance',accountName:displayName,period:`${context.from.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})} a ${context.to.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}`,campaignsLabel:'Campanhas:',products,leadsLabel:'LEADS',leadsValue:num(insights.totalResults),cplLabel:'CUSTO POR LEAD',cplValue:insights.overallCpl==null?'—':brl(insights.overallCpl),spendLabel:'VALOR GASTO',spendValue:brl(row.spend),groupTitle:'DESEMPENHO POR GRUPO DE CAMPANHA',confirmedLabel:'TOTAL CONFIRMADO',confirmedValue:num(insights.totalResults),confirmedUnit:'leads',investmentText:`Investimento total de ${brl(row.spend)} no período analisado.`,groups:groups.map(group=>({name:group.name,results:group.complete?num(group.results):'—',cpl:group.complete&&group.results?brl(group.spend/group.results):'—'})),summaryTitle:'Resumo do período',summaryText:`${displayName} gerou ${num(insights.totalResults)} resultados confirmados, com investimento total de ${brl(row.spend)} entre ${context.from.toLocaleDateString('pt-BR')} e ${context.to.toLocaleDateString('pt-BR')}.`,goodTitle:'O que está bom',goodText:insights.good,improveTitle:'O que pode melhorar',improveText:insights.improve};
+}
+function pngReportEdit(accountId,displayName,row,groups,insights,context){if(!reportPngEdits.has(accountId))reportPngEdits.set(accountId,createPngReportEdit(accountId,displayName,row,groups,insights,context));const edit=reportPngEdits.get(accountId);edit.accountName=displayName;return edit}
 const reportMetric=(value,decimals=2)=>Number(value||0).toLocaleString('pt-BR',{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
 function pngInsights(row,analysisRow,groups){const totalResults=groups.filter(group=>group.complete).reduce((sum,group)=>sum+group.results,0),overallCpl=totalResults?Number(row.spend)/totalResults:null,valid=groups.filter(group=>group.complete&&group.results>0),best=[...valid].sort((a,b)=>(a.spend/a.results)-(b.spend/b.results))[0],worst=[...valid].sort((a,b)=>(b.spend/b.results)-(a.spend/a.results))[0],zero=groups.find(group=>group.complete&&group.results===0&&group.spend>0),ctr=Number(analysisRow?.account?.ctr||0);let good=best?`${best.name} liderou a eficiência, com ${num(best.results)} resultados a ${brl(best.spend/best.results)} por resultado.`:totalResults?`A conta confirmou ${num(totalResults)} resultados com investimento total de ${brl(row.spend)}.`:'Não houve resultado confirmado suficiente para destacar um grupo.';if(ctr>=2)good+=` O CTR de ${ctr.toLocaleString('pt-BR',{maximumFractionDigits:2})}% reforça boa atração dos anúncios.`;let improve;if(zero)improve=`${zero.name} consumiu ${brl(zero.spend)} sem resultado confirmado. Revisar antes de ampliar o investimento.`;else if(worst&&overallCpl&&worst.spend/worst.results>overallCpl*1.25)improve=`${worst.name} ficou acima do CPL médio da conta. Revisar criativo, público e distribuição antes de escalar.`;else if(ctr>0&&ctr<1)improve=`CTR de ${ctr.toLocaleString('pt-BR',{maximumFractionDigits:2})}% indica baixa atração. Priorizar novos criativos e mensagens de abertura.`;else improve='Manter a estrutura eficiente e testar variações controladas de criativo, público e posicionamento sem elevar o CPL.';return {good,improve,totalResults,overallCpl,ctr}}
 function roundRect(ctx,x,y,w,h,r,fill,stroke=null){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke()}}
@@ -866,6 +872,47 @@ drawPngReport=async function(accountId,displayName){
   const footerX=800-(leadWidth+6+brandWidth)/2;
   ctx.fillStyle='#414855';ctx.font='400 13px Arial';ctx.fillText(footerLead,footerX,880);
   ctx.fillStyle=orange;ctx.font='700 13px Arial';ctx.fillText(footerBrand,footerX+leadWidth+6,880);
+};
+
+const drawPngReportWithReferenceLayout=drawPngReport;
+drawPngReport=async function(accountId,displayName){
+  await drawPngReportWithReferenceLayout(accountId,displayName);
+  const context=currentReportContext,row=context?.payload.accounts?.[accountId],analysisRow=context?.analysis?.accounts?.[accountId];
+  if(!row)return;
+  const auditGroups=reportGroupsForRow(row),auditInsights=pngInsights(row,analysisRow,auditGroups),edit=pngReportEdit(accountId,displayName,row,auditGroups,auditInsights,context);
+  const canvas=document.querySelector('#pngReportCanvas'),ctx=canvas.getContext('2d'),orange='#ff4b22',navy='#062b70',ink='#030316',bg='#f8f9fc';
+  edit.accountName=displayName;
+  ctx.textAlign='left';
+
+  ctx.fillStyle=bg;ctx.fillRect(35,38,940,150);
+  ctx.fillStyle=ink;const titleSize=fitCanvasText(ctx,edit.reportTitle,930,54,'800');ctx.font=`800 ${titleSize}px Arial`;ctx.fillText(edit.reportTitle,40,122);
+  ctx.fillStyle=navy;const accountSize=fitCanvasText(ctx,edit.accountName,900,29,'500');ctx.font=`500 ${accountSize}px Arial`;ctx.fillText(edit.accountName,40,171);
+
+  ctx.fillStyle=bg;ctx.fillRect(94,213,1120,48);
+  ctx.fillStyle=ink;ctx.font='700 16px Arial';ctx.fillText('Período:',101,245);ctx.font='400 15px Arial';ctx.fillText(edit.period,178,245);
+  ctx.font='700 16px Arial';ctx.fillText(edit.campaignsLabel,468,245);ctx.fillStyle=orange;const productsSize=fitCanvasText(ctx,edit.products,625,16,'800');ctx.font=`800 ${productsSize}px Arial`;ctx.fillText(edit.products,578,245);
+
+  const cardXs=[40,260,480],cardLabels=[edit.leadsLabel,edit.cplLabel,edit.spendLabel],cardValues=[edit.leadsValue,edit.cplValue,edit.spendValue];
+  cardXs.forEach((x,index)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x+18,400,168,135);ctx.textAlign='center';ctx.fillStyle=ink;
+    const labelSize=fitCanvasText(ctx,cardLabels[index],174,14,'800');ctx.font=`800 ${labelSize}px Arial`;ctx.fillText(cardLabels[index],x+102,430);
+    ctx.strokeStyle='#ffaf97';ctx.beginPath();ctx.moveTo(x+64,458);ctx.lineTo(x+140,458);ctx.stroke();ctx.fillStyle=orange;
+    const valueSize=fitCanvasText(ctx,cardValues[index],174,32,'800');ctx.font=`800 ${valueSize}px Arial`;ctx.fillText(cardValues[index],x+102,515);ctx.textAlign='left';
+  });
+
+  ctx.fillStyle=bg;ctx.fillRect(776,305,650,44);ctx.fillStyle=navy;const groupTitleSize=fitCanvasText(ctx,edit.groupTitle,620,20,'800');ctx.font=`800 ${groupTitleSize}px Arial`;ctx.fillText(edit.groupTitle,783,334);
+  ctx.fillStyle='#fff';ctx.fillRect(740,392,220,202);ctx.fillStyle=navy;ctx.font='800 15px Arial';ctx.fillText(edit.confirmedLabel,748,414);
+  ctx.fillStyle=orange;const confirmedSize=fitCanvasText(ctx,edit.confirmedValue,120,60,'800');ctx.font=`800 ${confirmedSize}px Arial`;ctx.fillText(edit.confirmedValue,748,488);ctx.font='700 22px Arial';ctx.fillText(edit.confirmedUnit,875,488);
+  ctx.strokeStyle='#ffac91';ctx.beginPath();ctx.moveTo(748,511);ctx.lineTo(950,511);ctx.stroke();ctx.fillStyle=ink;ctx.font='400 15px Arial';wrapCanvasText(ctx,edit.investmentText,748,555,190,20,3);
+
+  const groups=edit.groups||[],gridX=992,gridY=370,gridW=558,gridH=256,headerH=36,campaignCol=340,leadsCol=105;
+  ctx.fillStyle=bg;ctx.fillRect(gridX-4,gridY-4,gridW+8,gridH+8);roundRect(ctx,gridX,gridY,gridW,gridH,8,'#fff','#dfe4eb');ctx.fillStyle='#f4f6f9';ctx.fillRect(gridX+1,gridY+1,gridW-2,headerH);
+  ctx.strokeStyle='#dfe4eb';ctx.beginPath();ctx.moveTo(gridX+campaignCol,gridY);ctx.lineTo(gridX+campaignCol,gridY+gridH);ctx.moveTo(gridX+campaignCol+leadsCol,gridY);ctx.lineTo(gridX+campaignCol+leadsCol,gridY+gridH);ctx.moveTo(gridX,gridY+headerH);ctx.lineTo(gridX+gridW,gridY+headerH);ctx.stroke();
+  ctx.fillStyle=navy;ctx.font='800 11px Arial';ctx.fillText('GRUPO DE CAMPANHA',gridX+14,gridY+23);ctx.textAlign='center';ctx.fillText(edit.leadsLabel,gridX+campaignCol+leadsCol/2,gridY+23);ctx.fillText('CPL',gridX+campaignCol+leadsCol+(gridW-campaignCol-leadsCol)/2,gridY+23);ctx.textAlign='left';
+  if(groups.length){const rowH=(gridH-headerH)/groups.length;groups.forEach((group,index)=>{const top=gridY+headerH+index*rowH,centerY=top+rowH/2;if(index){ctx.strokeStyle='#dfe4eb';ctx.beginPath();ctx.moveTo(gridX,top);ctx.lineTo(gridX+gridW,top);ctx.stroke()}ctx.fillStyle=ink;const size=fitCanvasText(ctx,group.name,campaignCol-28,Math.min(14,Math.max(9,rowH*.28)),'800');ctx.font=`800 ${size}px Arial`;ctx.fillText(group.name,gridX+14,centerY+size*.35);ctx.fillStyle=orange;ctx.textAlign='center';ctx.font=`800 ${Math.min(17,Math.max(11,rowH*.34))}px Arial`;ctx.fillText(group.results,gridX+campaignCol+leadsCol/2,centerY+5);ctx.fillText(group.cpl,gridX+campaignCol+leadsCol+(gridW-campaignCol-leadsCol)/2,centerY+5);ctx.textAlign='left'})}
+
+  const panels=[{x:40,w:590,title:edit.summaryTitle,text:edit.summaryText},{x:646,w:450,title:edit.goodTitle,text:edit.goodText},{x:1112,w:448,title:edit.improveTitle,text:edit.improveText}];
+  panels.forEach(panel=>{ctx.fillStyle='#fff';ctx.fillRect(panel.x+128,694,panel.w-145,132);ctx.fillStyle=ink;ctx.font='800 16px Arial';ctx.fillText(panel.title,panel.x+134,720);ctx.fillStyle=orange;ctx.fillRect(panel.x+134,735,42,2);ctx.fillStyle=ink;ctx.font='700 14px Arial';wrapCanvasText(ctx,panel.text,panel.x+134,770,panel.w-160,19,4)});
 };
 
 async function openPngReport(accountId){currentPngAccountId=accountId;const row=currentReportContext?.payload.accounts?.[accountId];if(!row)return;const input=document.querySelector('#pngReportName');input.value=row.name||row.id;document.querySelector('#pngReportModal').classList.add('open');document.querySelector('#pngReportModal').setAttribute('aria-hidden','false');await drawPngReport(accountId,input.value)}
@@ -1024,6 +1071,62 @@ async function downloadAllPngReports(button){
   }catch(error){alert(`Não foi possível gerar o ZIP: ${error.message}`)}finally{showReportLoader(false);button.disabled=false}
 }
 document.addEventListener('click',event=>{const button=event.target.closest('#downloadAllPngReports');if(button)openBulkPngEditor()});
+
+function currentPngEdit(accountId=currentPngAccountId){
+  const context=currentReportContext,row=context?.payload.accounts?.[accountId],analysisRow=context?.analysis?.accounts?.[accountId];if(!row)return null;
+  const groups=reportGroupsForRow(row),insights=pngInsights(row,analysisRow,groups),displayName=reportDisplayNameOverrides.get(accountId)||row.name||row.id;
+  return pngReportEdit(accountId,displayName,row,groups,insights,context);
+}
+function pngEditorControl(label,field,value,{wide=false,multiline=false}={}){
+  const tag=multiline?`<textarea rows="3" data-png-field="${field}">${escapeHtml(value)}</textarea>`:`<input data-png-field="${field}" value="${escapeHtml(value)}" />`;
+  return `<label class="png-edit-control${wide?' wide':''}"><span>${label}</span>${tag}</label>`;
+}
+function renderPngReportFields(accountId=currentPngAccountId){
+  const root=document.querySelector('#pngReportFields'),edit=currentPngEdit(accountId);if(!root||!edit){if(root)root.innerHTML='';return}
+  root.innerHTML=`
+    <fieldset><legend>Cabeçalho</legend><div class="png-edit-grid">
+      ${pngEditorControl('Título do relatório','reportTitle',edit.reportTitle)}
+      ${pngEditorControl('Nome da conta','accountName',edit.accountName)}
+      ${pngEditorControl('Período exibido','period',edit.period)}
+      ${pngEditorControl('Rótulo de campanhas','campaignsLabel',edit.campaignsLabel)}
+      ${pngEditorControl('Produtos / campanhas reconhecidas','products',edit.products,{wide:true})}
+    </div></fieldset>
+    <fieldset><legend>Métricas principais</legend><div class="png-edit-grid metrics">
+      ${pngEditorControl('Nome da métrica 1','leadsLabel',edit.leadsLabel)}${pngEditorControl('Valor da métrica 1','leadsValue',edit.leadsValue)}
+      ${pngEditorControl('Nome da métrica 2','cplLabel',edit.cplLabel)}${pngEditorControl('Valor da métrica 2','cplValue',edit.cplValue)}
+      ${pngEditorControl('Nome da métrica 3','spendLabel',edit.spendLabel)}${pngEditorControl('Valor da métrica 3','spendValue',edit.spendValue)}
+    </div></fieldset>
+    <fieldset><legend>Desempenho por grupo de campanha</legend><div class="png-edit-grid">
+      ${pngEditorControl('Título do bloco','groupTitle',edit.groupTitle,{wide:true})}
+      ${pngEditorControl('Rótulo do total','confirmedLabel',edit.confirmedLabel)}${pngEditorControl('Total confirmado','confirmedValue',edit.confirmedValue)}
+      ${pngEditorControl('Unidade do total','confirmedUnit',edit.confirmedUnit)}${pngEditorControl('Texto do investimento','investmentText',edit.investmentText,{wide:true})}
+    </div><div class="png-group-editor"><div class="png-group-editor-header"><span>Nome reconhecido / não reconhecido</span><span>Leads</span><span>CPL</span></div>
+      ${(edit.groups||[]).map((group,index)=>`<div class="png-group-edit-row"><input value="${escapeHtml(group.name)}" data-png-group-index="${index}" data-png-group-field="name" aria-label="Nome do grupo ${index+1}"><input value="${escapeHtml(group.results)}" data-png-group-index="${index}" data-png-group-field="results" aria-label="Leads do grupo ${index+1}"><input value="${escapeHtml(group.cpl)}" data-png-group-index="${index}" data-png-group-field="cpl" aria-label="CPL do grupo ${index+1}"></div>`).join('')||'<p class="png-edit-empty">Nenhum grupo com gasto foi retornado pela auditoria.</p>'}
+    </div></fieldset>
+    <fieldset><legend>Textos de análise</legend><div class="png-edit-grid">
+      ${pngEditorControl('Título do resumo','summaryTitle',edit.summaryTitle)}${pngEditorControl('Resumo','summaryText',edit.summaryText,{wide:true,multiline:true})}
+      ${pngEditorControl('Título — ponto positivo','goodTitle',edit.goodTitle)}${pngEditorControl('O que está bom','goodText',edit.goodText,{wide:true,multiline:true})}
+      ${pngEditorControl('Título — melhoria','improveTitle',edit.improveTitle)}${pngEditorControl('O que pode melhorar','improveText',edit.improveText,{wide:true,multiline:true})}
+    </div></fieldset>`;
+}
+let pngEditorRedrawTimer;
+function schedulePngEditorRedraw(){clearTimeout(pngEditorRedrawTimer);pngEditorRedrawTimer=setTimeout(()=>{const edit=currentPngEdit();if(edit)drawPngReport(currentPngAccountId,edit.accountName)},140)}
+document.querySelector('#pngReportFields').addEventListener('input',event=>{
+  const edit=currentPngEdit();if(!edit)return;
+  if(event.target.dataset.pngField){const field=event.target.dataset.pngField;edit[field]=event.target.value;if(field==='accountName'){reportDisplayNameOverrides.set(currentPngAccountId,event.target.value);document.querySelector('#pngReportName').value=event.target.value;if(pngReportMode==='bulk')renderBulkPngNames()}}
+  const index=Number(event.target.dataset.pngGroupIndex),groupField=event.target.dataset.pngGroupField;if(groupField&&edit.groups[index])edit.groups[index][groupField]=event.target.value;
+  schedulePngEditorRedraw();
+});
+document.querySelector('#resetPngReportEdits').onclick=async()=>{
+  const row=currentReportContext?.payload.accounts?.[currentPngAccountId];if(!row)return;
+  reportPngEdits.delete(currentPngAccountId);reportDisplayNameOverrides.delete(currentPngAccountId);const displayName=row.name||row.id;document.querySelector('#pngReportName').value=displayName;renderPngReportFields();if(pngReportMode==='bulk')renderBulkPngNames();await drawPngReport(currentPngAccountId,displayName);
+};
+const openPngReportWithEditableFields=openPngReport;
+openPngReport=async function(accountId){await openPngReportWithEditableFields(accountId);renderPngReportFields(accountId)};
+const previewBulkPngWithEditableFields=previewBulkPng;
+previewBulkPng=async function(accountId){await previewBulkPngWithEditableFields(accountId);renderPngReportFields(accountId)};
+const updatePngReportWithEditableFields=document.querySelector('#updatePngReport').onclick;
+document.querySelector('#updatePngReport').onclick=async event=>{await updatePngReportWithEditableFields(event);const edit=currentPngEdit();if(edit){edit.accountName=document.querySelector('#pngReportName').value.trim()||edit.accountName;renderPngReportFields()}};
 let alertsInitialized=false;
 const ALERT_API_BASE=MONITOR_API_BASE;
 const ALERT_SESSION_KEY=MONITOR_SESSION_KEY;
