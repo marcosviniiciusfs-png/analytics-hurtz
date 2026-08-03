@@ -178,6 +178,7 @@ document.addEventListener('focusout',event=>{if(event.target.closest('.info-tool
 window.addEventListener('scroll',hideFloatingTooltip,true);
 window.addEventListener('resize',()=>{if(activeTooltipTrigger)showFloatingTooltip(activeTooltipTrigger)});
 let globalPeriod={from:null,to:null,label:'Este mês'};
+let realControlAuditKey='';
 let selectedAccountIds=new Set(accounts.map(account=>account.id));
 let activeSummaryFilter='all';
 const PRESET_KEY='hurtz-dashboard-filter-presets';
@@ -330,7 +331,7 @@ function applyGlobalPeriod(from,to,label,trigger=null){
   renderSummary();
   renderAccounts(document.querySelector('#searchInput').value);
   if(selectedAccount){syncModalDates();renderModal()}
-  return loadAuditedPeriod(globalPeriod.from,globalPeriod.to,trigger);
+  return loadAuditedPeriod(globalPeriod.from,globalPeriod.to,trigger).then(()=>loadRealControlData(globalPeriod.to));
 }
 function setGlobalRange(range,trigger=null){
   const end=new Date(NOW),start=new Date(NOW);let label;
@@ -390,6 +391,12 @@ async function loadAuditedPeriod(from,to,trigger=null){
     if(progressButton)setButtonLoading(progressButton,false);
     setTimeout(()=>refresh.textContent='Atualizar',1800);
   }
+}
+async function loadRealControlData(to,force=false){
+  const selected=accounts.filter(account=>selectedAccountIds.has(account.id)),starts=selected.map(account=>isCreditAccount(account)?startOfWeeklyCycle(to,account.plan.weekStartDay):parseDate(account.plan.depositDate)).filter(date=>date instanceof Date&&!Number.isNaN(date.valueOf())&&date<=to);
+  if(!starts.length){realControlAuditKey='';return renderAccounts(document.querySelector('#searchInput').value)}
+  const from=new Date(Math.min(...starts.map(date=>date.valueOf()))),key=`${iso(from)}|${iso(to)}`;realControlAuditKey=key;const missing=selected.filter(account=>!LIVE_PERIOD_DATA[key]?.[account.id]).map(account=>account.id);if(!force&&!missing.length)return renderAccounts(document.querySelector('#searchInput').value);
+  try{const response=await fetch(`/api/meta-spend?from=${iso(from)}&to=${iso(to)}&accounts=${encodeURIComponent((force?selected.map(account=>account.id):missing).join(','))}`);if(!response.ok)throw new Error('Falha na auditoria do saldo real');storeAuditPayload(key,await response.json())}catch{}renderSummary();renderAccounts(document.querySelector('#searchInput').value)
 }
 async function loadSelectedAccountAudit(){
   if(!selectedAccount)return;
@@ -465,23 +472,25 @@ function applicableCreditLimit(from,to,plan){
   return [...daysByCycle.values()].reduce((total,days)=>total+Math.min(Number(plan.weeklyLimit)||0,(Number(plan.dailyLimit)||0)*days),0);
 }
 function availableFundsForPeriod(account,performance,from=globalPeriod.from,to=globalPeriod.to){
-  if(!performance.complete||!Number.isFinite(Number(performance.spend)))return {available:false,value:null,base:null,spent:null,tone:'warning',reason:'Amarelo: a Meta ainda não reconciliou o gasto da conta com a soma das campanhas neste período.'};
-  const credit=isCreditAccount(account),base=credit?applicableCreditLimit(from,to,account.plan):netBudget(account.plan.deposit),spent=Number(performance.spend),value=Math.max(0,base-spent),ratio=base>0?value/base:0,tone=value<=0?'danger':ratio<=.3?'warning':'good',source=credit?'limite aplicável ao período':'verba líquida após a taxa Meta';
+  const credit=isCreditAccount(account),start=credit?startOfWeeklyCycle(to,account.plan.weekStartDay):parseDate(account.plan.depositDate),base=credit?Number(account.plan.weeklyLimit)||0:netBudget(account.plan.deposit);
+  if(!credit&&String(account.plan.depositTime||'00:00')!=='00:00')return {available:false,value:null,base,spent:null,tone:'warning',reason:'Amarelo: depósito feito durante o dia exige auditoria horária; nenhum saldo foi estimado.'};
+  if(start>to)return {available:true,value:base,base,spent:0,tone:base>0?'good':'danger',reason:'Nenhum gasto ocorreu porque o ciclo configurado ainda não começou.'};
+  const live=LIVE_PERIOD_DATA[realControlAuditKey]?.[account.id],daily=(live?.daily||[]).filter(day=>String(day.date)>=iso(start)&&String(day.date)<=iso(to));
+  if(!live?.reconciled||daily.some(day=>!day.reconciled))return {available:false,value:null,base,spent:null,tone:'warning',reason:'Amarelo: a Meta ainda não reconciliou todos os dias desde o início deste ciclo.'};
+  const spent=daily.reduce((sum,day)=>sum+(Number(day.account_spend)||0),0),value=Math.max(0,base-spent),ratio=base>0?value/base:0,tone=value<=0?'danger':ratio<=.3?'warning':'good',source=credit?'limite semanal configurado':'verba líquida após a taxa Meta';
   return {available:true,value,base,spent,tone,reason:`${tone==='danger'?'Vermelho':tone==='warning'?'Amarelo':'Verde'}: ${source} de ${brl(base)} menos ${brl(spent)} de gasto real reconciliado pela Meta.`};
 }
 
 function renderSummary(){
   const monitored=accounts.filter(account=>selectedAccountIds.has(account.id));
-  const calculated=monitored.map(a=>metrics(a));
   const active=monitored.filter(isAccountActive).length;
-  const empty=calculated.filter(m=>!m.credit&&m.balance<=0).length;
-  const ending=calculated.filter(m=>!m.credit&&m.balance>0&&m.calendarDaysRemaining<=3).length;
+  const availability=monitored.map(account=>availableFundsForPeriod(account,performanceForPeriod(account))),empty=availability.filter(item=>item.available&&item.value<=0).length,pending=availability.filter(item=>!item.available).length;
   const exceeded=dailyLimitBreaches();
-  document.querySelector('#alertPill').textContent=empty+ending;
+  document.querySelector('#alertPill').textContent=empty+pending;
   summaryCards.innerHTML=`
     <article class="metric-card summary-filter-card ${activeSummaryFilter==='active'?'selected':''}" data-summary-filter="active" tabindex="0"><div class="metric-top">${metricLabel('Contas ativas','Quantidade de contas ativas monitoradas pelo dashboard.')}<span class="metric-icon">◎</span></div><div class="metric-value">${active}</div><div class="metric-foot"><strong>● Monitoradas agora</strong></div></article>
-    <article class="metric-card danger summary-filter-card ${activeSummaryFilter==='empty'?'selected':''}" data-summary-filter="empty" tabindex="0"><div class="metric-top">${metricLabel('Contas sem saldo','Contas cujo saldo estimado do planejamento chegou a zero.')}<span class="metric-icon">!</span></div><div class="metric-value">${empty}</div><div class="metric-foot">Depósito conciliado esgotado</div></article>
-    <article class="metric-card warning summary-filter-card ${activeSummaryFilter==='ending'?'selected':''}" data-summary-filter="ending" tabindex="0"><div class="metric-top">${metricLabel('Plano termina em até 3 dias','Contas cuja data planejada de término está a até três dias.')}<span class="metric-icon">◷</span></div><div class="metric-value">${ending}</div><div class="metric-foot">Conforme a duração configurada</div></article>
+    <article class="metric-card danger summary-filter-card ${activeSummaryFilter==='empty'?'selected':''}" data-summary-filter="empty" tabindex="0"><div class="metric-top">${metricLabel('Contas sem saldo','Contas cuja verba configurada menos o gasto real reconciliado pela Meta chegou a zero.')}<span class="metric-icon">!</span></div><div class="metric-value">${empty}</div><div class="metric-foot">Gasto real consumiu a verba</div></article>
+    <article class="metric-card warning summary-filter-card ${activeSummaryFilter==='pending'?'selected':''}" data-summary-filter="pending" tabindex="0"><div class="metric-top">${metricLabel('Auditoria pendente','Contas sem reconciliação completa entre gasto da conta, campanhas e dias do ciclo.')}<span class="metric-icon">◷</span></div><div class="metric-value">${pending}</div><div class="metric-foot">Nenhum valor é estimado</div></article>
     <article class="metric-card money summary-filter-card ${activeSummaryFilter==='exceeded'?'selected':''}" data-summary-filter="exceeded" tabindex="0"><div class="metric-top">${metricLabel('Acima do limite diário','Contas que ultrapassaram o limite diário em pelo menos um dos últimos três dias.')}<span class="metric-icon">↗</span></div><div class="metric-value">${exceeded==null?'—':exceeded}</div><div class="metric-foot">Auditoria diária dos últimos 3 dias</div></article>`;
   document.querySelectorAll('[data-summary-filter]').forEach(card=>{
     const activate=()=>{const filter=card.dataset.summaryFilter;activeSummaryFilter=activeSummaryFilter===filter?'all':filter;renderSummary();renderAccounts(document.querySelector('#searchInput').value)};
@@ -509,9 +518,9 @@ function spendHeat(a,p){
   return {tone:'good',reason:`Verde: maior gasto diário ${brl(maxDaily)}, abaixo de 90% do limite de ${brl(a.plan.dailyLimit)}.`};
 }
 function renderAccounts(filter=''){
-  const matchesSummary=a=>{const m=metrics(a);if(activeSummaryFilter==='active')return isAccountActive(a);if(activeSummaryFilter==='empty')return !m.credit&&m.balance<=0;if(activeSummaryFilter==='ending')return !m.credit&&m.balance>0&&m.calendarDaysRemaining<=3;if(activeSummaryFilter==='exceeded')return exceedsDailyLimit(a);return true};
+  const matchesSummary=a=>{const available=availableFundsForPeriod(a,performanceForPeriod(a));if(activeSummaryFilter==='active')return isAccountActive(a);if(activeSummaryFilter==='empty')return available.available&&available.value<=0;if(activeSummaryFilter==='pending')return !available.available;if(activeSummaryFilter==='exceeded')return exceedsDailyLimit(a);return true};
   const list=accounts.filter(a=>selectedAccountIds.has(a.id)&&matchesSummary(a)&&a.name.toLowerCase().includes(filter.toLowerCase()));
-  accountsBody.innerHTML=list.map(a=>{const m=metrics(a),p=performanceForPeriod(a),available=availableFundsForPeriod(a,p),status=metaAccountStatus(a),spendState=spendHeat(a,p),balanceRatio=m.availableBudget?m.balance/m.availableBudget:0,balanceState=m.credit?{tone:'neutral',reason:'Conta no cartão: não existe saldo pré-pago para estimar.'}:m.balance<=0?{tone:'danger',reason:'Vermelho: o saldo estimado do planejamento chegou a zero.'}:balanceRatio<=.3?{tone:'warning',reason:`Amarelo: resta ${Math.round(balanceRatio*100)}% da verba líquida planejada.`}:{tone:'good',reason:`Verde: resta ${Math.round(balanceRatio*100)}% da verba líquida planejada.`},forecastState=m.credit?{tone:'neutral',reason:`Cartão: acompanhamento pelo teto diário de ${brl(a.plan.dailyLimit)} e semanal de ${brl(a.plan.weeklyLimit)}.`}:m.calendarDaysRemaining<=0?{tone:'danger',reason:'Vermelho: a data planejada de término já chegou.'}:m.calendarDaysRemaining<=3?{tone:'warning',reason:`Amarelo: faltam ${m.calendarDaysRemaining} dias para o fim planejado.`}:{tone:'good',reason:`Verde: faltam ${m.calendarDaysRemaining} dias para o fim planejado.`};return `<tr>
+  accountsBody.innerHTML=list.map(a=>{const m=metrics(a),p=performanceForPeriod(a),available=availableFundsForPeriod(a,p),status=metaAccountStatus(a),spendState=spendHeat(a,p);return `<tr>
     <td><div class="account-cell">${a.businessPicture?`<img class="account-logo account-photo" src="${a.businessPicture}" alt="" referrerpolicy="no-referrer" />`:`<span class="account-logo" style="background:${a.color}">${a.initials}</span>`}<div><button class="account-link" data-open="${a.id}">${a.name}</button><small class="account-id">${a.id}</small></div></div></td>
     ${heatCell(`<span class="status ${status.css}">${status.label}</span>`,a.activeCampaignCount==null?'warning':a.activeCampaignCount>0?'good':'danger',a.activeCampaignCount==null?'Amarelo: aguardando a consulta de campanhas na Meta.':a.activeCampaignCount>0?`Verde: ${a.activeCampaignCount} campanhas estão ativas na Meta.`:'Vermelho: nenhuma campanha ativa foi encontrada.')}
     ${heatCell(`<div class="objective">${a.objectives.map(o=>`<span class="tag">${o}</span>`).join('')}</div>`,'neutral','Neutro: objetivo da campanha é informativo e não representa desempenho.')}
@@ -519,12 +528,10 @@ function renderAccounts(filter=''){
     ${m.credit?heatCell(`<strong>Cartão de crédito</strong><small class="table-sub">Sem depósito ou saldo pré-pago</small>`,'neutral','Conta configurada para acompanhar somente os gastos auditados.','number'):heatCell(`<strong>${brl(a.plan.deposit)}</strong><small class="table-sub">${fmtDateTime(m.start)} • líquido ${brl(m.availableBudget)}</small>`,a.plan.deposit>0?'good':'danger',a.plan.deposit>0?`Verde: depósito de ${brl(a.plan.deposit)} configurado no planejamento.`:'Vermelho: nenhum depósito foi configurado.','number')}
     ${heatCell(available.available?`<strong>${brl(available.value)}</strong><small class="table-sub">${brl(available.base)} − ${brl(available.spent)} Meta</small>`:`<strong>—</strong><small class="table-sub">Auditoria pendente</small>`,available.tone,available.reason,'number')}
     ${heatCell(`<strong>${brlExact(p.spend)}</strong><small class="table-sub">${p.complete?(p.leads==null?'API auditada • resultados pendentes':`API auditada • ${num(p.leads)} leads`):'Período não auditado'}</small>`,spendState.tone,spendState.reason,'number')}
-    ${heatCell(m.credit?`<strong>Não se aplica</strong><small>Gasto auditado pela Meta</small>`:`<strong>${brl(m.balance)}</strong><small>Limite ${brl(a.plan.dailyLimit)}/dia</small>`,balanceState.tone,balanceState.reason,'number balance')}
-    ${heatCell(forecastCell(a),forecastState.tone,forecastState.reason)}
     <td><button class="plan-button" data-plan="${a.id}" title="Configurar pagamento e limites">⚙</button><button class="arrow-button" data-open="${a.id}">›</button></td></tr>`}).join('');
-  const performances=list.map(a=>performanceForPeriod(a)),allAudited=performances.every(p=>p.complete),allLeadsAudited=allAudited&&performances.every(p=>p.leads!=null),spend=allAudited?performances.reduce((s,p)=>s+p.spend,0):null,leads=allLeadsAudited?performances.reduce((s,p)=>s+p.leads,0):null,prepaid=list.filter(a=>!isCreditAccount(a)),deposit=prepaid.reduce((s,a)=>s+a.plan.deposit,0),availableTotal=allAudited?list.reduce((sum,a,index)=>sum+availableFundsForPeriod(a,performances[index]).value,0):null,balance=prepaid.reduce((s,a)=>s+metrics(a).balance,0);
-  accountsFoot.innerHTML=`<tr><td colspan="3">GERAL • ${list.length} CONTAS</td><td class="number">${leads?brl(spend/leads):'—'}</td><td class="number">${brl(deposit)}</td><td class="number">${availableTotal==null?'—':brl(availableTotal)}</td><td class="number">${brlExact(spend)}</td><td class="number">${brl(balance)}</td><td colspan="2">${allAudited?'Auditoria concluída':'Auditoria pendente'}</td></tr>`;
-  const filterNames={active:'Contas ativas',empty:'Contas sem saldo',ending:'Plano termina em até 3 dias',exceeded:'Acima do limite diário'};
+  const performances=list.map(a=>performanceForPeriod(a)),availabilities=list.map((a,index)=>availableFundsForPeriod(a,performances[index])),allAudited=performances.every(p=>p.complete),allAvailable=availabilities.every(item=>item.available),allLeadsAudited=allAudited&&performances.every(p=>p.leads!=null),spend=allAudited?performances.reduce((s,p)=>s+p.spend,0):null,leads=allLeadsAudited?performances.reduce((s,p)=>s+p.leads,0):null,prepaid=list.filter(a=>!isCreditAccount(a)),deposit=prepaid.reduce((s,a)=>s+a.plan.deposit,0),availableTotal=allAvailable?availabilities.reduce((sum,item)=>sum+item.value,0):null;
+  accountsFoot.innerHTML=`<tr><td colspan="3">GERAL • ${list.length} CONTAS</td><td class="number">${leads?brl(spend/leads):'—'}</td><td class="number">${brl(deposit)}</td><td class="number">${availableTotal==null?'—':brl(availableTotal)}</td><td class="number">${brlExact(spend)}</td><td>${allAudited?'Auditoria concluída':'Auditoria pendente'}</td></tr>`;
+  const filterNames={active:'Contas ativas',empty:'Contas sem saldo',pending:'Auditoria pendente',exceeded:'Acima do limite diário'};
   document.querySelector('#accountCount').textContent=`Exibindo ${list.length} de ${accounts.length} contas${activeSummaryFilter!=='all'?` • ${filterNames[activeSummaryFilter]}`:''}`;
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openAccount(b.dataset.open,false));
   document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>openAccount(b.dataset.plan,true));
@@ -641,7 +648,7 @@ function closeModal(){closeCampaignGoal();modal.classList.remove('open');modal.s
 document.querySelector('#searchInput').addEventListener('input',e=>renderAccounts(e.target.value));document.querySelector('#closeModal').onclick=closeModal;modal.onclick=e=>{if(e.target===modal)closeModal()};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});document.querySelectorAll('#quickDates button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));b.classList.add('active');setDates(b.dataset.range)});document.querySelectorAll('.custom-date input').forEach(i=>i.onchange=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));if(selectedAccount)updatePeriodLabel()});document.querySelector('#refreshButton').onclick=e=>{const b=e.currentTarget;b.querySelector('span').textContent='Atualizando...';setTimeout(()=>{b.querySelector('span').textContent='Atualizado agora';setTimeout(()=>b.querySelector('span').textContent='Atualizar',1500)},700)};
 document.querySelectorAll('#quickDates button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));b.classList.add('active');setDates(b.dataset.range);if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
 document.querySelectorAll('.custom-date input').forEach(i=>i.onchange=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
-document.querySelector('#refreshButton').onclick=async event=>{delete LIVE_PERIOD_DATA[`${iso(globalPeriod.from)}|${iso(globalPeriod.to)}`];delete LIVE_PERIOD_DATA[lastThreeDays().key];await Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to,event.currentTarget),loadLastThreeDays()])};
+document.querySelector('#refreshButton').onclick=async event=>{delete LIVE_PERIOD_DATA[`${iso(globalPeriod.from)}|${iso(globalPeriod.to)}`];delete LIVE_PERIOD_DATA[lastThreeDays().key];if(realControlAuditKey)delete LIVE_PERIOD_DATA[realControlAuditKey];await Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to,event.currentTarget).then(()=>loadRealControlData(globalPeriod.to,true)),loadLastThreeDays()])};
 loadAccountCatalog();selectedAccountIds=new Set(accounts.map(account=>account.id));loadPlans();renderAccountFilterOptions();refreshPresetSelect();const defaultPreset=readPresets().items[readPresets().defaultName];if(defaultPreset)applyPreset(defaultPreset,false);setGlobalRange('yesterday');document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;loadLastThreeDays();renderSummary();renderAccounts();setTimeout(()=>{if(accounts.some(account=>!account.businessPicture))findMetaAccounts(false)},250);
 
 /* Analise interativa: somente dados reconciliados pela API Meta. */
