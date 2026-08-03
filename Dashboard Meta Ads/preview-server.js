@@ -16,7 +16,7 @@ const readJsonFile = (file,fallback={}) => { try{return JSON.parse(fs.readFileSy
 const writeJsonFile = (file,value) => { fs.mkdirSync(path.dirname(file),{recursive:true});const temporary=`${file}.tmp`;fs.writeFileSync(temporary,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',mode:0o600});fs.renameSync(temporary,file) };
 const readBody = (req,callback) => {let body='';req.on('data',chunk=>{body+=chunk;if(body.length>512*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
 const readLargeBody = (req,callback) => {let body='';req.on('data',chunk=>{body+=chunk;if(body.length>8*1024*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
-const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});res.end(JSON.stringify(payload))};
+const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});res.end(JSON.stringify(payload))};
 const authFile=process.env.API_AUTH_FILE||'/opt/meta-ads-cli/secrets/analytics-api-basic.env';
 const authConfig=()=>{const values={};try{fs.readFileSync(authFile,'utf8').split(/\r?\n/).forEach(line=>{const index=line.indexOf('=');if(index>0)values[line.slice(0,index)]=line.slice(index+1)})}catch{}return values};
 const safeEqual=(left,right)=>{const a=Buffer.from(String(left||'')),b=Buffer.from(String(right||''));return a.length===b.length&&crypto.timingSafeEqual(a,b)};
@@ -69,12 +69,12 @@ setInterval(cleanupExpiredTasks,15*60*1000).unref();
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
   if(requestUrl.pathname.startsWith('/api/')){
-    res.setHeader('Access-Control-Allow-Origin','https://analytics.hurtzcompany.com');
+    res.setHeader('Access-Control-Allow-Origin','*');
     res.setHeader('Access-Control-Allow-Methods','GET,PUT,POST,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');
     res.setHeader('Vary','Origin');
   }
-  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'https://analytics.hurtzcompany.com','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});return res.end()}
+  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});return res.end()}
   if(process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){
     if(requestUrl.pathname==='/api/session'&&req.method==='POST')return readBody(req,(error,payload)=>{
       const ip=clientIp(req),now=Date.now(),attempt=(loginAttempts.get(ip)||{count:0,until:0});
@@ -138,6 +138,18 @@ http.createServer((req,res)=>{
       return supabaseRequest(`task_attachments?task_id=eq.${encodeURIComponent(id)}&select=storage_path`).then(async files=>{if(files?.length)await taskStorageRequest('object/task-attachments',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefixes:files.map(file=>file.storage_path)})});return supabaseRequest(`tasks?id=eq.${encodeURIComponent(id)}`,{method:'DELETE'})}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,502,{error:error.message}));
     }
     return jsonResponse(res,405,{error:'Método não permitido'});
+  }
+  if(requestUrl.pathname==='/api/creative-videos'){
+    if(req.method==='GET')return supabaseRequest('creative_videos?select=*&order=created_at.desc&limit=500').then(rows=>jsonResponse(res,200,{videos:rows||[]})).catch(error=>jsonResponse(res,502,{error:error.message}));
+    if(req.method==='POST')return readLargeBody(req,(error,payload)=>{
+      const videos=Array.isArray(payload?.videos)?payload.videos.slice(0,50):[];
+      if(error||!videos.length)return jsonResponse(res,400,{error:'Nenhum vídeo válido foi recebido.'});
+      const rows=videos.map(item=>({platform:'tiktok',video_url:String(item.video_url||'').slice(0,1000),creator_url:String(item.creator_url||'').slice(0,1000)||null,thumbnail_url:String(item.thumbnail_url||'').slice(0,1500)||null,title:String(item.title||'').slice(0,500)||null,creator_name:String(item.creator_name||'').slice(0,200)||null,search_term:String(payload.search_term||item.search_term||'').slice(0,150)||null,product:String(payload.product||item.product||'').slice(0,100)||null,view_count:Number.isFinite(Number(item.view_count))?Number(item.view_count):null,like_count:Number.isFinite(Number(item.like_count))?Number(item.like_count):null,comment_count:Number.isFinite(Number(item.comment_count))?Number(item.comment_count):null,metadata:{source:'hurtz-browser-extension',collected_at:new Date().toISOString()}})).filter(item=>/^https:\/\/(www\.)?tiktok\.com\/@[^/]+\/video\/\d+/i.test(item.video_url));
+      if(!rows.length)return jsonResponse(res,400,{error:'Os resultados não continham links públicos de vídeos do TikTok.'});
+      supabaseRequest('creative_videos?on_conflict=video_url',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(rows)}).then(data=>jsonResponse(res,201,{saved:data?.length||rows.length,videos:data||rows})).catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
+    });
+    if(req.method==='PUT')return readBody(req,(error,payload)=>{const id=cleanUuid(payload?.id);if(error||!id)return jsonResponse(res,400,{error:'Vídeo inválido'});const row={};for(const field of ['title','product','notes','search_term'])if(Object.hasOwn(payload,field))row[field]=String(payload[field]||'').slice(0,field==='notes'?2000:500)||null;supabaseRequest(`creative_videos?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({...row,updated_at:new Date().toISOString()})}).then(data=>jsonResponse(res,200,data?.[0]||row)).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
+    if(req.method==='DELETE'){const id=cleanUuid(requestUrl.searchParams.get('id'));if(!id)return jsonResponse(res,400,{error:'Vídeo inválido'});return supabaseRequest(`creative_videos?id=eq.${id}`,{method:'DELETE'}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,502,{error:error.message}))}
   }
   if(requestUrl.pathname==='/api/task-columns'){
     if(req.method==='POST')return readBody(req,(error,payload)=>{const title=String(payload?.title||'').trim();if(error||!title)return jsonResponse(res,400,{error:'Digite o nome da etapa'});supabaseRequest('task_columns',{method:'POST',body:JSON.stringify({title:title.slice(0,80),position:Number(payload.position)||0})}).then(data=>jsonResponse(res,201,data?.[0])).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});

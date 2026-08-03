@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260718-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260802-01" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260803-01" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -26,6 +26,7 @@
         <a href="?view=analysis" id="analysisNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/><path d="M2 19h21"/></svg></span><span class="nav-label">Análise</span></a>
         <a href="?view=reports" id="reportsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5M9 12h7M9 16h7"/></svg></span><span class="nav-label">Relatórios</span></a>
         <a href="?view=tasks" id="tasksNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/></svg></span><span class="nav-label">Tarefas</span></a>
+        <a href="?view=creative-search" id="creativeSearchNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5M8 11h6M11 8v6"/></svg></span><span class="nav-label">Pesquisa de criativos</span></a>
         <a href="?view=alerts" id="alertsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg></span><span class="nav-label">Alertas</span><b class="pill" id="alertPill">0</b></a>
         <a href="#"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span><span class="nav-label">Configurações</span></a>
       </nav>
@@ -143,6 +144,18 @@
         </div>
         <div class="task-deadline-alerts" id="taskDeadlineAlerts" hidden></div>
         <div class="tasks-board" id="tasksBoard" aria-live="polite"></div>
+      </section>
+
+      <section class="creative-search-view" id="creativeSearch" hidden>
+        <div class="creative-search-heading"><div><p class="eyebrow">BIBLIOTECA DE INSPIRAÇÕES</p><h2>Pesquisa de criativos</h2><p>Pesquise no TikTok e organize referências de vídeo por produto.</p></div><span class="creative-extension-status" id="creativeExtensionStatus">Extensão aguardando conexão</span></div>
+        <div class="creative-search-card">
+          <form id="creativeSearchForm"><label><span>O que você quer encontrar?</span><div class="creative-search-input"><input id="creativeSearchTerm" maxlength="120" placeholder="Ex.: consórcio de caminhão" required><button type="submit">Pesquisar no TikTok</button></div></label>
+            <div class="creative-search-filters"><label>Produto<select id="creativeProduct"><option value="">Identificar pelo termo</option><option>Imóvel</option><option>Carro</option><option>Caminhão</option><option>Maquinário</option><option>Crédito rural</option></select></label><label>Ordenar biblioteca<select id="creativeSort"><option value="newest">Mais recentes</option><option value="views">Mais visualizados</option><option value="likes">Mais curtidos</option></select></label><label>Buscar na biblioteca<input id="creativeLibrarySearch" placeholder="Título, autor ou termo"></label></div>
+          </form>
+          <div class="creative-search-help"><div><strong>Como usar</strong><span>1. Pesquise o termo. 2. No TikTok, clique na extensão Hurtz. 3. Envie os vídeos visíveis para esta biblioteca.</span></div><div class="creative-extension-actions"><a href="hurtz-tiktok-collector.zip" download>Baixar extensão</a><button type="button" id="copyCreativeConnection">Copiar conexão da extensão</button></div></div>
+        </div>
+        <div class="creative-library-head"><div><h3>Vídeos salvos</h3><p id="creativeLibraryStatus">Carregando biblioteca...</p></div><button type="button" id="refreshCreativeLibrary">Atualizar</button></div>
+        <div class="creative-library" id="creativeLibrary"></div>
       </section>
 
       <div class="task-modal" id="taskNotificationsModal" hidden>
@@ -293,6 +306,6 @@
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="app.js?v=20260802-01"></script>
+  <script src="app.js?v=20260803-01"></script>
 </body>
 </html>

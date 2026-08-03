@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "Hurtz TikTok Collector",
+  "version": "0.1.0",
+  "description": "Envia links públicos de vídeos visíveis no TikTok para a biblioteca do Analytics Hurtz.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://www.tiktok.com/*", "https://analytics-api.161-97-148-99.sslip.io/*"],
+  "action": {"default_title": "Coletar vídeos para o Analytics", "default_popup": "popup.html"}
+}
