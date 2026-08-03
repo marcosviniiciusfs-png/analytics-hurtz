@@ -275,6 +275,12 @@ http.createServer((req,res)=>{
     const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; export EVOLUTION_API_URL='${process.env.EVOLUTION_API_URL||'http://127.0.0.1:8080'}'; python3 /opt/meta-ads-cli/monitor/evolution_catalog.py --groups '${instance}'`;
     return runMonitorCommand(remote,{timeout:60000,maxBuffer:5*1024*1024},(error,stdout,stderr)=>{try{const payload=JSON.parse(stdout);return jsonResponse(res,error?502:200,payload)}catch{return jsonResponse(res,502,{error:'Resposta inválida da Evolution API'})}});
   }
+  if(requestUrl.pathname==='/api/evolution/instance'&&req.method==='POST'){
+    return readBody(req,(error,payload)=>{if(error)return jsonResponse(res,400,{error:'Dados inválidos'});const label=String(payload?.label||'Alertas Hurtz').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,28)||'alertas-hurtz',instance=`analytics-${label}-${crypto.randomBytes(3).toString('hex')}`,remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; export EVOLUTION_API_URL='${process.env.EVOLUTION_API_URL||'http://127.0.0.1:8080'}'; python3 /opt/meta-ads-cli/monitor/evolution_qr.py --create '${instance}'`;runMonitorCommand(remote,{timeout:60000,maxBuffer:3*1024*1024},(commandError,stdout)=>{try{const result=JSON.parse(stdout||'{}');return jsonResponse(res,commandError?502:201,result)}catch{return jsonResponse(res,502,{error:'Resposta inválida da Evolution API'})}})});
+  }
+  if((requestUrl.pathname==='/api/evolution/qr'||requestUrl.pathname==='/api/evolution/status')&&req.method==='GET'){
+    const instance=requestUrl.searchParams.get('instance')||'';if(!/^[a-zA-Z0-9_-]{1,100}$/.test(instance))return jsonResponse(res,400,{error:'Instância inválida'});const action=requestUrl.pathname.endsWith('/qr')?'qr':'status',remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; export EVOLUTION_API_URL='${process.env.EVOLUTION_API_URL||'http://127.0.0.1:8080'}'; python3 /opt/meta-ads-cli/monitor/evolution_qr.py --${action} '${instance}'`;return runMonitorCommand(remote,{timeout:60000,maxBuffer:3*1024*1024},(commandError,stdout)=>{try{const result=JSON.parse(stdout||'{}');return jsonResponse(res,commandError?502:200,result)}catch{return jsonResponse(res,502,{error:'Resposta inválida da Evolution API'})}})
+  }
   if (requestUrl.pathname === '/api/alerts/config' && req.method === 'PUT') {
     return readBody(req,(error,payload)=>{
       if(error)return jsonResponse(res,400,{error:'Configuração inválida'});

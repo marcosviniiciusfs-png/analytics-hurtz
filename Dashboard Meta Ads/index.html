@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20260718-2" />
+  <link rel="stylesheet" href="styles.css?v=20260803-1" />
   <link rel="stylesheet" href="brand-overrides.css?v=20260803-03" />
 </head>
 <body>
@@ -219,9 +219,11 @@
           <form class="alert-settings" id="alertSettings">
             <div class="alert-settings-head"><div><h3>Regras de notificação</h3><p>O gasto do dia é provisório; recomendações usam somente períodos auditados.</p></div><label class="switch-field"><input type="checkbox" id="alertsEnabled"><span></span>Ativar alertas</label></div>
             <section class="whatsapp-setup">
-              <div><h4>WhatsApp para os disparos</h4><p>Digite o número completo para verificar se ele já está conectado à Evolution API.</p></div>
-              <div class="whatsapp-phone-row"><label>Número com DDI e DDD<input id="alertWhatsAppPhone" inputmode="tel" placeholder="5594999999999"></label><button type="button" id="checkWhatsAppPhone">Verificar número</button></div>
-              <div class="whatsapp-connection-result" id="whatsappConnectionResult">Nenhum número verificado.</div>
+              <div><h4>WhatsApp para os disparos</h4><p>Conecte um WhatsApp lendo o QR Code gerado pela Evolution API.</p></div>
+              <div class="whatsapp-phone-row"><label>Nome da conexão<input id="alertWhatsAppLabel" value="Alertas Hurtz" maxlength="60" placeholder="Alertas Hurtz"></label><button type="button" id="connectWhatsAppQr">Gerar QR Code</button></div>
+              <input id="alertWhatsAppPhone" type="hidden">
+              <div class="whatsapp-qr-panel" id="whatsappQrPanel" hidden><div class="whatsapp-qr-frame"><img id="whatsappQrImage" alt="QR Code para conectar o WhatsApp"></div><div><strong>Leia o QR Code no WhatsApp</strong><span>Abra Aparelhos conectados → Conectar um aparelho.</span><b id="whatsappQrStatus">Aguardando leitura...</b><button type="button" id="refreshWhatsAppQr">Gerar outro QR Code</button></div></div>
+              <div class="whatsapp-connection-result" id="whatsappConnectionResult">Nenhum WhatsApp conectado.</div>
               <div class="whatsapp-destination" id="whatsappDestination" hidden><label>Instância conectada<select id="alertEvolutionInstance"></select></label><label>Grupo para receber alertas<select id="alertEvolutionGroup"><option value="">Selecione um grupo</option></select></label></div>
             </section>
             <div class="alert-rule-grid">
@@ -310,6 +312,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/tesseract.min.js"></script>
-  <script src="app.js?v=20260803-13"></script>
+  <script src="app.js?v=20260803-14"></script>
 </body>
 </html>
