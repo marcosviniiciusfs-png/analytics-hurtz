@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260718-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260803-01" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260803-02" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -147,15 +147,17 @@
       </section>
 
       <section class="creative-search-view" id="creativeSearch" hidden>
-        <div class="creative-search-heading"><div><p class="eyebrow">BIBLIOTECA DE INSPIRAÇÕES</p><h2>Pesquisa de criativos</h2><p>Pesquise no TikTok e organize referências de vídeo por produto.</p></div><span class="creative-extension-status" id="creativeExtensionStatus">Extensão aguardando conexão</span></div>
+        <div class="creative-search-heading"><div><p class="eyebrow">PESQUISA AUTOMÁTICA</p><h2>Pesquisa de criativos</h2><p>Encontre vários vídeos do TikTok, visualize e baixe sem armazená-los no Analytics.</p></div><span class="creative-extension-status connected">Apify conectada</span></div>
         <div class="creative-search-card">
-          <form id="creativeSearchForm"><label><span>O que você quer encontrar?</span><div class="creative-search-input"><input id="creativeSearchTerm" maxlength="120" placeholder="Ex.: consórcio de caminhão" required><button type="submit">Pesquisar no TikTok</button></div></label>
-            <div class="creative-search-filters"><label>Produto<select id="creativeProduct"><option value="">Identificar pelo termo</option><option>Imóvel</option><option>Carro</option><option>Caminhão</option><option>Maquinário</option><option>Crédito rural</option></select></label><label>Ordenar biblioteca<select id="creativeSort"><option value="newest">Mais recentes</option><option value="views">Mais visualizados</option><option value="likes">Mais curtidos</option></select></label><label>Buscar na biblioteca<input id="creativeLibrarySearch" placeholder="Título, autor ou termo"></label></div>
+          <form id="creativeSearchForm"><label><span>Termos de pesquisa</span><textarea id="creativeSearchTerms" rows="5" maxlength="1200" placeholder="Um termo por linha. Ex.:&#10;HB20 seminovo&#10;financiamento HB20&#10;comprar HB20" required></textarea><small>O sistema pesquisa cada termo separadamente e remove vídeos repetidos.</small></label>
+            <div class="creative-search-filters"><label>Vídeos por termo<input id="creativeResultLimit" type="number" min="1" max="50" value="10"></label><label>Ordenação<select id="creativeSearchSorting"><option value="MOST_RELEVANT">Mais relevantes</option><option value="MOST_LIKED">Mais curtidos</option><option value="LATEST">Mais recentes</option></select></label><label>Período<select id="creativeSearchPeriod"><option value="ALL_TIME">Todo o período</option><option value="PAST_WEEK">Última semana</option><option value="PAST_MONTH">Último mês</option><option value="LAST_3_MONTHS">Últimos 3 meses</option><option value="LAST_6_MONTHS">Últimos 6 meses</option></select></label></div>
+            <button class="creative-auto-search" type="submit">Buscar vídeos automaticamente</button>
           </form>
-          <div class="creative-search-help"><div><strong>Como usar</strong><span>1. Pesquise o termo. 2. No TikTok, clique na extensão Hurtz. 3. Envie os vídeos visíveis para esta biblioteca.</span></div><div class="creative-extension-actions"><a href="hurtz-tiktok-collector.zip" download>Baixar extensão</a><button type="button" id="copyCreativeConnection">Copiar conexão da extensão</button></div></div>
+          <div class="creative-search-help"><div><strong>Privacidade do conteúdo</strong><span>Os resultados ficam apenas nesta tela enquanto ela estiver aberta. Nenhum vídeo ou resultado é salvo no banco do Analytics.</span></div></div>
         </div>
-        <div class="creative-library-head"><div><h3>Vídeos salvos</h3><p id="creativeLibraryStatus">Carregando biblioteca...</p></div><button type="button" id="refreshCreativeLibrary">Atualizar</button></div>
-        <div class="creative-library" id="creativeLibrary"></div>
+        <div class="creative-search-progress" id="creativeSearchProgress" hidden><div><span></span></div><strong>Pesquisando vídeos...</strong><small>A busca pode levar alguns minutos, conforme a quantidade e os termos.</small></div>
+        <div class="creative-library-head"><div><h3>Resultados temporários</h3><p id="creativeLibraryStatus">Digite os termos para iniciar.</p></div><div class="creative-result-actions"><button type="button" id="downloadSelectedCreative" hidden>Baixar selecionados</button><button type="button" id="clearCreativeResults" hidden>Limpar resultados</button></div></div>
+        <div class="creative-library" id="creativeLibrary"><div class="creative-library-empty"><strong>Nenhuma pesquisa executada</strong><span>Os previews aparecerão aqui para você assistir, abrir e baixar.</span></div></div>
       </section>
 
       <div class="task-modal" id="taskNotificationsModal" hidden>
@@ -306,6 +308,6 @@
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="app.js?v=20260803-01"></script>
+  <script src="app.js?v=20260803-02"></script>
 </body>
 </html>

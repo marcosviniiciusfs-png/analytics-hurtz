@@ -11,6 +11,7 @@ const analysisResponseCache = new Map();
 const ANALYSIS_CACHE_TTL = 15 * 60 * 1000;
 const taskDataCache={payload:null,expiresAt:0};
 const TASK_CACHE_TTL=30*1000;
+const secretValue=(directName,fileName)=>{const direct=process.env[directName];if(direct)return String(direct).trim();const file=process.env[fileName];if(file){try{return fs.readFileSync(file,'utf8').trim()}catch{}}return ''};
 const alertDataDir = process.env.META_ALERT_DATA_DIR || (process.platform === 'win32' ? path.join(root,'.alert-data') : '/opt/meta-ads-cli/data/alerts');
 const readJsonFile = (file,fallback={}) => { try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return fallback} };
 const writeJsonFile = (file,value) => { fs.mkdirSync(path.dirname(file),{recursive:true});const temporary=`${file}.tmp`;fs.writeFileSync(temporary,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',mode:0o600});fs.renameSync(temporary,file) };
@@ -151,6 +152,22 @@ http.createServer((req,res)=>{
     if(req.method==='PUT')return readBody(req,(error,payload)=>{const id=cleanUuid(payload?.id);if(error||!id)return jsonResponse(res,400,{error:'Vídeo inválido'});const row={};for(const field of ['title','product','notes','search_term'])if(Object.hasOwn(payload,field))row[field]=String(payload[field]||'').slice(0,field==='notes'?2000:500)||null;supabaseRequest(`creative_videos?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({...row,updated_at:new Date().toISOString()})}).then(data=>jsonResponse(res,200,data?.[0]||row)).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
     if(req.method==='DELETE'){const id=cleanUuid(requestUrl.searchParams.get('id'));if(!id)return jsonResponse(res,400,{error:'Vídeo inválido'});return supabaseRequest(`creative_videos?id=eq.${id}`,{method:'DELETE'}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,502,{error:error.message}))}
   }
+  if(requestUrl.pathname==='/api/creative-search'&&req.method==='POST')return readBody(req,async(error,payload)=>{
+    const terms=Array.isArray(payload?.terms)?[...new Set(payload.terms.map(value=>String(value||'').trim()).filter(Boolean))].slice(0,10):[];
+    const perTerm=Math.min(30,Math.max(1,Number(payload?.limit)||10)),sorting=['MOST_RELEVANT','MOST_LIKED','LATEST'].includes(payload?.sorting)?payload.sorting:'MOST_RELEVANT',period=['ALL_TIME','PAST_24_HOURS','PAST_WEEK','PAST_MONTH','LAST_3_MONTHS','LAST_6_MONTHS'].includes(payload?.period)?payload.period:'ALL_TIME';
+    if(error||!terms.length)return jsonResponse(res,400,{error:'Informe pelo menos um termo de pesquisa.'});
+    if(terms.length*perTerm>150)return jsonResponse(res,400,{error:'O limite por busca é de 150 vídeos. Reduza os termos ou a quantidade por termo.'});
+    const token=secretValue('APIFY_TOKEN','APIFY_TOKEN__FILE');if(!token)return jsonResponse(res,503,{error:'A integração com a Apify ainda não está configurada.'});
+    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),285000);
+    try{
+      const actorInput={searchQueries:terms,resultsPerPage:perTerm,searchSection:'/video',videoSearchSorting:sorting,videoSearchDateFilter:period,shouldDownloadVideos:true,shouldDownloadCovers:false,shouldDownloadSlideshowImages:false,downloadSubtitlesOptions:'NEVER_DOWNLOAD_SUBTITLES',commentsPerPost:0,topLevelCommentsPerPost:0,maxRepliesPerComment:0,maxFollowersPerProfile:0,maxFollowingPerProfile:0,scrapeRelatedSearchWords:false};
+      const response=await fetch('https://api.apify.com/v2/acts/clockworks~tiktok-scraper/run-sync-get-dataset-items?timeout=280',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(actorInput),signal:controller.signal});
+      const text=await response.text();let items=[];try{items=text?JSON.parse(text):[]}catch{}
+      if(!response.ok)throw new Error(items?.error?.message||'A pesquisa externa não foi concluída.');
+      const unique=new Map();for(const item of items){if(item?.errorCode||!item?.webVideoUrl)continue;const id=String(item.id||item.webVideoUrl.match(/\/video\/(\d+)/)?.[1]||'');if(!id||unique.has(id))continue;unique.set(id,{id,title:String(item.text||'Vídeo do TikTok').slice(0,1000),video_url:item.webVideoUrl,embed_url:`https://www.tiktok.com/player/v1/${id}`,thumbnail_url:item.videoMeta?.coverUrl||item.videoMeta?.originalCoverUrl||'',download_url:Array.isArray(item.mediaUrls)?item.mediaUrls[0]||'':'',creator_name:item.authorMeta?.name||item.authorMeta?.nickName||'',creator_url:item.authorMeta?.name?`https://www.tiktok.com/@${item.authorMeta.name}`:'',view_count:Number(item.playCount)||0,like_count:Number(item.diggCount)||0,comment_count:Number(item.commentCount)||0,share_count:Number(item.shareCount)||0,duration:Number(item.videoMeta?.duration)||0,search_term:item.searchQuery||''})}
+      jsonResponse(res,200,{videos:[...unique.values()],requested:{terms,per_term:perTerm},temporary:true});
+    }catch(searchError){jsonResponse(res,searchError.name==='AbortError'?504:502,{error:searchError.name==='AbortError'?'A pesquisa excedeu o tempo máximo. Reduza a quantidade e tente novamente.':searchError.message})}finally{clearTimeout(timeout)}
+  });
   if(requestUrl.pathname==='/api/task-columns'){
     if(req.method==='POST')return readBody(req,(error,payload)=>{const title=String(payload?.title||'').trim();if(error||!title)return jsonResponse(res,400,{error:'Digite o nome da etapa'});supabaseRequest('task_columns',{method:'POST',body:JSON.stringify({title:title.slice(0,80),position:Number(payload.position)||0})}).then(data=>jsonResponse(res,201,data?.[0])).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
     if(req.method==='PUT')return readBody(req,(error,payload)=>{const id=cleanUuid(payload?.id),title=String(payload?.title||'').trim();if(error||!id||!title)return jsonResponse(res,400,{error:'Etapa inválida'});supabaseRequest(`task_columns?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({title:title.slice(0,80),position:Number(payload.position)||0})}).then(data=>jsonResponse(res,200,data?.[0])).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
