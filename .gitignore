@@ -19,6 +19,8 @@ dist-ssr
 __pycache__/
 *.py[cod]
 .codex-tmp/
+Hurtz Creative Analyzer/config.json
+Hurtz Creative Analyzer/agent.log
 
 # Editor directories and files
 .vscode/*

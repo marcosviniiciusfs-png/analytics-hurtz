@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
+const { Readable } = require('stream');
 
 const root = __dirname;
 const port = Number(process.env.PORT || 8091);
@@ -13,16 +14,10 @@ const taskDataCache={payload:null,expiresAt:0};
 const TASK_CACHE_TTL=30*1000;
 const secretValue=(directName,fileName)=>{const direct=process.env[directName];if(direct)return String(direct).trim();const file=process.env[fileName];if(file){try{return fs.readFileSync(file,'utf8').trim()}catch{}}return ''};
 const creativeExpectedType=(term,selected='auto')=>{if(['car','property','any'].includes(selected)&&selected!=='auto')return selected;const value=String(term||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();if(/\b(carro|carros|veiculo|veiculos|automovel|automoveis|moto|motos|caminhao|caminhoes|hb20|onix|corolla|polo|mobi|compass|strada|hilux|s10|toro|renegade|kwid|argo|tracker|creta)\b/.test(value))return'car';if(/\b(imovel|imoveis|casa|casas|apartamento|apartamentos|terreno|terrenos|lote|lotes|fazenda|fazendas|sitio|sitios|condominio|condominios)\b/.test(value))return'property';return'any'};
-const parseCreativeVisualAnalysis=value=>{try{const text=typeof value==='string'?value:JSON.stringify(value||{}),match=text.match(/\{[\s\S]*\}/);return match?JSON.parse(match[0]):{}}catch{return{}}};
-async function auditCreativeVisuals(videos,token){
-  const audited=new Map(),groups=['car','property'].map(type=>videos.filter(video=>video.expected_type===type&&video.thumbnail_url));
-  await Promise.all(groups.flatMap(group=>{const jobs=[];for(let index=0;index<group.length;index+=12)jobs.push(group.slice(index,index+12));return jobs}).map(async batch=>{
-    const type=batch[0].expected_type,label=type==='car'?'carro, veículo, moto ou caminhão':'imóvel, casa, apartamento, terreno ou construção',prompt=`Analise somente o quadro visual principal do vídeo. Responda apenas JSON: {"relevant":true|false,"detected_type":"${type}|other","reason":"frase curta"}. relevant só pode ser true quando ${label} aparece claramente e é o assunto visual principal. Rejeite pessoa apenas falando do tema, texto sobreposto, reação, meme, paisagem ou outro objeto sem o produto visível.`;
-    const response=await fetch('https://api.apify.com/v2/acts/ntriqpro~video-intelligence-analyzer/run-sync-get-dataset-items?timeout=280',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({urls:batch.map(video=>video.thumbnail_url),mode:'image',prompt,language:'pt',maxTokens:120})});
-    const text=await response.text();let rows=[];try{rows=text?JSON.parse(text):[]}catch{}if(!response.ok)throw new Error(rows?.error?.message||'A auditoria visual não foi concluída.');
-    rows.forEach((row,rowIndex)=>{const analysis=parseCreativeVisualAnalysis(row.analysis),video=batch.find(item=>item.thumbnail_url===row.url)||batch[rowIndex],detected=String(analysis.detected_type||analysis.tipo_detectado||'').toLowerCase();if(video)audited.set(video.id,{relevant:analysis.relevant===true||analysis.relevante===true,detected_type:detected===type||(type==='car'&&/carro|veiculo/.test(detected))||(type==='property'&&/imovel|casa|apartamento/.test(detected))?type:'other',reason:String(analysis.reason||analysis.motivo||row.analysis||JSON.stringify(row)||'').slice(0,500)})});
-  }));return audited;
-}
+const creativeAuditSessions=new Map(),creativeAuditJobs=[];let creativeAgentLastSeen=0;
+const CREATIVE_AUDIT_TTL=60*60*1000,CREATIVE_CLAIM_TTL=5*60*1000;
+const cleanCreativeAudits=()=>{const now=Date.now();for(const[id,session]of creativeAuditSessions)if(session.expires_at<now)creativeAuditSessions.delete(id);for(let index=creativeAuditJobs.length-1;index>=0;index--)if(!creativeAuditSessions.has(creativeAuditJobs[index].session_id))creativeAuditJobs.splice(index,1)};
+setInterval(cleanCreativeAudits,5*60*1000).unref();
 const alertDataDir = process.env.META_ALERT_DATA_DIR || (process.platform === 'win32' ? path.join(root,'.alert-data') : '/opt/meta-ads-cli/data/alerts');
 const readJsonFile = (file,fallback={}) => { try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return fallback} };
 const writeJsonFile = (file,value) => { fs.mkdirSync(path.dirname(file),{recursive:true});const temporary=`${file}.tmp`;fs.writeFileSync(temporary,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',mode:0o600});fs.renameSync(temporary,file) };
@@ -80,6 +75,7 @@ setInterval(cleanupExpiredTasks,15*60*1000).unref();
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+  const isCreativeAgentRoute=requestUrl.pathname.startsWith('/api/creative-audit/agent');
   if(requestUrl.pathname.startsWith('/api/')){
     res.setHeader('Access-Control-Allow-Origin','*');
     res.setHeader('Access-Control-Allow-Methods','GET,PUT,POST,DELETE,OPTIONS');
@@ -87,7 +83,11 @@ http.createServer((req,res)=>{
     res.setHeader('Vary','Origin');
   }
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});return res.end()}
-  if(process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){
+  if(isCreativeAgentRoute){
+    const configured=secretValue('CREATIVE_AGENT_TOKEN','CREATIVE_AGENT_TOKEN__FILE'),submitted=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
+    if(!configured||!safeEqual(submitted,configured))return jsonResponse(res,401,{error:'Agente local não autorizado.'});
+  }
+  if(!isCreativeAgentRoute&&process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){
     if(requestUrl.pathname==='/api/session'&&req.method==='POST')return readBody(req,(error,payload)=>{
       const ip=clientIp(req),now=Date.now(),attempt=(loginAttempts.get(ip)||{count:0,until:0});
       if(attempt.until>now)return jsonResponse(res,429,{error:'Muitas tentativas. Aguarde 15 minutos.'});
@@ -163,6 +163,30 @@ http.createServer((req,res)=>{
     if(req.method==='PUT')return readBody(req,(error,payload)=>{const id=cleanUuid(payload?.id);if(error||!id)return jsonResponse(res,400,{error:'Vídeo inválido'});const row={};for(const field of ['title','product','notes','search_term'])if(Object.hasOwn(payload,field))row[field]=String(payload[field]||'').slice(0,field==='notes'?2000:500)||null;supabaseRequest(`creative_videos?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({...row,updated_at:new Date().toISOString()})}).then(data=>jsonResponse(res,200,data?.[0]||row)).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
     if(req.method==='DELETE'){const id=cleanUuid(requestUrl.searchParams.get('id'));if(!id)return jsonResponse(res,400,{error:'Vídeo inválido'});return supabaseRequest(`creative_videos?id=eq.${id}`,{method:'DELETE'}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,502,{error:error.message}))}
   }
+  if(requestUrl.pathname==='/api/creative-audit/agent/claim'&&req.method==='POST'){
+    creativeAgentLastSeen=Date.now();cleanCreativeAudits();const now=Date.now(),job=creativeAuditJobs.find(item=>item.status==='pending'||(item.status==='claimed'&&now-item.claimed_at>CREATIVE_CLAIM_TTL));
+    if(!job)return jsonResponse(res,200,{job:null});job.status='claimed';job.claimed_at=now;job.attempts=(job.attempts||0)+1;return jsonResponse(res,200,{job:{id:job.id,expected_type:job.expected_type,title:job.video.title,media_url:`/api/creative-audit/agent/media?id=${encodeURIComponent(job.id)}`}});
+  }
+  if(requestUrl.pathname==='/api/creative-audit/agent/heartbeat'&&req.method==='POST'){creativeAgentLastSeen=Date.now();return jsonResponse(res,200,{ok:true})}
+  if(requestUrl.pathname==='/api/creative-audit/agent/result'&&req.method==='POST')return readBody(req,(error,payload)=>{
+    creativeAgentLastSeen=Date.now();const job=creativeAuditJobs.find(item=>item.id===String(payload?.job_id||''));if(error||!job)return jsonResponse(res,404,{error:'Trabalho não encontrado ou expirado.'});const session=creativeAuditSessions.get(job.session_id);if(!session)return jsonResponse(res,410,{error:'Pesquisa expirada.'});
+    const detected=['car','property'].includes(payload.detected_type)?payload.detected_type:'other',relevant=payload.relevant===true&&detected===job.expected_type;job.status='done';job.finished_at=Date.now();session.results.set(job.video.id,{relevant,detected_type:detected,confidence:Math.max(0,Math.min(1,Number(payload.confidence)||0)),reason:String(payload.reason||'').slice(0,300)});return jsonResponse(res,200,{ok:true});
+  });
+  if(requestUrl.pathname==='/api/creative-audit/agent/media'&&req.method==='GET'){
+    creativeAgentLastSeen=Date.now();const job=creativeAuditJobs.find(item=>item.id===requestUrl.searchParams.get('id'));if(!job)return jsonResponse(res,404,{error:'Vídeo temporário não encontrado.'});const token=secretValue('APIFY_TOKEN','APIFY_TOKEN__FILE');
+    return fetch(job.video.download_url,{headers:{Authorization:`Bearer ${token}`}}).then(response=>{if(!response.ok||!response.body)throw new Error(`Download indisponível (${response.status})`);const headers={'Content-Type':response.headers.get('content-type')||'video/mp4','Cache-Control':'no-store'},length=response.headers.get('content-length');if(length)headers['Content-Length']=length;res.writeHead(200,headers);Readable.fromWeb(response.body).pipe(res)}).catch(error=>{if(!res.headersSent)jsonResponse(res,502,{error:error.message});else res.destroy(error)});
+  }
+  if(requestUrl.pathname==='/api/creative-audit/download'&&req.method==='GET'){
+    cleanCreativeAudits();const session=creativeAuditSessions.get(requestUrl.searchParams.get('session')),video=session?.candidates.find(item=>item.id===requestUrl.searchParams.get('video')),audit=video&&session.results.get(video.id);
+    if(!session||!video?.download_url||(video.expected_type!=='any'&&!audit?.relevant))return jsonResponse(res,404,{error:'Vídeo aprovado não encontrado ou pesquisa expirada.'});const token=secretValue('APIFY_TOKEN','APIFY_TOKEN__FILE');
+    return fetch(video.download_url,{headers:{Authorization:`Bearer ${token}`}}).then(response=>{if(!response.ok||!response.body)throw new Error(`Download indisponível (${response.status})`);const headers={'Content-Type':response.headers.get('content-type')||'video/mp4','Content-Disposition':`attachment; filename="tiktok-${video.id}.mp4"`,'Cache-Control':'no-store'},length=response.headers.get('content-length');if(length)headers['Content-Length']=length;res.writeHead(200,headers);Readable.fromWeb(response.body).pipe(res)}).catch(error=>{if(!res.headersSent)jsonResponse(res,502,{error:error.message});else res.destroy(error)});
+  }
+  if(requestUrl.pathname==='/api/creative-audit/status'&&req.method==='GET'){
+    cleanCreativeAudits();const session=creativeAuditSessions.get(requestUrl.searchParams.get('id'));if(!session)return jsonResponse(res,404,{error:'Pesquisa temporária não encontrada ou expirada.'});const completed=session.results.size,total=session.candidates.filter(video=>video.expected_type!=='any').length,done=completed>=total;
+    const approved=session.candidates.filter(video=>{if(video.expected_type==='any')return true;const result=session.results.get(video.id);if(!result?.relevant)return false;video.visual_verified=true;video.detected_type=result.detected_type;video.visual_reason=result.reason;video.visual_confidence=result.confidence;return true}),counts=new Map(),limited=approved.filter(video=>{const count=counts.get(video.search_term)||0;if(count>=session.per_term)return false;counts.set(video.search_term,count+1);return true});
+    const downloadable=done?limited.map(video=>({...video,download_url:video.download_url?`/api/creative-audit/download?session=${encodeURIComponent(session.id)}&video=${encodeURIComponent(video.id)}`:''})):[];
+    return jsonResponse(res,200,{id:session.id,status:done?'complete':'processing',processed:completed,total,approved:downloadable,rejected:done?total-approved.filter(video=>video.expected_type!=='any').length:0,agent_online:Date.now()-creativeAgentLastSeen<45000,expires_at:new Date(session.expires_at).toISOString()});
+  }
   if(requestUrl.pathname==='/api/creative-search'&&req.method==='POST')return readBody(req,async(error,payload)=>{
     const terms=Array.isArray(payload?.terms)?[...new Set(payload.terms.map(value=>String(value||'').trim()).filter(Boolean))].slice(0,10):[];
     const perTerm=Math.min(30,Math.max(1,Number(payload?.limit)||10)),contentType=['auto','car','property','any'].includes(payload?.content_type)?payload.content_type:'auto',sorting=['MOST_RELEVANT','MOST_LIKED','LATEST'].includes(payload?.sorting)?payload.sorting:'MOST_RELEVANT',period=['ALL_TIME','PAST_24_HOURS','PAST_WEEK','PAST_MONTH','LAST_3_MONTHS','LAST_6_MONTHS'].includes(payload?.period)?payload.period:'ALL_TIME';
@@ -176,9 +200,9 @@ http.createServer((req,res)=>{
       const text=await response.text();let items=[];try{items=text?JSON.parse(text):[]}catch{}
       if(!response.ok)throw new Error(items?.error?.message||'A pesquisa externa não foi concluída.');
       const unique=new Map();for(const item of items){if(item?.errorCode||!item?.webVideoUrl)continue;const id=String(item.id||item.webVideoUrl.match(/\/video\/(\d+)/)?.[1]||''),searchTerm=item.searchQuery||terms[0]||'';if(!id||unique.has(id))continue;unique.set(id,{id,title:String(item.text||'Vídeo do TikTok').slice(0,1000),video_url:item.webVideoUrl,embed_url:`https://www.tiktok.com/player/v1/${id}`,thumbnail_url:item.videoMeta?.coverUrl||item.videoMeta?.originalCoverUrl||'',download_url:Array.isArray(item.mediaUrls)?item.mediaUrls[0]||'':'',creator_name:item.authorMeta?.name||item.authorMeta?.nickName||'',creator_url:item.authorMeta?.name?`https://www.tiktok.com/@${item.authorMeta.name}`:'',view_count:Number(item.playCount)||0,like_count:Number(item.diggCount)||0,comment_count:Number(item.commentCount)||0,share_count:Number(item.shareCount)||0,duration:Number(item.videoMeta?.duration)||0,search_term:searchTerm,expected_type:creativeExpectedType(searchTerm,contentType)})}
-      const candidates=[...unique.values()],needsAudit=candidates.filter(video=>video.expected_type!=='any');let visualResults=new Map();if(needsAudit.length)visualResults=await auditCreativeVisuals(needsAudit,token);
-      const approved=candidates.filter(video=>{if(video.expected_type==='any')return true;const audit=visualResults.get(video.id);if(!audit?.relevant)return false;video.visual_verified=true;video.detected_type=audit.detected_type;video.visual_reason=audit.reason;return true}),rejectedVisual=candidates.filter(video=>video.expected_type!=='any'&&!visualResults.get(video.id)?.relevant).length,counts=new Map();const limited=approved.filter(video=>{const count=counts.get(video.search_term)||0;if(count>=perTerm)return false;counts.set(video.search_term,count+1);return true});
-      jsonResponse(res,200,{videos:limited,rejected:rejectedVisual,visual_audited:needsAudit.length,requested:{terms,per_term:perTerm,content_type:contentType},temporary:true});
+      const candidates=[...unique.values()],sessionId=crypto.randomUUID(),session={id:sessionId,candidates,results:new Map(),per_term:perTerm,created_at:Date.now(),expires_at:Date.now()+CREATIVE_AUDIT_TTL};creativeAuditSessions.set(sessionId,session);
+      candidates.filter(video=>video.expected_type!=='any').forEach(video=>{if(!video.download_url){session.results.set(video.id,{relevant:false,detected_type:'other',confidence:0,reason:'Download temporário indisponível'});return}creativeAuditJobs.push({id:crypto.randomUUID(),session_id:sessionId,video,expected_type:video.expected_type,status:'pending',created_at:Date.now(),attempts:0})});
+      jsonResponse(res,202,{id:sessionId,status:candidates.some(video=>video.expected_type!=='any')?'processing':'complete',total:candidates.filter(video=>video.expected_type!=='any').length,agent_online:Date.now()-creativeAgentLastSeen<45000,temporary:true});
     }catch(searchError){jsonResponse(res,searchError.name==='AbortError'?504:502,{error:searchError.name==='AbortError'?'A pesquisa excedeu o tempo máximo. Reduza a quantidade e tente novamente.':searchError.message})}finally{clearTimeout(timeout)}
   });
   if(requestUrl.pathname==='/api/task-columns'){
