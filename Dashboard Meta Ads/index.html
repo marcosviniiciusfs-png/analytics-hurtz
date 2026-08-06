@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260805-1" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260806-1" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260806-2" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -212,6 +212,34 @@
         </form>
       </div>
 
+      <div class="task-modal" id="taskColumnSettingsModal" hidden>
+        <form class="task-dialog task-column-settings-dialog" id="taskColumnSettingsForm">
+          <button class="task-modal-close" type="button" id="closeTaskColumnSettings" aria-label="Fechar">×</button>
+          <p class="eyebrow">CONFIGURAÇÃO DA ETAPA</p>
+          <h3>Personalizar etapa</h3>
+          <p class="task-column-settings-intro">Defina o nome e o comportamento desta etapa no fluxo de trabalho.</p>
+          <input type="hidden" id="taskColumnSettingsId" />
+          <label class="task-column-settings-name">NOME DA ETAPA<input id="taskColumnSettingsTitle" maxlength="80" required /></label>
+          <fieldset class="task-column-role-fieldset">
+            <legend>FUNÇÃO DA ETAPA</legend>
+            <div class="task-column-role-options">
+              <label><input type="radio" name="taskColumnSettingsRole" value="standard"><span><i class="role-dot standard"></i><b>Etapa normal</b><small>Organiza tarefas sem aplicar uma automação especial.</small></span></label>
+              <label><input type="radio" name="taskColumnSettingsRole" value="in_progress"><span><i class="role-dot in-progress"></i><b>Em andamento</b><small>Indica que a equipe já está executando a tarefa.</small></span></label>
+              <label><input type="radio" name="taskColumnSettingsRole" value="review"><span><i class="role-dot review"></i><b>Em revisão</b><small>Destaca tarefas que aguardam conferência ou aprovação.</small></span></label>
+              <label><input type="radio" name="taskColumnSettingsRole" value="blocked"><span><i class="role-dot blocked"></i><b>Bloqueada</b><small>Sinaliza tarefas paradas que exigem atenção.</small></span></label>
+              <label><input type="radio" name="taskColumnSettingsRole" value="completed"><span><i class="role-dot completed"></i><b>Concluída</b><small>Marca a tarefa como concluída, aplica verde e celebra com confetes.</small></span></label>
+            </div>
+          </fieldset>
+          <div class="task-column-settings-summary" id="taskColumnSettingsSummary"></div>
+          <div class="task-column-settings-actions"><button class="task-primary-button" type="submit">Salvar configurações</button></div>
+          <span class="task-form-status" id="taskColumnSettingsStatus"></span>
+          <section class="task-column-danger-zone">
+            <div><b>Excluir etapa</b><small id="taskColumnDeleteHint">Somente etapas vazias podem ser excluídas.</small></div>
+            <button type="button" id="deleteTaskColumn">Excluir etapa</button>
+          </section>
+        </form>
+      </div>
+
       <section class="alerts-view" id="alerts" hidden>
         <div class="alerts-heading"><div><p class="eyebrow">AUTOMAÇÕES NO WHATSAPP</p><h2>Central de alertas</h2><p>Configure avisos operacionais e recomendações auditadas para o grupo responsável.</p></div><div class="alert-session-actions"><span class="alert-connection" id="alertConnection">Verificando Evolution API...</span><button type="button" id="alertLogout">Desconectar</button></div></div>
         <div class="alert-stats" id="alertStats"></div>
@@ -312,6 +340,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/tesseract.min.js"></script>
-  <script src="app.js?v=20260806-1"></script>
+  <script src="app.js?v=20260806-2"></script>
 </body>
 </html>
