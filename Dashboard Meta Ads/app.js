@@ -1112,8 +1112,8 @@ function renderPngReportFields(accountId=currentPngAccountId){
       ${pngEditorControl('Título do bloco','groupTitle',edit.groupTitle,{wide:true})}
       ${pngEditorControl('Rótulo do total','confirmedLabel',edit.confirmedLabel)}${pngEditorControl('Total confirmado','confirmedValue',edit.confirmedValue)}
       ${pngEditorControl('Unidade do total','confirmedUnit',edit.confirmedUnit)}${pngEditorControl('Texto do investimento','investmentText',edit.investmentText,{wide:true})}
-    </div><div class="png-group-editor"><div class="png-group-editor-header"><span>Nome reconhecido / não reconhecido</span><span>Leads</span><span>CPL</span></div>
-      ${(edit.groups||[]).map((group,index)=>`<div class="png-group-edit-row"><input value="${escapeHtml(group.name)}" data-png-group-index="${index}" data-png-group-field="name" aria-label="Nome do grupo ${index+1}"><input value="${escapeHtml(group.results)}" data-png-group-index="${index}" data-png-group-field="results" aria-label="Leads do grupo ${index+1}"><input value="${escapeHtml(group.cpl)}" data-png-group-index="${index}" data-png-group-field="cpl" aria-label="CPL do grupo ${index+1}"></div>`).join('')||'<p class="png-edit-empty">Nenhum grupo com gasto foi retornado pela auditoria.</p>'}
+    </div><div class="png-group-editor"><div class="png-group-editor-header"><span>Nome reconhecido / não reconhecido</span><span>Leads</span><span>CPL</span><span class="png-group-action-title">Exibir</span></div>
+      ${(edit.groups||[]).map((group,index)=>`<div class="png-group-edit-row"><input value="${escapeHtml(group.name)}" data-png-group-index="${index}" data-png-group-field="name" aria-label="Nome do grupo ${index+1}"><input value="${escapeHtml(group.results)}" data-png-group-index="${index}" data-png-group-field="results" aria-label="Leads do grupo ${index+1}"><input value="${escapeHtml(group.cpl)}" data-png-group-index="${index}" data-png-group-field="cpl" aria-label="CPL do grupo ${index+1}"><button class="png-group-remove" type="button" data-remove-png-group="${index}" title="Não exibir esta campanha no relatório" aria-label="Remover ${escapeHtml(group.name)} do relatório">×</button></div>`).join('')||'<p class="png-edit-empty">Nenhuma campanha será exibida. Use “Restaurar dados auditados” para recuperar as linhas.</p>'}
     </div></fieldset>
     <fieldset><legend>Textos de análise</legend><div class="png-edit-grid">
       ${pngEditorControl('Título do resumo','summaryTitle',edit.summaryTitle)}${pngEditorControl('Resumo','summaryText',edit.summaryText,{wide:true,multiline:true})}
@@ -1129,6 +1129,7 @@ document.querySelector('#pngReportFields').addEventListener('input',event=>{
   const index=Number(event.target.dataset.pngGroupIndex),groupField=event.target.dataset.pngGroupField;if(groupField&&edit.groups[index])edit.groups[index][groupField]=event.target.value;
   schedulePngEditorRedraw();
 });
+document.querySelector('#pngReportFields').addEventListener('click',event=>{const button=event.target.closest('[data-remove-png-group]');if(!button)return;const edit=currentPngEdit(),index=Number(button.dataset.removePngGroup);if(!edit?.groups?.[index])return;edit.groups.splice(index,1);renderPngReportFields();schedulePngEditorRedraw()});
 document.querySelector('#resetPngReportEdits').onclick=async()=>{
   const row=currentReportContext?.payload.accounts?.[currentPngAccountId];if(!row)return;
   reportPngEdits.delete(currentPngAccountId);reportDisplayNameOverrides.delete(currentPngAccountId);const displayName=row.name||row.id;document.querySelector('#pngReportName').value=displayName;renderPngReportFields();if(pngReportMode==='bulk')renderBulkPngNames();await drawPngReport(currentPngAccountId,displayName);
