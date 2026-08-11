@@ -29,6 +29,18 @@ Como usuário, quero remover uma linha que não deve aparecer no relatório e po
 1. **Given** uma linha existente, **When** o usuário removê-la, **Then** ela deve desaparecer do formulário, da prévia e do PNG.
 2. **Given** linhas adicionadas ou removidas, **When** o usuário restaurar os dados auditados, **Then** o conjunto original deve ser recuperado.
 
+### User Story 3 - Ações sempre visíveis no card (Priority: P1)
+
+Como usuário, quero visualizar os campos e a ação de excluir dentro dos limites do card para conseguir remover tanto linhas originais quanto linhas adicionadas manualmente.
+
+**Independent Test**: abrir o editor na largura normal do painel e confirmar que nome, leads, CPL e lixeira aparecem integralmente dentro do card em todas as linhas.
+
+**Acceptance Scenarios**:
+
+1. **Given** uma linha criada pelo sistema, **When** o editor for aberto, **Then** a ação de excluir deve estar visível e funcional.
+2. **Given** uma linha adicionada pelo usuário, **When** ela for renderizada, **Then** deve apresentar a mesma ação de excluir.
+3. **Given** qualquer largura suportada pelo modal, **When** a linha for exibida, **Then** nenhum campo ou ação deve ultrapassar os limites do card.
+
 ### Edge Cases
 
 - O usuário pode remover todas as linhas; o relatório deve continuar exportável sem linhas de campanha.
@@ -47,6 +59,8 @@ Como usuário, quero remover uma linha que não deve aparecer no relatório e po
 - **FR-005**: As alterações MUST permanecer isoladas por conta durante a preparação do ZIP.
 - **FR-006**: A restauração MUST recuperar os grupos originais retornados pela auditoria.
 - **FR-007**: Alterações do PNG MUST NOT modificar os dados auditados da Meta.
+- **FR-008**: A ação de exclusão MUST permanecer visível em todas as linhas, sejam originais ou manuais.
+- **FR-009**: Nome, leads, CPL e ação MUST permanecer dentro dos limites do card sem sobreposição ou corte.
 
 ## Assumptions
 
@@ -60,3 +74,4 @@ Como usuário, quero remover uma linha que não deve aparecer no relatório e po
 - **SC-002**: A prévia reflete a alteração em menos de um segundo após a interação.
 - **SC-003**: Em um lote com múltiplas contas, 100% das alterações permanecem associadas somente à conta editada.
 - **SC-004**: A restauração recupera 100% das linhas auditadas originais.
+- **SC-005**: Em 100% das linhas, os quatro controles permanecem visíveis e contidos no card nas larguras suportadas pelo modal.

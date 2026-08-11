@@ -12,3 +12,9 @@
 - [x] T005 Estilizar a ação de inclusão e o estado vazio em `Dashboard Meta Ads/brand-overrides.css`.
 - [x] T006 Atualizar versões dos assets em `Dashboard Meta Ads/index.html`.
 - [x] T007 Executar validações de sintaxe, integridade e convergência per SC-001 a SC-004.
+
+## Phase 3: Convergence — contenção e exclusão visível
+
+- [x] T008 Tornar as quatro colunas da linha responsivas e contidas no card per FR-009 (partial).
+- [x] T009 Exibir uma ação de exclusão inequívoca em linhas auditadas e manuais per FR-003 e FR-008 (partial).
+- [x] T010 Validar contenção, sintaxe e restauração dos grupos per SC-004 e SC-005 (partial).

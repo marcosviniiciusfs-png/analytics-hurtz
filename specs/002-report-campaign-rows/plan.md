@@ -23,6 +23,8 @@ Completar o editor visual de relatórios PNG com inclusão e remoção de grupos
 3. Reutilizar a renderização e atualização do canvas existentes.
 4. Manter a remoção individual já implementada e garantir restauração total.
 5. Estilizar a ação para ser clara, compacta e responsiva.
+6. Substituir larguras mínimas fixas por colunas flexíveis e reservar uma área sempre visível para a ação de excluir.
+7. Aplicar a mesma estrutura visual a grupos auditados e grupos adicionados manualmente.
 
 ## Validation
 
@@ -30,3 +32,4 @@ Completar o editor visual de relatórios PNG com inclusão e remoção de grupos
 - Verificar ausência de erros de whitespace.
 - Confirmar por inspeção que adicionar/remover manipula somente `edit.groups`.
 - Confirmar que restaurar apaga a edição temporária e recria os grupos auditados.
+- Confirmar que a soma das colunas nunca força campos ou ações para fora do card.
