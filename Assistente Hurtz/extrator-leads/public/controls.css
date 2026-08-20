@@ -1,0 +1,1 @@
+.extractControls{display:flex;gap:9px;align-items:center}.extractControls select{width:210px}.extractControls button{white-space:nowrap}@media(max-width:720px){.titleRow{align-items:flex-start;gap:14px;flex-direction:column}.extractControls{width:100%;flex-direction:column;align-items:stretch}.extractControls select{width:100%}}

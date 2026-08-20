@@ -1,0 +1,17 @@
+{
+  "name": "video-integra-kinetic-15s",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {"dev":"remotion studio","lint":"eslint src && tsc"},
+  "dependencies": {
+    "@remotion/cli":"4.0.503",
+    "@remotion/install-whisper-cpp":"4.0.503",
+    "@remotion/media":"4.0.503",
+    "@remotion/transitions":"4.0.503",
+    "lucide-react":"^0.468.0",
+    "react":"19.2.3",
+    "react-dom":"19.2.3",
+    "remotion":"4.0.503"
+  },
+  "devDependencies":{"@types/react":"19.2.7","typescript":"5.9.3"}
+}

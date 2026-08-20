@@ -1,0 +1,8 @@
+.env
+venv/
+__pycache__/
+*.pyc
+*.wav
+knowledge_base/chroma_db/
+overlay/node_modules/
+

@@ -1,0 +1,13 @@
+faster-whisper
+pyaudiowpatch ; platform_system == "Windows"
+sounddevice
+numpy
+chromadb
+sentence-transformers
+pypdf
+watchdog
+websockets
+requests
+python-dotenv
+torch
+

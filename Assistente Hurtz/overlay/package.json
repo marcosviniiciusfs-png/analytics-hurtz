@@ -1,0 +1,9 @@
+{
+  "name": "assistente-reuniao-hurtz",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Overlay local do Assistente de Reunião Hurtz",
+  "main": "main.js",
+  "scripts": {"start": "electron .", "smoke": "node smoke-test.js"},
+  "devDependencies": {"electron": "^37.2.0"}
+}

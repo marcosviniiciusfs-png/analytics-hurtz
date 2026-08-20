@@ -1,0 +1,22 @@
+.discoveryCard.approximate {
+  border-color: #66542d;
+}
+
+.approxBadge {
+  float: right;
+  margin-right: 26px;
+  padding: 4px 7px;
+  border-radius: 99px;
+  background: #2b2515;
+  color: #f4c95d;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.discoveryCard.approximate .postReason {
+  display: block;
+  margin-top: 12px;
+  color: #d7b85f;
+  line-height: 1.45;
+}

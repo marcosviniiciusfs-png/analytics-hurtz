@@ -1,0 +1,25 @@
+{
+  "name": "animacao-logo-integra",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio",
+    "lint": "eslint src && tsc",
+    "render": "remotion render IntegraBrandReveal renders/integra-brand-reveal-arcade-v2.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.503",
+    "@remotion/media": "4.0.503",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.503"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.503",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.19.0",
+    "typescript": "5.9.3"
+  },
+  "sideEffects": ["*.css"]
+}

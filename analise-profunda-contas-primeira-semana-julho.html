@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Análise profunda - primeira semana de julho</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #111827; font-family: Arial, Helvetica, sans-serif; background: #fff; }
+    .page { page-break-after: always; }
+    .cover { min-height: 270mm; display: flex; flex-direction: column; justify-content: center; border-top: 8px solid #ff4b13; padding: 28mm 16mm; }
+    .cover h1 { font-size: 38px; margin: 0 0 12px; line-height: 1.05; }
+    .cover p { color: #4b5563; font-size: 15px; max-width: 620px; line-height: 1.5; }
+    .cover .brand { color: #ff4b13; font-weight: 800; letter-spacing: 6px; margin-bottom: 34px; }
+    .account-page { padding-top: 2mm; }
+    .page-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e5e7eb; padding-bottom: 14px; margin-bottom: 16px; }
+    .eyebrow { color: #ff4b13; text-transform: uppercase; font-size: 11px; font-weight: 800; letter-spacing: 1px; margin: 0 0 5px; }
+    h2 { font-size: 25px; margin: 0 0 5px; color: #07142f; }
+    .sub { margin: 0; color: #4b5563; font-size: 12px; }
+    .stamp { color: #ff4b13; font-weight: 800; letter-spacing: 5px; font-size: 16px; margin-top: 8px; }
+    .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 10px; }
+    .kpis div { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 9px; min-height: 64px; background: #fbfcfe; }
+    .kpis span { display: block; color: #6b7280; font-size: 10px; text-transform: uppercase; font-weight: 700; margin-bottom: 7px; }
+    .kpis strong { color: #ff4b13; font-size: 17px; line-height: 1.1; }
+    .metrics-line { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; font-size: 11px; color: #374151; }
+    .metrics-line span { border: 1px solid #e5e7eb; border-radius: 999px; padding: 5px 8px; }
+    .analysis-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+    article { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; min-height: 158px; }
+    article h3 { margin: 0 0 9px; font-size: 15px; color: #082b73; }
+    ul { margin: 0; padding-left: 17px; }
+    li { margin-bottom: 7px; font-size: 11.4px; line-height: 1.35; color: #1f2937; }
+    .table-title { margin: 12px 0 7px; font-size: 14px; color: #07142f; }
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+    th, td { border: 1px solid #e5e7eb; padding: 7px; vertical-align: top; text-align: left; }
+    th { background: #f3f5f8; color: #374151; font-size: 10px; text-transform: uppercase; }
+    td:first-child { font-weight: 700; color: #111827; width: 29%; }
+    td:nth-child(2), td:nth-child(3) { width: 14%; }
+    .footnote { font-size: 10px; color: #6b7280; margin-top: 10px; line-height: 1.35; }
+  </style>
+</head>
+<body>
+  <section class="page cover">
+    <div class="brand">HURTZ</div>
+    <h1>Análise profunda das contas Meta Ads</h1>
+    <p>Período analisado: 29 de junho de 2026 a 05 de julho de 2026.</p>
+    <p>Este PDF parte do relatório aprovado e adiciona uma leitura estratégica por conta usando métricas auxiliares da API Meta: CTR, CPC, CPM, impressões, alcance, cliques e frequência.</p>
+    <p>Os pontos abaixo destacam o que está bom, os principais pontos de atenção e o que pode ser melhorado em cada conta.</p>
+  </section>
+  
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>CA - Consorcio Certicon</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>103</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 3,85</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 396,39</strong></div>
+        <div><span>CTR</span><strong>2,44%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,43</strong></div>
+        <div><span>CPM</span><strong>R$ 10,40</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>38.135</b></span>
+        <span>Alcance: <b>20.549</b></span>
+        <span>Cliques: <b>931</b></span>
+        <span>Frequência: <b>1,86</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 396,43</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CPC controlado de R$ 0,43, aceitável para campanhas de captação.</li><li>Frequência controlada em 1,86, sem sinal forte de saturação.</li><li>Melhor bloco: IMOVEL - WHATSAPP, com 66 leads e CPL de R$ 2,89.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>CTR de 2,44% abaixo do grupo mais forte das contas; vale revisar gancho, criativo e promessa inicial.</li><li>Bloco mais pesado: CAMINHAO - WHATSAPP, com CPL de R$ 18,86; precisa de auditoria antes de escalar.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Testar novos criativos com promessa mais direta nos primeiros segundos e CTA mais explícito.</li><li>Revisar CAMINHAO - WHATSAPP: o CPL está muito acima do melhor bloco (IMOVEL - WHATSAPP).</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>IMOVEL - WHATSAPP</td>
+          <td>66</td>
+          <td>R$ 2,89</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>IMOVEL - FORMULARIO</td>
+          <td>31</td>
+          <td>R$ 2,99</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>CAMINHAO - WHATSAPP</td>
+          <td>6</td>
+          <td>R$ 18,86</td>
+          <td>-</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>CA - Investbens</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>234</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 2,55</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 597,26</strong></div>
+        <div><span>CTR</span><strong>3,77%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,26</strong></div>
+        <div><span>CPM</span><strong>R$ 9,77</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>61.160</b></span>
+        <span>Alcance: <b>26.793</b></span>
+        <span>Cliques: <b>2.308</b></span>
+        <span>Frequência: <b>2,28</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 597,27</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CTR saudável de 3,77%, com margem para evoluir criativos sem sinal crítico de baixa atração.</li><li>CPC baixo de R$ 0,26, mostrando tráfego barato para o período.</li><li>CPM competitivo de R$ 9,77, bom para ganhar volume com menor custo de mídia.</li><li>Melhor bloco: IMOVEL - FORMULARIO, com 197 leads e CPL de R$ 2,54.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>Frequência em 2,28; há risco de repetição de audiência se o volume subir sem renovar criativos.</li><li>Bloco mais pesado: VAGA DE EMPREGO - WHATSAPP, com CPL de R$ 2,61; precisa de auditoria antes de escalar.</li><li>Existem campanhas com gasto sem lead confirmado separado no retorno da API; esse gasto deve continuar sendo auditado no Gerenciador.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Conferir no Gerenciador as campanhas com gasto sem lead confirmado e decidir se continuam, pausam ou recebem novo evento de conversão.</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>VAGA DE EMPREGO - WHATSAPP</td>
+          <td>37</td>
+          <td>R$ 2,61</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>IMOVEL - FORMULARIO</td>
+          <td>197</td>
+          <td>R$ 2,54</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>CLIENTE CONTEMPLADO - FORMULARIO</td>
+          <td>Sem lead confirmado</td>
+          <td>-</td>
+          <td>A campanha gastou R$ 2,55 e entrou no valor gasto da conta.</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>CA - Ramos solucoes</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>134</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 2,31</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 310,17</strong></div>
+        <div><span>CTR</span><strong>3,17%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,43</strong></div>
+        <div><span>CPM</span><strong>R$ 13,62</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>22.775</b></span>
+        <span>Alcance: <b>17.640</b></span>
+        <span>Cliques: <b>722</b></span>
+        <span>Frequência: <b>1,29</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 310,17</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CTR saudável de 3,17%, com margem para evoluir criativos sem sinal crítico de baixa atração.</li><li>CPC controlado de R$ 0,43, aceitável para campanhas de captação.</li><li>Frequência controlada em 1,29, sem sinal forte de saturação.</li><li>Melhor bloco: IMOVEL - FORMULARIO, com 123 leads e CPL de R$ 2,29.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>Bloco mais pesado: IMOVEL - WHATSAPP, com CPL de R$ 2,55; precisa de auditoria antes de escalar.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Manter a estrutura vencedora e testar variações incrementais de criativo para aumentar volume sem perder CPL.</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>IMOVEL - WHATSAPP</td>
+          <td>11</td>
+          <td>R$ 2,55</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>IMOVEL - FORMULARIO</td>
+          <td>123</td>
+          <td>R$ 2,29</td>
+          <td>-</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>CA - Progresso</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>85</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 4,36</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 370,58</strong></div>
+        <div><span>CTR</span><strong>2,23%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,34</strong></div>
+        <div><span>CPM</span><strong>R$ 7,47</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>49.597</b></span>
+        <span>Alcance: <b>24.192</b></span>
+        <span>Cliques: <b>1.106</b></span>
+        <span>Frequência: <b>2,05</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 370,58</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CPC controlado de R$ 0,34, aceitável para campanhas de captação.</li><li>CPM competitivo de R$ 7,47, bom para ganhar volume com menor custo de mídia.</li><li>Melhor bloco: VEICULO - FORMULARIO, com 38 leads e CPL de R$ 2,78.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>CTR de 2,23% abaixo do grupo mais forte das contas; vale revisar gancho, criativo e promessa inicial.</li><li>Frequência em 2,05; há risco de repetição de audiência se o volume subir sem renovar criativos.</li><li>Bloco mais pesado: MAQUINA - FORMULARIO, com CPL de R$ 53,06; precisa de auditoria antes de escalar.</li><li>Existem campanhas com gasto sem lead confirmado separado no retorno da API; esse gasto deve continuar sendo auditado no Gerenciador.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Testar novos criativos com promessa mais direta nos primeiros segundos e CTA mais explícito.</li><li>Revisar MAQUINA - FORMULARIO: o CPL está muito acima do melhor bloco (VEICULO - FORMULARIO).</li><li>Conferir no Gerenciador as campanhas com gasto sem lead confirmado e decidir se continuam, pausam ou recebem novo evento de conversão.</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>VEICULO - FORMULARIO</td>
+          <td>38</td>
+          <td>R$ 2,78</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>IMOVEL - FORMULARIO</td>
+          <td>46</td>
+          <td>R$ 4,59</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>MAQUINA - FORMULARIO</td>
+          <td>1</td>
+          <td>R$ 53,06</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>CLIENTE CONTEMPLADO</td>
+          <td>Sem lead confirmado</td>
+          <td>-</td>
+          <td>A campanha gastou R$ 0,97 e entrou no valor gasto da conta.</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>Gomes Invest</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>120</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 2,28</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 273,59</strong></div>
+        <div><span>CTR</span><strong>5,26%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,30</strong></div>
+        <div><span>CPM</span><strong>R$ 15,97</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>17.134</b></span>
+        <span>Alcance: <b>11.247</b></span>
+        <span>Cliques: <b>901</b></span>
+        <span>Frequência: <b>1,52</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 273,61</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CTR forte de 5,26%, sinal de criativo/oferta com boa capacidade de gerar clique.</li><li>CPC controlado de R$ 0,30, aceitável para campanhas de captação.</li><li>Frequência controlada em 1,52, sem sinal forte de saturação.</li><li>Melhor bloco: FORMULARIO, com 120 leads e CPL de R$ 2,28.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>Existem campanhas com gasto sem lead confirmado separado no retorno da API; esse gasto deve continuar sendo auditado no Gerenciador.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Conferir no Gerenciador as campanhas com gasto sem lead confirmado e decidir se continuam, pausam ou recebem novo evento de conversão.</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>FORMULARIO</td>
+          <td>120</td>
+          <td>R$ 2,28</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>Campanhas com gasto</td>
+          <td>Sem lead confirmado</td>
+          <td>-</td>
+          <td>CAMINHAO, IMOVEL e CARRO gastaram no periodo. A API de conta retornou 120 leads; a abertura exata por produto precisa ser conferida no Gerenciador antes de separar os blocos.</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>Ribeiro 02</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>145</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 5,08</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 736,56</strong></div>
+        <div><span>CTR</span><strong>2,29%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,48</strong></div>
+        <div><span>CPM</span><strong>R$ 11,02</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>66.815</b></span>
+        <span>Alcance: <b>33.187</b></span>
+        <span>Cliques: <b>1.528</b></span>
+        <span>Frequência: <b>2,01</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 736,57</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CPC controlado de R$ 0,48, aceitável para campanhas de captação.</li><li>Melhor bloco: IMOVEL - FORMULARIO, com 145 leads e CPL de R$ 5,08.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>CTR de 2,29% abaixo do grupo mais forte das contas; vale revisar gancho, criativo e promessa inicial.</li><li>Frequência em 2,01; há risco de repetição de audiência se o volume subir sem renovar criativos.</li><li>Existem campanhas com gasto sem lead confirmado separado no retorno da API; esse gasto deve continuar sendo auditado no Gerenciador.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Testar novos criativos com promessa mais direta nos primeiros segundos e CTA mais explícito.</li><li>Conferir no Gerenciador as campanhas com gasto sem lead confirmado e decidir se continuam, pausam ou recebem novo evento de conversão.</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>IMOVEL - FORMULARIO</td>
+          <td>145</td>
+          <td>R$ 5,08</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>MOTO - FORMULARIO</td>
+          <td>Sem lead confirmado</td>
+          <td>-</td>
+          <td>A campanha gastou R$ 11,71 e entrou no valor gasto da conta.</td>
+        </tr>
+        <tr>
+          <td>IMOVEL - SIMULADOR</td>
+          <td>Sem lead confirmado</td>
+          <td>-</td>
+          <td>A campanha gastou R$ 2,22 e entrou no valor gasto da conta.</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>CA - Topazio - 3356</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>164</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 3,25</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 533,70</strong></div>
+        <div><span>CTR</span><strong>2,98%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,93</strong></div>
+        <div><span>CPM</span><strong>R$ 27,57</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>19.356</b></span>
+        <span>Alcance: <b>13.881</b></span>
+        <span>Cliques: <b>576</b></span>
+        <span>Frequência: <b>1,39</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 533,70</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>Frequência controlada em 1,39, sem sinal forte de saturação.</li><li>Melhor bloco: IMOVEL - WHATSAPP, com 141 leads e CPL de R$ 2,11.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>CTR de 2,98% abaixo do grupo mais forte das contas; vale revisar gancho, criativo e promessa inicial.</li><li>CPC de R$ 0,93 pressiona a eficiência; priorizar criativos e públicos que reduzem custo de clique.</li><li>CPM alto de R$ 27,57, exigindo mais cuidado com público, posicionamento e fadiga criativa.</li><li>Bloco mais pesado: MAQUINARIO - WHATSAPP, com CPL de R$ 20,98; precisa de auditoria antes de escalar.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Testar novos criativos com promessa mais direta nos primeiros segundos e CTA mais explícito.</li><li>Separar orçamento dos conjuntos/campanhas com CPC alto e redistribuir para os criativos de melhor clique.</li><li>Abrir públicos ou revisar posicionamentos para reduzir custo de entrega.</li><li>Revisar MAQUINARIO - WHATSAPP: o CPL está muito acima do melhor bloco (IMOVEL - WHATSAPP).</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>IMOVEL - WHATSAPP</td>
+          <td>141</td>
+          <td>R$ 2,11</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>VAN - WHATSAPP</td>
+          <td>15</td>
+          <td>R$ 4,57</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>MAQUINARIO - WHATSAPP</td>
+          <td>8</td>
+          <td>R$ 20,98</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>IMOVEL - WHATSAPP</td>
+          <td>Sem lead confirmado</td>
+          <td>-</td>
+          <td>A campanha gastou R$ 1,07 e entrou no valor gasto da conta.</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>CA - Topazio 03 - 7219</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>123</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 1,47</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 180,45</strong></div>
+        <div><span>CTR</span><strong>5,11%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,40</strong></div>
+        <div><span>CPM</span><strong>R$ 20,34</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>8.873</b></span>
+        <span>Alcance: <b>6.636</b></span>
+        <span>Cliques: <b>453</b></span>
+        <span>Frequência: <b>1,34</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 180,45</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CTR forte de 5,11%, sinal de criativo/oferta com boa capacidade de gerar clique.</li><li>CPC controlado de R$ 0,40, aceitável para campanhas de captação.</li><li>Frequência controlada em 1,34, sem sinal forte de saturação.</li><li>Melhor bloco: IMOVEL - WHATSAPP, com 123 leads e CPL de R$ 1,47.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>CPM alto de R$ 20,34, exigindo mais cuidado com público, posicionamento e fadiga criativa.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Abrir públicos ou revisar posicionamentos para reduzir custo de entrega.</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>IMOVEL - WHATSAPP</td>
+          <td>123</td>
+          <td>R$ 1,47</td>
+          <td>-</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>CA - Malta Investimento</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>207</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 2,17</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 449,25</strong></div>
+        <div><span>CTR</span><strong>3,51%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,25</strong></div>
+        <div><span>CPM</span><strong>R$ 8,73</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>51.457</b></span>
+        <span>Alcance: <b>31.639</b></span>
+        <span>Cliques: <b>1.806</b></span>
+        <span>Frequência: <b>1,63</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 449,25</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CTR saudável de 3,51%, com margem para evoluir criativos sem sinal crítico de baixa atração.</li><li>CPC baixo de R$ 0,25, mostrando tráfego barato para o período.</li><li>CPM competitivo de R$ 8,73, bom para ganhar volume com menor custo de mídia.</li><li>Frequência controlada em 1,63, sem sinal forte de saturação.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Manter a estrutura vencedora e testar variações incrementais de criativo para aumentar volume sem perder CPL.</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>IMOVEL - FORMULARIO</td>
+          <td>207</td>
+          <td>R$ 2,17</td>
+          <td>-</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>B2 Investimento</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>240</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 2,75</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 660,98</strong></div>
+        <div><span>CTR</span><strong>2,47%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,62</strong></div>
+        <div><span>CPM</span><strong>R$ 15,23</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>43.409</b></span>
+        <span>Alcance: <b>27.718</b></span>
+        <span>Cliques: <b>1.074</b></span>
+        <span>Frequência: <b>1,57</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 661,00</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>Frequência controlada em 1,57, sem sinal forte de saturação.</li><li>Melhor bloco: VEICULO - WHATSAPP, com 52 leads e CPL de R$ 1,60.</li><li>CPL geral estimado pelo consolidado aprovado em R$ 2,75, muito eficiente para captação.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>CTR de 2,47% abaixo do grupo mais forte das contas; vale revisar gancho, criativo e promessa inicial.</li><li>CPC de R$ 0,62 pressiona a eficiência; priorizar criativos e públicos que reduzem custo de clique.</li><li>Bloco mais pesado: CREDITO RURAL - WHATSAPP, com CPL de R$ 14,02; precisa de auditoria antes de escalar.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Testar novos criativos com promessa mais direta nos primeiros segundos e CTA mais explícito.</li><li>Separar orçamento dos conjuntos/campanhas com CPC alto e redistribuir para os criativos de melhor clique.</li><li>Revisar CREDITO RURAL - WHATSAPP: o CPL está muito acima do melhor bloco (VEICULO - WHATSAPP).</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>VEICULO - WHATSAPP</td>
+          <td>52</td>
+          <td>R$ 1,60</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>IMOVEL - WHATSAPP</td>
+          <td>187</td>
+          <td>R$ 3,01</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>CREDITO RURAL - WHATSAPP</td>
+          <td>1</td>
+          <td>R$ 14,02</td>
+          <td>-</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>LD</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>124</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 2,15</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 266,31</strong></div>
+        <div><span>CTR</span><strong>4,28%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,27</strong></div>
+        <div><span>CPM</span><strong>R$ 11,59</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>22.978</b></span>
+        <span>Alcance: <b>17.832</b></span>
+        <span>Cliques: <b>983</b></span>
+        <span>Frequência: <b>1,29</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 266,31</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CTR saudável de 4,28%, com margem para evoluir criativos sem sinal crítico de baixa atração.</li><li>CPC baixo de R$ 0,27, mostrando tráfego barato para o período.</li><li>Frequência controlada em 1,29, sem sinal forte de saturação.</li><li>Melhor bloco: VAGA DE EMPREGO, com 22 leads e CPL de R$ 1,56.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>Bloco mais pesado: FORMULARIO, com CPL de R$ 2,61; precisa de auditoria antes de escalar.</li><li>Existem campanhas com gasto sem lead confirmado separado no retorno da API; esse gasto deve continuar sendo auditado no Gerenciador.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Conferir no Gerenciador as campanhas com gasto sem lead confirmado e decidir se continuam, pausam ou recebem novo evento de conversão.</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>VEICULO - WHATSAPP</td>
+          <td>Sem lead confirmado</td>
+          <td>-</td>
+          <td>As campanhas de veiculo gastaram R$ 232,00 e entraram no valor gasto da conta.</td>
+        </tr>
+        <tr>
+          <td>VAGA DE EMPREGO</td>
+          <td>22</td>
+          <td>R$ 1,56</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>FORMULARIO</td>
+          <td>102</td>
+          <td>R$ 2,61</td>
+          <td>-</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>Ideal Credito</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>59</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 4,92</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 290,20</strong></div>
+        <div><span>CTR</span><strong>5,95%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,45</strong></div>
+        <div><span>CPM</span><strong>R$ 26,66</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>10.885</b></span>
+        <span>Alcance: <b>6.605</b></span>
+        <span>Cliques: <b>648</b></span>
+        <span>Frequência: <b>1,65</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 290,20</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CTR forte de 5,95%, sinal de criativo/oferta com boa capacidade de gerar clique.</li><li>CPC controlado de R$ 0,45, aceitável para campanhas de captação.</li><li>Frequência controlada em 1,65, sem sinal forte de saturação.</li><li>Melhor bloco: IMOVEL - FORMULARIO, com 59 leads e CPL de R$ 4,92.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>CPM alto de R$ 26,66, exigindo mais cuidado com público, posicionamento e fadiga criativa.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Abrir públicos ou revisar posicionamentos para reduzir custo de entrega.</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>IMOVEL - FORMULARIO</td>
+          <td>59</td>
+          <td>R$ 4,92</td>
+          <td>-</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>Talisma</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>63</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 2,58</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 162,66</strong></div>
+        <div><span>CTR</span><strong>6,03%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,24</strong></div>
+        <div><span>CPM</span><strong>R$ 14,42</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>11.281</b></span>
+        <span>Alcance: <b>7.868</b></span>
+        <span>Cliques: <b>680</b></span>
+        <span>Frequência: <b>1,43</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 162,67</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CTR forte de 6,03%, sinal de criativo/oferta com boa capacidade de gerar clique.</li><li>CPC baixo de R$ 0,24, mostrando tráfego barato para o período.</li><li>Frequência controlada em 1,43, sem sinal forte de saturação.</li><li>Melhor bloco: FORMULARIO, com 63 leads e CPL de R$ 2,58.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>Existem campanhas com gasto sem lead confirmado separado no retorno da API; esse gasto deve continuar sendo auditado no Gerenciador.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Conferir no Gerenciador as campanhas com gasto sem lead confirmado e decidir se continuam, pausam ou recebem novo evento de conversão.</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>FORMULARIO</td>
+          <td>63</td>
+          <td>R$ 2,58</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>Campanhas com gasto</td>
+          <td>Sem lead confirmado</td>
+          <td>-</td>
+          <td>VEICULO - FORMULARIO e IMOVEL - FORMULARIO gastaram no periodo. A API de conta retornou 63 leads; a abertura exata por produto precisa ser conferida no Gerenciador antes de separar os blocos.</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+
+    <section class="page account-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Análise por conta</p>
+          <h2>Grupo Uniao</h2>
+          <p class="sub">Período: 29/06/2026 a 05/07/2026</p>
+        </div>
+        <div class="stamp">HURTZ</div>
+      </div>
+
+      <div class="kpis">
+        <div><span>Leads aprovados</span><strong>70</strong></div>
+        <div><span>CPL consolidado</span><strong>R$ 9,75</strong></div>
+        <div><span>Valor gasto aprovado</span><strong>R$ 682,72</strong></div>
+        <div><span>CTR</span><strong>3,78%</strong></div>
+        <div><span>CPC</span><strong>R$ 0,56</strong></div>
+        <div><span>CPM</span><strong>R$ 21,21</strong></div>
+      </div>
+
+      <div class="metrics-line">
+        <span>Impressões: <b>32.193</b></span>
+        <span>Alcance: <b>19.490</b></span>
+        <span>Cliques: <b>1.218</b></span>
+        <span>Frequência: <b>1,65</b></span>
+        <span>Gasto API para métricas auxiliares: <b>R$ 682,76</b></span>
+      </div>
+
+      <div class="analysis-grid">
+        <article>
+          <h3>O que está bom</h3>
+          <ul><li>CTR saudável de 3,78%, com margem para evoluir criativos sem sinal crítico de baixa atração.</li><li>Frequência controlada em 1,65, sem sinal forte de saturação.</li><li>Melhor bloco: ENGAJAMENTO - MENSAGEM, com 52 leads e CPL de R$ 7,06.</li></ul>
+        </article>
+        <article>
+          <h3>Ponto de atenção</h3>
+          <ul><li>CPC de R$ 0,56 pressiona a eficiência; priorizar criativos e públicos que reduzem custo de clique.</li><li>CPM alto de R$ 21,21, exigindo mais cuidado com público, posicionamento e fadiga criativa.</li><li>Bloco mais pesado: IMOVEIS - SIMULADOR, com CPL de R$ 14,15; precisa de auditoria antes de escalar.</li><li>Existem campanhas com gasto sem lead confirmado separado no retorno da API; esse gasto deve continuar sendo auditado no Gerenciador.</li></ul>
+        </article>
+        <article>
+          <h3>O que pode melhorar</h3>
+          <ul><li>Separar orçamento dos conjuntos/campanhas com CPC alto e redistribuir para os criativos de melhor clique.</li><li>Abrir públicos ou revisar posicionamentos para reduzir custo de entrega.</li><li>Revisar IMOVEIS - SIMULADOR: o CPL está muito acima do melhor bloco (ENGAJAMENTO - MENSAGEM).</li><li>Conferir no Gerenciador as campanhas com gasto sem lead confirmado e decidir se continuam, pausam ou recebem novo evento de conversão.</li></ul>
+        </article>
+      </div>
+
+      <h3 class="table-title">Abertura por grupo do relatório aprovado</h3>
+      <table>
+        <thead><tr><th>Grupo</th><th>Leads</th><th>CPL</th><th>Observação</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>IMOVEIS - SIMULADOR</td>
+          <td>18</td>
+          <td>R$ 14,15</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>ENGAJAMENTO - MENSAGEM</td>
+          <td>52</td>
+          <td>R$ 7,06</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>IMOVEIS - SIMULADOR</td>
+          <td>Sem lead confirmado</td>
+          <td>-</td>
+          <td>Algumas campanhas de simulador gastaram e entraram no valor gasto total da conta.</td>
+        </tr></tbody>
+      </table>
+
+      <p class="footnote">Leads, CPL e valor gasto aprovado vêm do relatório validado. CTR, CPC, CPM, impressões, alcance, cliques e frequência foram coletados da API Meta no mesmo período.</p>
+    </section>
+</body>
+</html>

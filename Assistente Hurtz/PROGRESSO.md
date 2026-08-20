@@ -1,0 +1,62 @@
+# Progresso — Assistente Hurtz
+
+- [x] Fase 1 — Estrutura independente, configuração e scripts de instalação
+- [x] Fase 2 — Captura simultânea de microfone e WASAPI/BlackHole
+- [x] Fase 3 — Transcrição Whisper local com GPU automática e janela deslizante
+- [x] Fase 4 — RAG local, extração de PDFs, ChromaDB e monitoramento da pasta
+- [x] Fase 5 — Geração local via Ollama
+- [x] Fase 6 — Overlay Electron, WebSocket e proteção de captura
+- [x] Fase 7 — Orquestração e lançadores Windows/macOS/Linux
+- [x] Smoke test do overlay
+- [x] Python 3.12.10, ambiente virtual e dependências locais instalados
+- [x] Smoke tests Python e compilação dos módulos
+- [x] Modelo local Ollama `llama3.2:3b` instalado
+- [x] Widget compacto e expansível inspirado em assistentes de reunião
+- [x] Controles de iniciar, pausar, retomar e encerrar sessão
+- [x] Transcrição ao vivo e perguntas manuais
+- [x] Notas durante a reunião, resumo e próximos passos
+- [x] Histórico local das reuniões em `data/reunioes`
+- [x] Tela inicial obrigatória para documentos e instruções
+- [x] Seletor nativo de múltiplos PDFs e indexação antes da sessão
+- [x] Instruções personalizadas aplicadas às respostas em tempo real
+- [x] Transcrição consolidada por fala com remoção de sobreposição
+- [x] Glossário comercial para termos como lead, Meta Ads, CRM e Hurtz
+- [x] Identificação contínua do documento e trecho apresentado
+- [x] Orientações curtas geradas durante a leitura da apresentação
+- [x] Modo Apresentação e descrições visíveis dos quatro modos
+- [x] Documento ativo exibido imediatamente após a preparação
+- [x] Acompanhamento antecipado após as primeiras palavras da leitura
+- [x] Explicação e próximos passos atualizados aproximadamente a cada 5 segundos
+- [x] Documento, próximos passos e fala sugerida fixados no topo
+- [x] Orientação transmitida progressivamente pelo Ollama
+- [x] Contexto mais recente enfileirado durante leituras contínuas
+- [x] Gatilhos automáticos de pergunta desativados no modo Apresentação
+- [x] Mensagens intermediárias de espera removidas
+- [x] Teleprompter removido das abas roláveis e fixado acima delas
+- [x] “Diga agora” e “Em seguida” gerados numa única chamada
+- [x] Prompt de fala natural com continuidade e bloqueio de invenções
+- [x] Ollama iniciado e validado automaticamente pelo lançador
+- [x] Latência medida: primeiro bloco em 0,61s com modelo aquecido
+- [x] Handshake obrigatório backend/interface versão 0.6.0
+- [x] Processos antigos removidos antes de cada inicialização
+- [x] Logs persistentes em `data/backend.log` e `data/backend-error.log`
+- [x] Barreira de qualidade contra fala genérica, hipotética ou inventada
+- [x] Teste E2E real: documento + 56 deltas + duas falas aprovado
+- [x] Backend/interface versão 0.7.0 com leitura guiada
+- [x] Sugestão bloqueada contra troca durante a leitura
+- [x] Digitação controlada em 95ms/115ms por palavra
+- [x] Contorno e palavras lidas destacados em laranja
+- [x] Filtro de silêncio e segmentos Whisper de baixa confiança
+- [x] Teste E2E: leitura 100%, avanço e zero realimentação aprovado
+- [ ] Testes reais de áudio, Whisper, RAG e ciclo completo (exigem instalação local e hardware)
+- [ ] Conferência em chamada Zoom/Meet por outro dispositivo (verificação manual prevista no plano)
+
+Última atualização: 21/07/2026.
+# Atualização — Atendente Humanizado no WhatsApp
+
+- O módulo de atendimento por ligação foi pausado e preservado em `assistente-voz/`.
+- Criado `assistente-whatsapp/` como nova prioridade do Assistente Hurtz.
+- Integração projetada para reutilizar a Evolution API existente na VPS, sem outra sessão Baileys.
+- Implementados webhook, debounce, deduplicação, memória SQLite, RAG local, Ollama, presença humanizada, texto/áudio, transferência humana e painel administrativo.
+- O atendimento começa desativado para evitar respostas acidentais.
+- O launcher agora apresenta Reunião, WhatsApp e Ligação pausada.

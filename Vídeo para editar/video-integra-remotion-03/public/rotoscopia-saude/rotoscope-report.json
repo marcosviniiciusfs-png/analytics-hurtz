@@ -1,0 +1,23 @@
+{
+  "width": 1440,
+  "height": 2560,
+  "fps": 30.0,
+  "duration": 25.17,
+  "start": 4.0,
+  "processed_duration": 4.3,
+  "frames": 129,
+  "box": [
+    194.12478637695312,
+    540.4251098632812,
+    1071.5712890625,
+    1782.010009765625
+  ],
+  "checkpoint": "C:\\Users\\Brito\\.codex\\tools\\rotoscopia-sam2\\sam2\\checkpoints\\sam2.1_hiera_small.pt",
+  "gpu": "NVIDIA GeForce RTX 4060 Ti",
+  "outputs": {
+    "prores4444": "foreground-prores4444.mov",
+    "webm_alpha": "foreground-alpha.webm",
+    "matte_lossless": "matte-lossless.mkv",
+    "png_mattes": "mattes/"
+  }
+}

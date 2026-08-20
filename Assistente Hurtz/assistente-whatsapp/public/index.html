@@ -1,0 +1,874 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Hurtz • Atendente WhatsApp</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-a"></div>
+    <div class="ambient ambient-b"></div>
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">H</div>
+        <div><strong>HURTZ</strong><span>WHATSAPP OS</span></div>
+      </div>
+      <nav>
+        <button class="nav-item active" data-tab="overview">
+          <i>⌂</i><span>Visão geral</span>
+        </button>
+        <button class="nav-item" data-tab="whatsapp">
+          <i>◌</i><span>Conexões</span><em id="instanceCount">0</em>
+        </button>
+        <button class="nav-item" data-tab="brain">
+          <i>🧠</i><span>Cérebro</span><em id="brainCount">0</em>
+        </button>
+        <button class="nav-item" data-tab="config">
+          <i>⚙</i><span>Comportamento</span>
+        </button>
+        <button class="nav-item" data-tab="inbox">
+          <i>◫</i><span>Atendimentos</span><em id="conversationCount">0</em>
+        </button>
+        <button class="nav-item" data-tab="activity">
+          <i>↗</i><span>Atividade</span>
+        </button>
+      </nav>
+      <div class="side-status">
+        <span id="sideDot"></span>
+        <div>
+          <b id="sideStatus">Sistema local</b
+          ><small id="sideDetail">Evolution não configurada</small>
+        </div>
+      </div>
+      <div class="version">ATENDENTE HURTZ • v1.4.0</div>
+    </aside>
+
+    <div class="shell">
+      <header class="topbar">
+        <div>
+          <span class="breadcrumb"
+            >Assistente Hurtz / <b id="pageName">Visão geral</b></span
+          >
+        </div>
+        <div class="top-actions">
+          <div id="connection" class="status-pill">Verificando...</div>
+          <label class="power"
+            ><input id="enabled" type="checkbox" /><span></span
+            ><b id="enabledLabel">Pausado</b></label
+          >
+        </div>
+      </header>
+      <main>
+        <section id="overview" class="tab active">
+          <div class="hero-panel">
+            <div>
+              <span class="eyebrow">CENTRAL OPERACIONAL</span>
+              <h1>
+                Atendimento que entende<br /><span>antes de responder.</span>
+              </h1>
+              <p>
+                Conecte o WhatsApp, ensine o contexto da empresa e acompanhe
+                cada conversa em uma operação segura.
+              </p>
+            </div>
+            <div class="orbit">
+              <div class="orbit-ring"></div>
+              <div class="orbit-core">H</div>
+              <span class="node n1"></span><span class="node n2"></span
+              ><span class="node n3"></span>
+            </div>
+          </div>
+          <div class="metric-grid">
+            <article class="metric">
+              <span>CONEXÕES HURTZ</span><b id="metricInstances">0</b
+              ><small>instâncias isoladas</small>
+            </article>
+            <article class="metric">
+              <span>NÚCLEOS DO CÉREBRO</span><b id="metricDocs">0</b
+              ><small>estruturas cognitivas</small>
+            </article>
+            <article class="metric">
+              <span>CONVERSAS</span><b id="messages">0</b
+              ><small>mensagens processadas</small>
+            </article>
+            <article class="metric">
+              <span>ATENDIMENTO HUMANO</span><b id="human">0</b
+              ><small>conversas transferidas</small>
+            </article>
+          </div>
+          <div class="workspace-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">PRIMEIROS PASSOS</span>
+                  <h2>Prepare sua operação</h2>
+                </div>
+              </div>
+              <div class="steps">
+                <button data-go="whatsapp">
+                  <i>1</i>
+                  <div>
+                    <b>Conecte um WhatsApp</b
+                    ><small>Instância exclusiva por QR Code</small>
+                  </div>
+                  <span>→</span>
+                </button>
+                <button data-go="brain">
+                  <i>2</i>
+                  <div>
+                    <b>Construa o Cérebro</b
+                    ><small>Crie núcleos e alimente com PDFs</small>
+                  </div>
+                  <span>→</span>
+                </button>
+                <button data-go="config">
+                  <i>3</i>
+                  <div>
+                    <b>Defina o comportamento</b
+                    ><small>Tom, respostas e transferência</small>
+                  </div>
+                  <span>→</span>
+                </button>
+              </div>
+            </article>
+            <article class="panel health">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">INFRAESTRUTURA</span>
+                  <h2>Saúde dos serviços</h2>
+                </div>
+              </div>
+              <div class="service">
+                <span class="service-icon orange">E</span>
+                <div>
+                  <b>Evolution API</b
+                  ><small id="evolutionHealth">Não configurada</small>
+                </div>
+                <em id="evolutionDot"></em>
+              </div>
+              <div class="service">
+                <span class="service-icon violet">C</span>
+                <div>
+                  <b>Cloudflare</b
+                  ><small id="cloudflareHealth"
+                    >Configuração em andamento</small
+                  >
+                </div>
+                <em id="cloudflareDot"></em>
+              </div>
+              <div class="service">
+                <span class="service-icon green">O</span>
+                <div>
+                  <b>Ollama local</b
+                  ><small id="ollamaHealth">Modelo local</small>
+                </div>
+                <em class="on"></em>
+              </div>
+              <div class="service">
+                <span class="service-icon blue">G</span>
+                <div>
+                  <b>Google AI Studio</b
+                  ><small id="geminiHealth">Chave pendente</small>
+                </div>
+                <em id="geminiDot"></em>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="whatsapp" class="tab">
+          <div class="page-head">
+            <div>
+              <span class="eyebrow">CONEXÕES ISOLADAS</span>
+              <h1>WhatsApp</h1>
+              <p>
+                Cada conexão pertence exclusivamente ao Hurtz e não altera
+                outras ferramentas.
+              </p>
+            </div>
+            <button id="newConnection" class="primary">＋ Nova conexão</button>
+          </div>
+          <div class="info-strip">
+            <i>✓</i>
+            <div>
+              <b>Proteção por propriedade</b
+              ><span
+                >Webhooks externos são bloqueados. O Hurtz nunca lista ou edita
+                instâncias de terceiros.</span
+              >
+            </div>
+          </div>
+          <div id="instances" class="instance-grid"></div>
+        </section>
+
+        <section id="brain" class="tab">
+          <div class="page-head">
+            <div>
+              <span class="eyebrow">MEMÓRIA COGNITIVA HIERÁRQUICA</span>
+              <h1>🧠 Cérebro</h1>
+              <p>
+                Crie núcleos com regras invioláveis e permita que a IA organize
+                fatos, inteligência, humor, gírias, atitudes e ações.
+              </p>
+            </div>
+          </div>
+          <div class="brain-layout">
+            <aside class="panel brain-sidebar">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">NÚCLEOS</span>
+                  <h2>Estruturas</h2>
+                </div>
+              </div>
+              <label
+                >Nome do núcleo<input
+                  id="brainNucleusName"
+                  placeholder="Ex.: Vendas Follow-up"
+              /></label>
+              <label
+                >Instruções invioláveis<textarea
+                  id="brainNucleusRules"
+                  rows="5"
+                  placeholder="Regras que sempre devem ser consultadas e nunca podem ser ignoradas."
+                ></textarea>
+              </label>
+              <button id="createBrainNucleus" class="primary wide">
+                ＋ Criar núcleo
+              </button>
+              <div id="brainNuclei" class="brain-nuclei"></div>
+            </aside>
+            <section class="panel brain-workspace">
+              <div id="brainEmpty" class="brain-empty">
+                <b>Selecione ou crie um núcleo</b>
+                <p>A rede de conhecimentos aparecerá aqui.</p>
+              </div>
+              <div id="brainDetail" hidden>
+                <div class="brain-detail-head">
+                  <div>
+                    <span class="eyebrow">NÚCLEO ATIVO</span>
+                    <div class="brain-title-row">
+                      <h2 id="brainTitle"></h2>
+                      <button
+                        id="renameBrainNucleus"
+                        class="brain-rename"
+                        title="Alterar nome do núcleo"
+                      >
+                        ✎ Renomear
+                      </button>
+                    </div>
+                    <p id="brainRules"></p>
+                  </div>
+                  <span id="brainActiveState" class="brain-rule-badge"></span>
+                </div>
+                <section
+                  class="brain-graph-shell"
+                  aria-label="Visualizações do conhecimento"
+                >
+                  <div
+                    class="brain-view-switch"
+                    role="tablist"
+                    aria-label="Visualização do núcleo"
+                  >
+                    <button
+                      id="showGraphView"
+                      class="active"
+                      role="tab"
+                      aria-selected="true"
+                    >
+                      ⌘ Rede
+                    </button>
+                    <button id="showBrainView" role="tab" aria-selected="false">
+                      🧠 Cérebro
+                    </button>
+                  </div>
+                  <div id="graphViewPane" class="brain-view-pane active">
+                    <div class="brain-graph-toolbar">
+                      <div>
+                        <span class="eyebrow">GRAPH VIEW</span>
+                        <b>Rede de conhecimento</b>
+                      </div>
+                      <label class="graph-search">
+                        <span>⌕</span>
+                        <input
+                          id="brainGraphSearch"
+                          placeholder="Buscar conhecimento..."
+                        />
+                      </label>
+                      <button
+                        id="brainGraphReset"
+                        class="graph-icon-button"
+                        title="Centralizar grafo"
+                      >
+                        ◎
+                      </button>
+                      <button
+                        id="brainGraphSettings"
+                        class="graph-icon-button"
+                        title="Ajustar visualização"
+                      >
+                        ☷
+                      </button>
+                    </div>
+                    <div id="brainGraphStage" class="brain-graph-stage">
+                      <canvas id="brainGraphCanvas"></canvas>
+                      <div id="brainGraphHint" class="brain-graph-hint">
+                        Arraste os nós para explorar · clique para abrir
+                      </div>
+                      <aside id="brainGraphPanel" class="brain-graph-panel">
+                        <div class="graph-panel-head">
+                          <b>Visualização</b>
+                          <button id="brainGraphPanelClose" aria-label="Fechar">
+                            ×
+                          </button>
+                        </div>
+                        <label class="graph-switch"
+                          ><span>Exibir nomes</span
+                          ><input id="graphLabels" type="checkbox" checked
+                        /></label>
+                        <label class="graph-switch"
+                          ><span>Destacar órfãos</span
+                          ><input id="graphOrphans" type="checkbox" checked
+                        /></label>
+                        <div class="graph-groups">
+                          <b>Grupos</b>
+                          <div id="brainGraphGroups"></div>
+                        </div>
+                        <div class="graph-forces">
+                          <b>Forças</b>
+                          <label
+                            >Força central<input
+                              id="graphCenter"
+                              type="range"
+                              min="0"
+                              max="40"
+                              value="8"
+                          /></label>
+                          <label
+                            >Repulsão<input
+                              id="graphRepel"
+                              type="range"
+                              min="20"
+                              max="200"
+                              value="160"
+                          /></label>
+                          <label
+                            >Força dos links<input
+                              id="graphLink"
+                              type="range"
+                              min="4"
+                              max="50"
+                              value="15"
+                          /></label>
+                          <label
+                            >Distância dos links<input
+                              id="graphDistance"
+                              type="range"
+                              min="80"
+                              max="260"
+                              value="170"
+                          /></label>
+                        </div>
+                      </aside>
+                      <aside
+                        id="brainGraphInspector"
+                        class="brain-graph-inspector"
+                        hidden
+                      ></aside>
+                    </div>
+                  </div>
+                  <div id="brainViewPane" class="brain-view-pane" hidden>
+                    <div class="brain-map-toolbar">
+                      <div>
+                        <span class="eyebrow">BRAIN VIEW</span
+                        ><b>Mapa de maturidade cognitiva</b>
+                      </div>
+                      <div class="brain-map-legend">
+                        <span><i></i>Maturidade atual</span
+                        ><span><i></i>Evolução no último aprendizado</span>
+                      </div>
+                    </div>
+                    <div class="brain-map-layout">
+                      <div
+                        id="brainMapVisual"
+                        class="brain-map-visual"
+                        aria-label="Cérebro dividido em dez áreas"
+                      ></div>
+                      <aside id="brainMapDetail" class="brain-map-detail">
+                        <span class="eyebrow">ÁREA SELECIONADA</span>
+                        <h3>Visão geral do cérebro</h3>
+                        <p>
+                          Selecione uma região para entender sua maturidade e o
+                          que ainda falta aprender.
+                        </p>
+                      </aside>
+                    </div>
+                    <p class="brain-score-note">
+                      As porcentagens medem cobertura, profundidade, confiança e
+                      revisão do conteúdo. Não representam QI nem garantia de
+                      acerto.
+                    </p>
+                  </div>
+                </section>
+                <div class="brain-feed">
+                  <div class="brain-feed-text">
+                    <label
+                      >Texto base<textarea
+                        id="brainLearningContent"
+                        rows="5"
+                        placeholder="Cole conhecimentos, regras de negócio, exemplos, comportamentos e situações..."
+                      ></textarea>
+                    </label>
+                    <button id="teachBrain" class="primary">
+                      Ensinar pelo texto
+                    </button>
+                  </div>
+                  <div id="brainPdfDrop" class="brain-pdf-drop">
+                    <input
+                      id="brainPdfInput"
+                      type="file"
+                      accept="application/pdf,.pdf"
+                    />
+                    <i>PDF</i>
+                    <div>
+                      <b>Adicionar PDF ao núcleo</b>
+                      <small
+                        >O original fica neste computador. Os fatos são
+                        vinculados diretamente a este núcleo.</small
+                      >
+                    </div>
+                    <button id="chooseBrainPdf">Escolher PDF</button>
+                  </div>
+                </div>
+                <div class="brain-legend">
+                  <span
+                    ><i class="pending"></i>Usável · aguardando revisão</span
+                  >
+                  <span><i class="approved"></i>Revisado</span>
+                </div>
+                <div class="brain-memory-head">
+                  <div>
+                    <h3 class="brain-memory-title">Memórias do núcleo</h3>
+                    <small
+                      >Resumo compacto dos conhecimentos deste núcleo</small
+                    >
+                  </div>
+                  <button id="toggleBrainMemories">Mostrar memórias</button>
+                </div>
+                <div id="brainTree" class="brain-tree"></div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="config" class="tab">
+          <div class="page-head">
+            <div>
+              <span class="eyebrow">PERSONALIDADE E REGRAS</span>
+              <h1>Comportamento</h1>
+              <p>Defina como o atendente conversa, responde e pede ajuda.</p>
+            </div>
+            <button id="save" class="primary">Salvar alterações</button>
+          </div>
+          <div class="form-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <h2>Identidade</h2>
+                <span class="step-badge">01</span>
+              </div>
+              <label>Nome da empresa<input id="businessName" /></label
+              ><label>Nome do atendente<input id="assistantName" /></label
+              ><label
+                >Persona e tom<textarea id="persona" rows="7"></textarea>
+              </label>
+            </article>
+            <article class="panel">
+              <div class="panel-head">
+                <h2>Formato das respostas</h2>
+                <span class="step-badge">02</span>
+              </div>
+              <label
+                >Preferência<select id="responseMode">
+                  <option value="auto">Decisão inteligente</option>
+                  <option value="text">Sempre texto</option>
+                  <option value="audio">Preferir áudio</option>
+                </select></label
+              ><label class="check"
+                ><input id="audioReplyToAudio" type="checkbox" /><span
+                  >Responder áudio com áudio</span
+                ></label
+              ><label class="check"
+                ><input id="ignoreGroups" type="checkbox" /><span
+                  >Ignorar conversas em grupo</span
+                ></label
+              ><label
+                >Palavras para transferir<input
+                  id="keywords"
+                  placeholder="atendente, humano, cancelar"
+              /></label>
+              <div class="range-field">
+                <div class="range-head">
+                  <div>
+                    <b>Intensidade de gírias</b>
+                    <small
+                      >A IA acompanha o jeito do lead sem forçar
+                      intimidade.</small
+                    >
+                  </div>
+                  <strong id="slangIntensityValue">35%</strong>
+                </div>
+                <input
+                  id="slangIntensity"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value="35"
+                />
+                <div class="range-scale">
+                  <span>Sem gírias</span><span>Natural</span
+                  ><span>Bem informal</span>
+                </div>
+                <p id="slangIntensityHint" class="range-hint">
+                  Uso moderado e contextual.
+                </p>
+              </div>
+            </article>
+            <article class="panel full">
+              <div class="panel-head">
+                <div>
+                  <h2>Gatilho de ativação</h2>
+                  <p>
+                    A IA só atende o lead depois que ele enviar uma das palavras
+                    ou frases configuradas.
+                  </p>
+                </div>
+                <span class="step-badge">03</span>
+              </div>
+              <label class="check"
+                ><input id="triggerEnabled" type="checkbox" /><span
+                  >Exigir gatilho antes de iniciar o atendimento</span
+                ></label
+              >
+              <div class="two">
+                <label
+                  >Palavras ou frases gatilho<input
+                    id="triggerKeywords"
+                    placeholder="quero atendimento, falar com a Hurtz, começar" /></label
+                ><label
+                  >Como identificar<select id="triggerMatchMode">
+                    <option value="contains">
+                      Pode estar dentro da mensagem
+                    </option>
+                    <option value="exact">
+                      A mensagem deve ser exatamente o gatilho
+                    </option>
+                  </select></label
+                >
+              </div>
+              <div id="triggerSavedState" class="saved-state">
+                Nenhum gatilho configurado.
+              </div>
+              <div class="info-strip">
+                <i>i</i>
+                <div>
+                  <b>Ativação individual e persistente</b
+                  ><span
+                    >Mensagens anteriores ficam no preview, mas não recebem
+                    resposta. Depois do gatilho, somente aquele lead é liberado
+                    para a IA.</span
+                  >
+                </div>
+              </div>
+            </article>
+            <article class="panel full">
+              <div class="panel-head">
+                <h2>Mensagens de segurança</h2>
+                <span class="step-badge">04</span>
+              </div>
+              <div class="two">
+                <label
+                  >Quando não souber<textarea
+                    id="unknownAnswer"
+                    rows="4"
+                  ></textarea></label
+                ><label
+                  >Ao transferir para humano<textarea
+                    id="humanTransferMessage"
+                    rows="4"
+                  ></textarea>
+                </label>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="inbox" class="tab">
+          <div class="page-head">
+            <div>
+              <span class="eyebrow">CAIXA DE ENTRADA AO VIVO</span>
+              <h1>Atendimentos</h1>
+              <p>Acompanhe o que o cliente envia e como o Hurtz responde.</p>
+            </div>
+            <div id="inboxLive" class="cloud-badge on">
+              ● Atualização ao vivo
+            </div>
+          </div>
+          <div id="assistantPausedBanner" class="paused-banner" hidden>
+            <i>!</i>
+            <div>
+              <b>Atendimento automático pausado</b>
+              <span
+                >As mensagens aparecem no preview e na auditoria, mas a IA não
+                responde até o controle “Ativo” ser ligado.</span
+              >
+            </div>
+          </div>
+          <div class="inbox-grid">
+            <aside class="conversation-panel">
+              <div class="conversation-title">
+                <div>
+                  <b>Conversas</b
+                  ><small id="conversationSummary">Nenhuma conversa</small>
+                </div>
+              </div>
+              <div id="conversationList" class="conversation-list"></div>
+            </aside>
+            <section class="chat-panel">
+              <header class="chat-head">
+                <div>
+                  <span class="eyebrow">CONVERSA SELECIONADA</span>
+                  <h2 id="chatContact">Selecione um atendimento</h2>
+                  <small id="chatInstance"
+                    >As mensagens aparecerão aqui em tempo real.</small
+                  >
+                </div>
+                <div id="chatControls" class="chat-controls" hidden>
+                  <span id="conversationMode" class="mode-badge">IA ativa</span>
+                  <button id="reviewConversation">Revisar conversa</button>
+                  <button id="takeConversation">Assumir conversa</button>
+                  <button id="returnConversation" class="primary">
+                    Devolver à IA
+                  </button>
+                </div>
+              </header>
+              <section id="chatContext" class="chat-context" hidden>
+                <div>
+                  <span class="eyebrow">MEMÓRIA DO LEAD</span>
+                  <p id="chatContextSummary"></p>
+                  <div id="chatContextFacts" class="context-facts"></div>
+                </div>
+                <button id="editChatContext">Editar memória</button>
+              </section>
+              <section
+                id="feedbackReviewBar"
+                class="feedback-review-bar"
+                hidden
+              >
+                <div>
+                  <b>Modo de revisão ativo</b>
+                  <span id="feedbackReviewCount"
+                    >Avalie as respostas da IA abaixo.</span
+                  >
+                </div>
+                <div>
+                  <button id="exportFeedback">Exportar JSONL</button>
+                  <button id="finishFeedbackReview" class="primary">
+                    Concluir revisão
+                  </button>
+                </div>
+              </section>
+              <div id="chatAudit" class="chat-audit">
+                <span>Aguardando eventos da conversa.</span>
+              </div>
+              <div id="chatMessages" class="chat-messages">
+                <div class="chat-empty">
+                  <i>✦</i><b>Central de atendimento pronta</b>
+                  <p>
+                    Quando uma conversa chegar pelo WhatsApp, ela aparecerá
+                    nesta tela.
+                  </p>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="activity" class="tab">
+          <div class="page-head">
+            <div>
+              <span class="eyebrow">OPERAÇÃO EM TEMPO REAL</span>
+              <h1>Atividade</h1>
+              <p>Histórico processado pelo atendente e transferências.</p>
+            </div>
+          </div>
+          <div class="metric-grid compact">
+            <article class="metric">
+              <span>CONTATOS</span><b id="contacts">0</b>
+            </article>
+            <article class="metric">
+              <span>MENSAGENS</span><b id="activityMessages">0</b>
+            </article>
+            <article class="metric">
+              <span>COM HUMANO</span><b id="activityHuman">0</b>
+            </article>
+          </div>
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">DESEMPENHO REAL</span>
+                <h2>Tempo do atendimento</h2>
+              </div>
+              <small id="performanceSamples">Sem amostras</small>
+            </div>
+            <div class="metric-grid compact performance-grid">
+              <article class="metric">
+                <span>PRIMEIRA RESPOSTA</span><b id="performanceFirst">0 s</b>
+              </article>
+              <article class="metric">
+                <span>GERAÇÃO DA IA</span><b id="performanceGeneration">0 s</b>
+              </article>
+              <article class="metric">
+                <span>CONSULTA À BASE</span><b id="performanceRag">0 s</b>
+              </article>
+              <article class="metric">
+                <span>TEMPO TOTAL</span><b id="performanceTotal">0 s</b>
+              </article>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><h2>Últimas mensagens</h2></div>
+            <div id="recent" class="recent"></div>
+          </article>
+          <article class="panel audit-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">RASTREABILIDADE</span>
+                <h2>Auditoria operacional</h2>
+              </div>
+              <small>Recebimento → gatilho → processamento → resposta</small>
+            </div>
+            <div id="globalAudit" class="global-audit"></div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div id="connectModal" class="modal">
+      <div class="modal-card">
+        <button class="modal-close" data-close="connectModal">×</button
+        ><span class="eyebrow">NOVA CONEXÃO</span>
+        <h2>Conectar WhatsApp</h2>
+        <p>Criaremos uma instância exclusiva do Hurtz.</p>
+        <label
+          >Nome da conexão<input
+            id="instanceLabel"
+            placeholder="Ex.: Atendimento Matriz"
+        /></label>
+        <div class="modal-actions">
+          <button data-close="connectModal">Cancelar</button
+          ><button id="createInstance" class="primary">Gerar QR Code</button>
+        </div>
+      </div>
+    </div>
+    <div id="qrModal" class="modal">
+      <div class="modal-card qr-card">
+        <button class="modal-close" data-close="qrModal">×</button
+        ><span class="eyebrow">CONECTAR DISPOSITIVO</span>
+        <h2>Leia o QR Code</h2>
+        <p>WhatsApp → Dispositivos conectados → Conectar dispositivo</p>
+        <div class="qr-frame"><img id="qrImage" alt="QR Code" /></div>
+        <b id="qrStatus">Aguardando leitura...</b>
+      </div>
+    </div>
+    <div id="renameNucleusModal" class="modal">
+      <div class="modal-card compact-modal">
+        <button class="modal-close" data-close="renameNucleusModal">×</button>
+        <span class="eyebrow">EDITAR NÚCLEO</span>
+        <h2>Alterar nome</h2>
+        <p>O conhecimento e as regras do núcleo serão preservados.</p>
+        <label
+          >Nome do núcleo<input
+            id="renameNucleusInput"
+            maxlength="80"
+            autocomplete="off"
+        /></label>
+        <div class="modal-actions">
+          <button data-close="renameNucleusModal">Cancelar</button>
+          <button id="confirmRenameNucleus" class="primary">
+            Salvar novo nome
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="contextModal" class="modal">
+      <div class="modal-card context-modal-card">
+        <button class="modal-close" data-close="contextModal">×</button>
+        <span class="eyebrow">MEMÓRIA OPERACIONAL</span>
+        <h2>Contexto do lead</h2>
+        <p>Corrija somente fatos confirmados na conversa.</p>
+        <label
+          >Resumo<textarea id="contextSummaryInput" rows="5"></textarea>
+        </label>
+        <label
+          >Perfil em JSON<textarea id="contextProfileInput" rows="6"></textarea>
+        </label>
+        <label
+          >Próximos passos, um por linha<textarea
+            id="contextStepsInput"
+            rows="4"
+          ></textarea>
+        </label>
+        <div class="modal-actions">
+          <button data-close="contextModal">Cancelar</button>
+          <button id="saveChatContext" class="primary">Salvar memória</button>
+        </div>
+      </div>
+    </div>
+    <div id="feedbackModal" class="modal">
+      <div class="modal-card feedback-modal-card">
+        <button class="modal-close" data-close="feedbackModal">×</button>
+        <span class="eyebrow">FEEDBACK LOOP</span>
+        <h2>Avaliar resposta</h2>
+        <div id="feedbackMessagePreview" class="feedback-message-preview"></div>
+        <div class="feedback-rating-picker">
+          <button id="feedbackGood" data-rating="good">✓ Foi boa</button>
+          <button id="feedbackBad" data-rating="bad">× Precisa melhorar</button>
+        </div>
+        <label
+          >Principal motivo<select id="feedbackReason">
+            <option value="naturalness">Naturalidade</option>
+            <option value="accuracy">Precisão</option>
+            <option value="context">Uso do contexto</option>
+            <option value="tone">Tom e gírias</option>
+            <option value="length">Tamanho da resposta</option>
+            <option value="next_action">Próxima ação</option>
+            <option value="other">Outro</option>
+          </select></label
+        >
+        <label
+          >Observação<textarea
+            id="feedbackNote"
+            rows="3"
+            placeholder="O que funcionou ou o que precisa mudar?"
+          ></textarea>
+        </label>
+        <label id="idealResponseField"
+          >Resposta ideal<textarea
+            id="feedbackIdeal"
+            rows="5"
+            placeholder="Escreva como a IA deveria ter respondido."
+          ></textarea>
+        </label>
+        <div class="modal-actions">
+          <button data-close="feedbackModal">Cancelar</button>
+          <button id="saveFeedback" class="primary">Salvar avaliação</button>
+        </div>
+      </div>
+    </div>
+    <div id="toast"></div>
+    <script src="/brain-graph.js"></script>
+    <script src="/brain-map.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

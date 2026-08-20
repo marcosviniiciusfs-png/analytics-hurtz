@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hurtz • Extrator de Leads</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="discovery.css"><link rel="stylesheet" href="controls.css"><link rel="stylesheet" href="validation.css"><link rel="stylesheet" href="fallback.css"></head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span class="logo">H</span><div><strong>HURTZ</strong><small>LEADS OS</small></div></div>
+    <nav>
+      <button class="nav active" data-view="overview">⌂ <span>Visão geral</span></button>
+      <button class="nav" data-view="extract">◎ <span>Extrair leads</span></button>
+      <button class="nav" data-view="leads">▤ <span>Leads</span><b id="leadBadge">0</b></button>
+      <button class="nav" data-view="settings">⚙ <span>Configuração</span></button>
+      <button class="nav" data-view="audit">↗ <span>Atividade</span></button>
+    </nav>
+    <div class="privacy"><i></i><div><strong>Coleta responsável</strong><small>Dados públicos • retenção limitada</small></div></div>
+    <small class="version">EXTRATOR DE LEADS • v1.2.2</small>
+  </aside>
+  <main>
+    <header><span>Assistente Hurtz / <b id="crumb">Visão geral</b></span><div class="status"><i></i> Sistema local</div></header>
+    <section id="overview" class="view active">
+      <p class="eyebrow">CENTRAL DE PROSPECÇÃO</p><h1>Leads públicos, organizados<br>por intenção real.</h1>
+      <p class="subtitle">Colete comentários de posts públicos, identifique sinais de compra e revise cada oportunidade antes da abordagem.</p>
+      <div class="metrics"><article><small>LEADS COLETADOS</small><strong id="metricTotal">0</strong><span>Dentro da retenção</span></article><article><small>LEADS QUENTES</small><strong id="metricHot">0</strong><span>Score acima de 30</span></article><article><small>COM CONTATO</small><strong id="metricContact">0</strong><span>Email ou telefone público</span></article><article><small>PENDENTES</small><strong id="metricPending">0</strong><span>Aguardando revisão</span></article></div>
+      <div class="panel"><div><p class="eyebrow">FLUXO RECOMENDADO</p><h2>Da URL à lista qualificada</h2></div><div class="flow"><span>1<b>Posts públicos</b></span><em>→</em><span>2<b>Comentários</b></span><em>→</em><span>3<b>Intenção</b></span><em>→</em><span>4<b>Revisão</b></span><em>→</em><span>5<b>CSV</b></span></div><button class="primary" data-go="extract">COMEÇAR EXTRAÇÃO</button></div>
+    </section>
+    <section id="extract" class="view">
+      <p class="eyebrow">DESCOBERTA AUTOMÁTICA</p><h1>Encontrar publicações</h1><p class="subtitle">Informe o que seu público procura. O Hurtz encontra posts públicos, explica o assunto e mostra os dados disponíveis antes de coletar comentários.</p>
+      <div class="grid2"><div class="panel"><h2>O que devemos procurar?</h2><label>Termos de pesquisa • um por linha</label><textarea id="searchTerms" rows="5" placeholder="preciso de orçamento para harmonização facial&#10;quanto custa tráfego pago&#10;indicação de consórcio"></textarea><label>Redes sociais</label><div class="checks"><label><input id="searchInstagram" type="checkbox" checked> Instagram</label><label><input id="searchFacebook" type="checkbox" checked> Facebook</label><label><input id="searchReddit" type="checkbox"> Reddit</label></div><div class="formRow"><div><label>Publicados depois de</label><input id="searchAfter" type="date"></div><div><label>Máximo de publicações</label><select id="searchLimit"><option value="5">5 publicações</option><option value="10" selected>10 publicações</option><option value="20">20 publicações</option><option value="50">50 publicações</option></select></div></div><div class="costHint">O limite é distribuído entre as redes selecionadas para evitar que uma única rede ocupe todos os resultados.</div><button id="discoverPosts" class="primary full">PROCURAR PUBLICAÇÕES</button></div>
+      <div class="panel"><h2>Como validar um lead?</h2><p>Explique o contexto que deve aparecer no comentário para a pessoa ser considerada uma oportunidade real.</p><label>Critérios de validação para a IA</label><textarea id="validationPrompt" rows="7" placeholder="Exemplo: considere lead apenas quem estiver falando de uma dificuldade própria para engravidar, estiver tentando há algum tempo, pedir ajuda, indicação ou tratamento. Rejeite profissionais oferecendo serviços, comentários genéricos, elogios, emojis e pessoas apenas contando a história de terceiros."></textarea><div class="notice"><b>Filtro em duas etapas</b><br>O Hurtz exige relação com os termos e sinal de necessidade pessoal. Depois, o Ollama revisa o contexto usando estas instruções.</div></div></div>
+      <div class="panel"><div class="titleRow"><div><p class="eyebrow">PUBLICAÇÕES ENCONTRADAS</p><h2>Escolha onde procurar leads</h2></div><div class="extractControls"><select id="commentLimit"><option value="10">10 comentários por post</option><option value="25" selected>25 comentários por post</option><option value="50">50 comentários por post</option><option value="100">100 comentários por post</option><option value="500">500 comentários por post</option></select><button id="extractSelected" class="primary" disabled>EXTRAIR COMENTÁRIOS SELECIONADOS</button></div></div><div id="discoveryResults" class="discoveryGrid empty">Faça uma pesquisa para encontrar publicações.</div></div>
+      <details class="panel manual"><summary>Já tenho URLs públicas</summary><label>Uma URL por linha</label><textarea id="postUrls" rows="5" placeholder="https://www.instagram.com/p/...&#10;https://www.facebook.com/.../posts/..."></textarea><button id="startJob" class="primary full">EXTRAIR DESTAS URLs</button></details>
+      <div class="panel"><h2>Execuções recentes</h2><div id="jobs" class="empty">Nenhuma coleta executada.</div></div>
+    </section>
+    <section id="leads" class="view">
+      <div class="titleRow"><div><p class="eyebrow">RESULTADOS</p><h1>Leads qualificados</h1></div><button id="exportCsv" class="primary">EXPORTAR CSV</button></div>
+      <div class="filters"><input id="leadSearch" placeholder="Buscar nome, comentário ou contato"><select id="scoreFilter"><option value="0">Todos os scores</option><option value="31">Quentes • acima de 30</option><option value="50">Muito quentes • 50+</option></select><select id="reviewFilter"><option value="all">Todas as revisões</option><option value="pending">Pendente</option><option value="approved">Aprovado</option><option value="rejected">Descartado</option></select></div>
+      <div class="tableWrap"><table><thead><tr><th>LEAD</th><th>COMENTÁRIO</th><th>INTENÇÃO</th><th>SCORE</th><th>CONTATO</th><th>REVISÃO</th></tr></thead><tbody id="leadRows"></tbody></table><div id="emptyLeads" class="empty">Os leads coletados aparecerão aqui.</div></div>
+    </section>
+    <section id="settings" class="view"><p class="eyebrow">INTEGRAÇÕES</p><h1>Configuração</h1><p class="subtitle">A chave fica somente neste computador e nunca é exibida novamente.</p><div class="grid2"><div class="panel"><h2>Apify</h2><label>API Key</label><input id="apifyToken" type="password" placeholder="Cole a chave da Apify"><small id="tokenState">Não configurada</small><label>Actor do Instagram</label><input id="instagramActor" placeholder="apify/instagram-comment-scraper"><label>Actor do Facebook</label><input id="facebookActor" placeholder="apify/facebook-comments-scraper"></div><div class="panel"><h2>Privacidade e retenção</h2><label>Excluir dados após</label><select id="retentionDays"><option value="7">7 dias</option><option value="15">15 dias</option><option value="30">30 dias</option><option value="60">60 dias</option><option value="90">90 dias</option></select><div class="notice"><b>LGPD</b><br>Armazene apenas dados públicos necessários, documente a finalidade e exclua o que não for utilizado.</div></div></div><button id="saveSettings" class="primary">SALVAR CONFIGURAÇÕES</button></section>
+    <section id="audit" class="view"><p class="eyebrow">RASTREABILIDADE</p><h1>Atividade</h1><p class="subtitle">Histórico local de coletas, revisões e configurações.</p><div id="auditList" class="timeline empty">Nenhuma atividade registrada.</div></section>
+  </main>
+  <div id="toast" role="status"></div><script type="module" src="app.js"></script>
+</body></html>

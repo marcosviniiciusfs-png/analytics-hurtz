@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Assistente Hurtz — Estrutura do Agente de Voz</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 18mm; }
+  * { box-sizing: border-box; }
+  :root { --ink:#171511; --orange:#e87722; --paper:#f7f5f2; --muted:#6f6a62; --line:#ddd7cf; --green:#1b7f61; --blue:#2878b8; }
+  html { background:#ddd8d1; }
+  body { margin:0 auto; max-width:210mm; background:white; color:var(--ink); font-family:"Segoe UI",Arial,sans-serif; font-size:10.3pt; line-height:1.48; }
+  .page { min-height:263mm; page-break-after:always; position:relative; padding:4mm 1mm 0; }
+  .page:last-child { page-break-after:auto; }
+  .cover { background:var(--ink); color:white; margin:-16mm; padding:25mm 20mm; min-height:297mm; display:flex; flex-direction:column; justify-content:space-between; }
+  .logo { width:48mm; height:auto; filter:none; }
+  .eyebrow { color:#ff9a47; font-weight:700; letter-spacing:.16em; text-transform:uppercase; font-size:9pt; }
+  h1 { font-size:34pt; line-height:1.03; letter-spacing:-.04em; margin:8mm 0 5mm; max-width:160mm; }
+  .subtitle { font-size:15pt; line-height:1.4; color:#ded9d3; max-width:150mm; }
+  h2 { font-size:22pt; line-height:1.08; letter-spacing:-.03em; margin:2mm 0 6mm; }
+  h3 { font-size:13.5pt; margin:6mm 0 2mm; }
+  h4 { font-size:10.5pt; margin:4mm 0 1mm; color:var(--orange); text-transform:uppercase; letter-spacing:.06em; }
+  p { margin:0 0 3.2mm; }
+  ul,ol { margin:2mm 0 4mm 6mm; padding-left:5mm; }
+  li { margin:1.2mm 0; }
+  .lead { font-size:13pt; line-height:1.48; color:#39352f; }
+  .rule { height:2px; background:linear-gradient(90deg,var(--orange),transparent); margin:3mm 0 7mm; }
+  .callout { border-left:4px solid var(--orange); background:var(--paper); padding:4mm 5mm; margin:5mm 0; border-radius:0 3mm 3mm 0; }
+  .callout strong { color:var(--orange); }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:4mm; margin:4mm 0; }
+  .card { border:1px solid var(--line); border-radius:3mm; padding:4mm; background:#fff; break-inside:avoid; }
+  .card h3 { margin:0 0 2mm; font-size:12pt; }
+  .num { display:inline-flex; width:7mm; height:7mm; border-radius:50%; align-items:center; justify-content:center; background:var(--orange); color:white; font-weight:700; margin-right:2mm; }
+  .diagram { background:var(--ink); color:white; border-radius:4mm; padding:5mm 6mm; font-family:Consolas,monospace; font-size:9.2pt; line-height:1.65; white-space:pre-line; margin:5mm 0; }
+  .orange { color:#ff9a47; } .green { color:#52d6a7; } .blue { color:#72baf0; }
+  table { width:100%; border-collapse:collapse; margin:4mm 0 6mm; font-size:9.3pt; }
+  th { text-align:left; background:var(--ink); color:white; padding:2.7mm; }
+  td { border-bottom:1px solid var(--line); padding:2.7mm; vertical-align:top; }
+  tr:nth-child(even) td { background:#faf9f7; }
+  .tag { display:inline-block; font-size:8pt; font-weight:700; border-radius:10mm; padding:1mm 2.5mm; background:#efeae4; }
+  .ok { color:var(--green); } .warn { color:#b45910; } .no { color:#b52b35; }
+  .footer { position:absolute; bottom:0; left:1mm; right:1mm; color:#918a81; font-size:8pt; display:flex; justify-content:space-between; border-top:1px solid var(--line); padding-top:2mm; }
+  .small { color:var(--muted); font-size:9pt; }
+  .checklist li { list-style:"□  "; padding-left:1mm; }
+  .decision { background:#fff7ef; border:1px solid #f4c99f; border-radius:3mm; padding:4mm; margin:3mm 0; }
+  a { color:#a64c0d; text-decoration:none; }
+</style>
+</head>
+<body>
+
+<section class="page">
+  <div class="cover">
+    <div>
+      <img class="logo" src="../assets/hurtz-logo.png" alt="Hurtz">
+      <div class="eyebrow" style="margin-top:20mm">Documento de estudo • Arquitetura inicial</div>
+      <h1>Assistente Hurtz<br>Agente de voz para atendimento</h1>
+      <div class="subtitle">Intenção, objetivo, funcionamento, tecnologias, limitações, custos inevitáveis e caminho de implementação.</div>
+    </div>
+    <div>
+      <div style="width:22mm;height:3px;background:var(--orange);margin-bottom:4mm"></div>
+      <strong>Ecossistema CBO / Hurtz</strong><br>
+      <span style="color:#aaa49c">Versão de estudo 1.0 • 26 de julho de 2026</span>
+    </div>
+  </div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">01 • Visão do produto</div>
+  <h2>Intenção do projeto</h2><div class="rule"></div>
+  <p class="lead">O Assistente Hurtz será uma inteligência artificial capaz de atender chamadas com voz natural, compreender o que a pessoa diz, consultar informações da empresa, responder com contexto e conduzir o atendimento até uma solução ou transferência para um humano.</p>
+  <div class="callout"><strong>A intenção não é criar apenas um robô que lê frases prontas.</strong> O produto deve manter uma conversa coerente, respeitar regras, ouvir interrupções, lembrar o que já foi dito e tomar ações seguras.</div>
+
+  <h3>Objetivo principal</h3>
+  <p>Automatizar atendimentos de voz repetitivos sem perder clareza, naturalidade e controle. A IA deve diminuir tempo de espera e carga operacional, mas reconhecer imediatamente quando não possui segurança para continuar.</p>
+
+  <div class="grid">
+    <div class="card"><h3><span class="num">1</span>Ouvir</h3><p>Receber áudio contínuo e detectar voz, silêncio, interrupções e fim de turno.</p></div>
+    <div class="card"><h3><span class="num">2</span>Entender</h3><p>Transcrever em português e interpretar intenção, dúvidas, objeções e urgência.</p></div>
+    <div class="card"><h3><span class="num">3</span>Responder</h3><p>Construir uma resposta curta com base no contexto e nas regras da empresa.</p></div>
+    <div class="card"><h3><span class="num">4</span>Falar e agir</h3><p>Gerar voz natural, registrar informações e transferir quando necessário.</p></div>
+  </div>
+
+  <h3>Posição dentro do ecossistema</h3>
+  <p>O Hurtz Launcher passará a organizar dois produtos independentes:</p>
+  <table>
+    <tr><th>Ferramenta</th><th>Papel</th></tr>
+    <tr><td><strong>Assistente de Reunião</strong></td><td>Apoia uma pessoa durante reuniões, transcreve, consulta documentos, sugere falas, cria notas e próximos passos.</td></tr>
+    <tr><td><strong>Assistente Hurtz</strong></td><td>Conversa diretamente com clientes em uma chamada, usando sua própria voz artificial e tomando ações controladas.</td></tr>
+  </table>
+  <div class="footer"><span>Assistente Hurtz • Documento de estudo</span><span>2</span></div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">02 • Experiência esperada</div>
+  <h2>Como uma chamada deve funcionar</h2><div class="rule"></div>
+  <ol>
+    <li>A pessoa liga ou abre um link de atendimento.</li>
+    <li>O Hurtz atende, identifica-se e apresenta a informação de consentimento aplicável.</li>
+    <li>O áudio da pessoa chega ao motor de voz em pequenos blocos.</li>
+    <li>O sistema detecta quando ela começou e terminou de falar.</li>
+    <li>A transcrição parcial ajuda a IA a preparar a resposta antecipadamente.</li>
+    <li>Documentos e dados relevantes são consultados.</li>
+    <li>A IA começa a responder com voz natural.</li>
+    <li>Se a pessoa interromper, a voz da IA para imediatamente e volta a ouvir.</li>
+    <li>A conversa continua preservando histórico, objetivo e dados coletados.</li>
+    <li>Ao final, o Hurtz registra resumo, resultado e próximos passos.</li>
+  </ol>
+
+  <div class="diagram"><span class="blue">CLIENTE FALA</span>
+       ↓ áudio em tempo real
+  Detecção de voz e turno
+       ↓
+  Transcrição incremental
+       ↓
+  Contexto + documentos + regras
+       ↓
+  Modelo de inteligência
+       ↓ texto em pequenos blocos
+  Voz natural
+       ↓
+<span class="orange">CLIENTE OUVE A RESPOSTA</span></div>
+
+  <h3>Metas de usabilidade</h3>
+  <table>
+    <tr><th>Comportamento</th><th>Meta inicial</th></tr>
+    <tr><td>Primeira reação após a fala</td><td>Começar a responder idealmente em 1 a 2 segundos.</td></tr>
+    <tr><td>Interrupção</td><td>Parar a voz da IA quase imediatamente quando o cliente falar.</td></tr>
+    <tr><td>Naturalidade</td><td>Frases curtas, sem repetir instruções ou produzir textos longos.</td></tr>
+    <tr><td>Memória</td><td>Não perguntar novamente dados que já foram informados.</td></tr>
+    <tr><td>Segurança</td><td>Não inventar preço, condição, prazo ou política.</td></tr>
+  </table>
+  <div class="footer"><span>Assistente Hurtz • Documento de estudo</span><span>3</span></div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">03 • Arquitetura</div>
+  <h2>As peças do sistema</h2><div class="rule"></div>
+  <table>
+    <tr><th>Camada</th><th>Função</th><th>Escolha inicial</th></tr>
+    <tr><td>Canal de chamada</td><td>Recebe e devolve o áudio.</td><td>WebRTC no MVP; SIP ou WhatsApp depois.</td></tr>
+    <tr><td>Orquestração</td><td>Conecta todos os componentes e controla turnos.</td><td>Pipecat.</td></tr>
+    <tr><td>VAD/turno</td><td>Detecta fala, silêncio e interrupções.</td><td>Pipeline em tempo real do Pipecat.</td></tr>
+    <tr><td>STT</td><td>Transforma fala em texto.</td><td>Faster-Whisper adaptado para streaming.</td></tr>
+    <tr><td>RAG/contexto</td><td>Localiza informações em documentos.</td><td>Base local Hurtz, separada por empresa.</td></tr>
+    <tr><td>LLM</td><td>Decide o conteúdo da resposta.</td><td>Ollama com Qwen3 8B; fallback menor.</td></tr>
+    <tr><td>TTS</td><td>Transforma texto em voz.</td><td>Gemini 3.1 Flash TTS Preview.</td></tr>
+    <tr><td>Ações</td><td>Agenda, registra, transfere e envia mensagens.</td><td>Ferramentas controladas + Evolution API.</td></tr>
+    <tr><td>Observabilidade</td><td>Mede falhas, qualidade e tempo de resposta.</td><td>Logs e métricas na VPS.</td></tr>
+  </table>
+
+  <div class="callout"><strong>Pipecat não é a inteligência.</strong> Ele é o maestro do sistema: recebe áudio, chama transcrição, contexto, modelo e voz na ordem correta, além de controlar interrupções.</div>
+
+  <h3>Separação necessária</h3>
+  <div class="grid">
+    <div class="card"><h3>Base de conhecimento</h3><p>Documentos oficiais, produtos, preços, políticas e perguntas frequentes. Atualizada administrativamente.</p></div>
+    <div class="card"><h3>Memória da chamada</h3><p>O que aquele cliente disse, dados coletados, decisões e estado atual. Expira ou é armazenada conforme a política.</p></div>
+    <div class="card"><h3>Regras do agente</h3><p>Tom, limites, objetivos, condições de transferência e ações permitidas.</p></div>
+    <div class="card"><h3>Dados operacionais</h3><p>Cliente, CRM, agenda, protocolos, resultado, duração e gravação autorizada.</p></div>
+  </div>
+  <div class="footer"><span>Assistente Hurtz • Documento de estudo</span><span>4</span></div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">04 • WhatsApp</div>
+  <h2>Evolution API e chamadas de voz</h2><div class="rule"></div>
+  <p class="lead">A Evolution API é excelente para mensagens do WhatsApp, mas não deve ser confundida com um transporte completo de áudio de chamadas.</p>
+  <h3>O que ela faz bem</h3>
+  <ul>
+    <li>Conectar uma instância do WhatsApp e trocar mensagens.</li>
+    <li>Receber e enviar áudios gravados, imagens e documentos.</li>
+    <li>Disparar webhooks e integrar CRM, Chatwoot ou n8n.</li>
+    <li>Identificar eventos relacionados a chamadas e, conforme a configuração, rejeitá-las.</li>
+    <li>Enviar confirmação, protocolo e resumo depois de um atendimento.</li>
+  </ul>
+  <h3>O que não está disponível nela sozinha</h3>
+  <ul>
+    <li>Um fluxo documentado de áudio bidirecional da chamada chegando ao nosso Pipecat.</li>
+    <li>Uma conexão SIP nativa completa para o agente ouvir e responder.</li>
+    <li>Garantia de estabilidade de chamadas quando a conexão usa WhatsApp Web/Baileys.</li>
+  </ul>
+
+  <div class="diagram">WhatsApp
+   ├── <span class="green">Mensagens → Evolution API → Hurtz</span>
+   └── <span class="orange">Chamada → camada de voz/SIP → Hurtz</span>
+
+Evolution API sozinha ≠ áudio completo da ligação</div>
+
+  <h3>Onde entra o Wavoip</h3>
+  <p>O projeto da Evolution possui referências a <code>wavoipToken</code>. O Wavoip é uma camada separada que anuncia chamadas de WhatsApp e integração SIP. A arquitetura possível seria:</p>
+  <div class="diagram">WhatsApp → Evolution/Wavoip → SIP → Pipecat → IA Hurtz</div>
+  <div class="decision"><strong>Decisão recomendada:</strong> validar essa rota com um número secundário. Não usar inicialmente o número principal da empresa, pois modos não oficiais podem sofrer desconexões, mudanças de protocolo ou restrições da plataforma.</div>
+  <p class="small">Fontes para estudo: github.com/evolution-foundation/evolution-api • wavoip.com • github.com/WhiskeySockets/Baileys</p>
+  <div class="footer"><span>Assistente Hurtz • Documento de estudo</span><span>5</span></div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">05 • Canais disponíveis</div>
+  <h2>Três caminhos para colocar o agente no ar</h2><div class="rule"></div>
+  <table>
+    <tr><th>Caminho</th><th>Vantagens</th><th>Limitações</th></tr>
+    <tr><td><strong>WebRTC por link</strong><br><span class="tag ok">MVP recomendado</span></td><td>Software gratuito, áudio sob nosso controle, implementação segura e teste rápido.</td><td>A pessoa precisa abrir um link; não é uma ligação para número comum.</td></tr>
+    <tr><td><strong>Telefonia SIP</strong><br><span class="tag warn">Produção</span></td><td>Liga e recebe de celulares e fixos; transferência e filas profissionais.</td><td>Número e minutos são cobrados por uma operadora.</td></tr>
+    <tr><td><strong>Chamada WhatsApp</strong><br><span class="tag warn">Experimento</span></td><td>Familiar ao cliente e usa um canal popular.</td><td>Exige camada adicional, precisa ser validada e pode ter risco quando não oficial.</td></tr>
+  </table>
+
+  <h3>Por que começar com WebRTC</h3>
+  <p>O WebRTC permite testar a parte realmente difícil — interrupção, transcrição, raciocínio, documentos e voz — sem contratar telefonia. O Asterisk é um PABX gratuito que pode aceitar WebRTC e, mais tarde, conectar o mesmo sistema a um tronco SIP.</p>
+  <div class="diagram"><span class="green">FASE 1 — GRATUITA</span>
+Link de atendimento → WebRTC → Hurtz
+
+<span class="orange">FASE 2 — TELEFONIA</span>
+Número real → Tronco SIP → Asterisk → Hurtz
+
+<span class="blue">FASE 3 — WHATSAPP</span>
+Chamada WhatsApp → camada validada de voz/SIP → Hurtz</div>
+  <div class="callout"><strong>Não existe telefonia externa ilimitada realmente gratuita.</strong> A central, a IA e o software podem ser nossos; a operadora que conecta celulares e fixos cobra número ou minutos.</div>
+  <p class="small">Fonte para estudo: docs.asterisk.org/Configuration/WebRTC/</p>
+  <div class="footer"><span>Assistente Hurtz • Documento de estudo</span><span>6</span></div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">06 • Inteligência e voz</div>
+  <h2>Como o Hurtz entende e responde</h2><div class="rule"></div>
+  <h3>Transcrição — Faster-Whisper</h3>
+  <p>Podemos reaproveitar o conhecimento adquirido no Assistente de Reunião, mas a implementação precisa ser adaptada. Em chamadas, esperar uma frase longa terminar gera atraso. O sistema deverá processar blocos pequenos, manter palavras parciais e confirmar o turno rapidamente.</p>
+  <h4>Requisitos</h4>
+  <ul>
+    <li>Vocabulário personalizado: nomes de produtos, marcas e termos comerciais.</li>
+    <li>Cancelamento de segmentos antigos e consolidação sem palavras quebradas.</li>
+    <li>Detecção de ruído e silêncio.</li>
+    <li>Medição de tempo até a primeira transcrição útil.</li>
+  </ul>
+
+  <h3>Modelo — Ollama</h3>
+  <p>O computador possui RTX 4060 Ti com 8 GB de VRAM e 32 GB de RAM. O candidato inicial é o <strong>Qwen3 8B</strong>, com resposta em modo direto, sem raciocínio longo. O atual Llama 3.2 3B pode servir de contingência rápida.</p>
+  <div class="decision"><strong>Princípio:</strong> em voz, o melhor modelo não é o maior. É o modelo que produz uma primeira frase correta rapidamente e mantém coerência ao longo da chamada.</div>
+
+  <h3>Voz — Google Gemini TTS</h3>
+  <p>O Gemini TTS oferece português e controle de estilo, ritmo e entonação. O candidato é o <strong>Gemini 3.1 Flash TTS Preview</strong>, atualmente documentado com streaming.</p>
+  <ul>
+    <li>Precisará de chave da API.</li>
+    <li>Pode possuir franquia gratuita, limites e cobrança conforme uso.</li>
+    <li>Por estar em Preview, precisa de repetição automática e fornecedor alternativo.</li>
+    <li>O texto deve ser enviado em fragmentos naturais, sem cortar palavras.</li>
+  </ul>
+  <p class="small">Fontes: ollama.com/library/qwen3:8b • ai.google.dev/gemini-api/docs/speech-generation</p>
+  <div class="footer"><span>Assistente Hurtz • Documento de estudo</span><span>7</span></div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">07 • Conhecimento e controle</div>
+  <h2>Documentos e regras são parte do produto</h2><div class="rule"></div>
+  <p class="lead">A tecnologia permite conversar; os documentos e as regras determinam o que a conversa pode alcançar com segurança.</p>
+  <div class="grid">
+    <div class="card"><h3>Identidade</h3><p>Nome, apresentação, personalidade, formalidade, ritmo e expressões permitidas.</p></div>
+    <div class="card"><h3>Objetivo</h3><p>Atender, qualificar, agendar, cobrar, confirmar ou encaminhar.</p></div>
+    <div class="card"><h3>Conhecimento</h3><p>Produtos, serviços, preços, políticas, contratos, horários e perguntas frequentes.</p></div>
+    <div class="card"><h3>Limites</h3><p>O que não afirmar, dados sensíveis, assuntos proibidos e situações de risco.</p></div>
+    <div class="card"><h3>Ações</h3><p>Consultar agenda, criar registro, enviar mensagem, abrir protocolo ou transferir.</p></div>
+    <div class="card"><h3>Escalonamento</h3><p>Quando chamar um humano, para qual fila e o que transmitir ao atendente.</p></div>
+  </div>
+
+  <h3>Exemplo de regra operacional</h3>
+  <div class="diagram">SE o cliente perguntar preço
+  → consultar tabela oficial vigente
+  → informar apenas a opção correspondente
+  → nunca inventar desconto
+
+SE solicitar condição excepcional
+  → explicar que precisa de validação
+  → transferir ou registrar retorno
+
+SE demonstrar urgência ou insatisfação grave
+  → parar o fluxo comercial
+  → priorizar atendente humano</div>
+
+  <h3>Transferência humana</h3>
+  <p>Não é um detalhe opcional para produção. É a saída segura quando a IA não entende, não possui autorização, encontra risco ou recebe um pedido explícito. A transferência deve levar junto um resumo para que o cliente não precise repetir tudo.</p>
+  <div class="footer"><span>Assistente Hurtz • Documento de estudo</span><span>8</span></div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">08 • Privacidade e operação</div>
+  <h2>Segurança, consentimento e LGPD</h2><div class="rule"></div>
+  <p>Uma chamada pode conter nome, telefone, documentos, saúde, finanças ou outras informações pessoais. Antes da produção, a operação precisa definir finalidade, retenção, acesso e exclusão.</p>
+  <ul class="checklist">
+    <li>Informar que o atendimento é realizado ou apoiado por IA.</li>
+    <li>Definir quando a gravação é necessária e apresentar aviso apropriado.</li>
+    <li>Coletar somente os dados necessários ao atendimento.</li>
+    <li>Criptografar segredos e credenciais.</li>
+    <li>Não colocar chaves de API dentro do aplicativo distribuído.</li>
+    <li>Controlar quem acessa gravações e transcrições.</li>
+    <li>Definir prazo automático de exclusão.</li>
+    <li>Mascarar documentos, cartões e informações sensíveis nos logs.</li>
+    <li>Registrar qual documento e versão embasaram uma resposta crítica.</li>
+    <li>Permitir intervenção e transferência para um humano.</li>
+  </ul>
+
+  <h3>Distribuição recomendada</h3>
+  <div class="diagram">COMPUTADOR DO USUÁRIO
+Launcher + painel + configuração
+
+VPS HURTZ
+Gateway de chamadas + sessões + logs + regras
+
+COMPUTADOR COM GPU ou servidor de IA
+Whisper + Ollama
+
+GOOGLE
+Somente o texto necessário para sintetizar a voz</div>
+  <div class="callout"><strong>Atenção:</strong> se o Google TTS for utilizado, o texto falado será processado externamente. Isso precisa aparecer na política da operação. Para clientes com exigência de processamento integralmente local, deveremos oferecer uma voz local alternativa.</div>
+  <div class="footer"><span>Assistente Hurtz • Documento de estudo</span><span>9</span></div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">09 • Plano de construção</div>
+  <h2>Etapas recomendadas</h2><div class="rule"></div>
+  <table>
+    <tr><th>Etapa</th><th>Entrega</th><th>Critério de aprovação</th></tr>
+    <tr><td><strong>1. Laboratório de voz</strong></td><td>Pipecat + Whisper + Ollama + Google TTS conversando localmente.</td><td>Interrupção funciona e resposta começa com baixa latência.</td></tr>
+    <tr><td><strong>2. WebCall</strong></td><td>Página segura de chamada por link conectada à VPS.</td><td>Duas pessoas testam em redes diferentes com áudio estável.</td></tr>
+    <tr><td><strong>3. Configuração</strong></td><td>Tela para documentos, regras, voz, objetivos e transferência.</td><td>Mudanças entram sem alterar código.</td></tr>
+    <tr><td><strong>4. Ações</strong></td><td>Agenda, cadastro, protocolo, resumo e Evolution API.</td><td>A IA só executa ações autorizadas e registra resultado.</td></tr>
+    <tr><td><strong>5. Telefonia/WhatsApp</strong></td><td>Conector SIP ou prova Evolution + Wavoip.</td><td>Áudio bidirecional, interrupção e transferência validados.</td></tr>
+    <tr><td><strong>6. Piloto</strong></td><td>Operação limitada com número secundário e supervisão.</td><td>Taxa de conclusão, erros e satisfação dentro das metas.</td></tr>
+  </table>
+
+  <h3>Testes que não podem ser pulados</h3>
+  <ul>
+    <li>Cliente fala rápido, devagar, baixo e com ruído.</li>
+    <li>Cliente interrompe a IA no início e no meio da resposta.</li>
+    <li>Informação não existe nos documentos.</li>
+    <li>Cliente muda completamente de assunto.</li>
+    <li>Serviço do Google fica lento ou indisponível.</li>
+    <li>Ollama reinicia durante uma conversa.</li>
+    <li>Transferência não encontra atendente disponível.</li>
+    <li>Duas chamadas acontecem simultaneamente.</li>
+    <li>Cliente pede exclusão ou não aceita gravação.</li>
+  </ul>
+  <div class="decision"><strong>Regra de entrega:</strong> nenhuma integração será considerada pronta apenas porque “conectou”. Precisamos medir latência, naturalidade, interrupção, recuperação de falhas e segurança.</div>
+  <div class="footer"><span>Assistente Hurtz • Documento de estudo</span><span>10</span></div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">10 • Decisões atuais</div>
+  <h2>O que está definido e o que falta validar</h2><div class="rule"></div>
+  <table>
+    <tr><th>Item</th><th>Status</th><th>Decisão</th></tr>
+    <tr><td>Produto independente</td><td class="ok"><strong>Definido</strong></td><td>Assistente Hurtz separado do Assistente de Reunião.</td></tr>
+    <tr><td>Orquestração</td><td class="ok"><strong>Definido</strong></td><td>Pipecat em Python 3.12.</td></tr>
+    <tr><td>Transcrição</td><td class="ok"><strong>Direção definida</strong></td><td>Faster-Whisper adaptado para streaming.</td></tr>
+    <tr><td>Inteligência</td><td class="warn"><strong>Benchmark</strong></td><td>Qwen3 8B versus modelo menor de baixa latência.</td></tr>
+    <tr><td>Voz</td><td class="warn"><strong>Prova necessária</strong></td><td>Gemini 3.1 Flash TTS Preview com fallback.</td></tr>
+    <tr><td>MVP de chamada</td><td class="ok"><strong>Recomendado</strong></td><td>WebRTC por link.</td></tr>
+    <tr><td>Telefonia convencional</td><td class="warn"><strong>Pendente</strong></td><td>Escolher tronco SIP quando o MVP estiver estável.</td></tr>
+    <tr><td>Chamada WhatsApp</td><td class="warn"><strong>Experimento</strong></td><td>Validar Evolution + Wavoip + SIP com número secundário.</td></tr>
+    <tr><td>Regras e documentos</td><td class="no"><strong>Conteúdo pendente</strong></td><td>Precisam ser definidos para cada operação.</td></tr>
+    <tr><td>Transferência humana</td><td class="no"><strong>Destino pendente</strong></td><td>Definir fila, telefone e comportamento fora do horário.</td></tr>
+  </table>
+
+  <h3>Próxima decisão prática</h3>
+  <div class="callout"><strong>Construir primeiro o laboratório de conversa por WebRTC.</strong> Isso prova a qualidade central do Hurtz sem depender de uma operadora ou de uma integração experimental do WhatsApp. Em paralelo, podemos auditar a VPS e testar se o Wavoip disponibiliza uma conexão SIP compatível.</div>
+
+  <h3>Resumo final</h3>
+  <p>O novo Hurtz será uma plataforma de atendimento por voz, não apenas uma integração isolada. Evolution API continuará importante para WhatsApp e automações. Pipecat coordenará a conversa. Faster-Whisper ouvirá, Ollama decidirá, Google falará e uma camada WebRTC/SIP entregará o áudio. A qualidade do produto dependerá igualmente de baixa latência, documentos corretos, regras claras, transferência humana e testes reais.</p>
+  <div class="footer"><span>Assistente Hurtz • Documento de estudo</span><span>11</span></div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">11 • Glossário</div>
+  <h2>Termos para estudar</h2><div class="rule"></div>
+  <table>
+    <tr><th>Termo</th><th>Significado simples</th></tr>
+    <tr><td><strong>WebRTC</strong></td><td>Tecnologia para voz e vídeo em tempo real pelo navegador.</td></tr>
+    <tr><td><strong>SIP</strong></td><td>Protocolo usado para iniciar e controlar chamadas de telefonia pela internet.</td></tr>
+    <tr><td><strong>Tronco SIP</strong></td><td>Serviço de operadora que conecta nosso sistema à rede de celulares e telefones.</td></tr>
+    <tr><td><strong>PABX</strong></td><td>Central que recebe, encaminha, transfere e organiza chamadas.</td></tr>
+    <tr><td><strong>VAD</strong></td><td>Detector que identifica quando existe voz no áudio.</td></tr>
+    <tr><td><strong>STT</strong></td><td>Speech-to-Text: transforma fala em texto.</td></tr>
+    <tr><td><strong>LLM</strong></td><td>Modelo de linguagem que interpreta contexto e produz a resposta.</td></tr>
+    <tr><td><strong>TTS</strong></td><td>Text-to-Speech: transforma texto em voz.</td></tr>
+    <tr><td><strong>RAG</strong></td><td>Método para localizar trechos de documentos e entregá-los ao modelo.</td></tr>
+    <tr><td><strong>Barge-in</strong></td><td>Capacidade de a pessoa interromper a IA enquanto ela fala.</td></tr>
+    <tr><td><strong>Latência</strong></td><td>Tempo entre a fala da pessoa e o início da resposta.</td></tr>
+    <tr><td><strong>Webhook</strong></td><td>Aviso automático enviado por um sistema quando um evento acontece.</td></tr>
+    <tr><td><strong>Fallback</strong></td><td>Alternativa usada quando o serviço principal falha.</td></tr>
+  </table>
+
+  <h3>Leituras técnicas recomendadas</h3>
+  <ul>
+    <li><a href="https://github.com/pipecat-ai/pipecat">github.com/pipecat-ai/pipecat</a></li>
+    <li><a href="https://github.com/evolution-foundation/evolution-api">github.com/evolution-foundation/evolution-api</a></li>
+    <li><a href="https://docs.asterisk.org/Configuration/WebRTC/">docs.asterisk.org/Configuration/WebRTC/</a></li>
+    <li><a href="https://ai.google.dev/gemini-api/docs/speech-generation?hl=pt-br">ai.google.dev/gemini-api/docs/speech-generation</a></li>
+    <li><a href="https://ollama.com/library/qwen3:8b">ollama.com/library/qwen3:8b</a></li>
+    <li><a href="https://www.wavoip.com/">wavoip.com</a></li>
+  </ul>
+  <div class="callout"><strong>Documento vivo:</strong> esta estrutura deve ser atualizada após os benchmarks de voz e a validação da VPS. Tecnologias em Preview e integrações de WhatsApp podem mudar.</div>
+  <div class="footer"><span>Assistente Hurtz • Documento de estudo</span><span>12</span></div>
+</section>
+
+</body>
+</html>

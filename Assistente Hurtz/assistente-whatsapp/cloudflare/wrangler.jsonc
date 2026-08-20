@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hurtz-assistente-api",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-26",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hurtz-assistente-db",
+      "database_id": "c1e2c5bc-a1ae-4520-a09f-2eaf83535c93",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "hurtz-assistente-knowledge",
+    },
+  ],
+  "ai": {
+    "binding": "AI",
+  },
+}

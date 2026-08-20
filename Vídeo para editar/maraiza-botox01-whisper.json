@@ -1,0 +1,142 @@
+{
+	"systeminfo": "AVX = 1 | AVX2 = 1 | AVX512 = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | METAL = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 0 | SSE3 = 1 | SSSE3 = 0 | VSX = 0 | CUDA = 0 | COREML = 0 | OPENVINO = 0",
+	"model": {
+		"type": "small",
+		"multilingual": true,
+		"vocab": 51865,
+		"audio": {
+			"ctx": 1500,
+			"state": 768,
+			"head": 12,
+			"layer": 12
+		},
+		"text": {
+			"ctx": 448,
+			"state": 768,
+			"head": 12,
+			"layer": 12
+		},
+		"mels": 80,
+		"ftype": 1
+	},
+	"params": {
+		"model": "V�deo para editar\\video-integra-remotion\\whisper.cpp\\ggml-small.bin",
+		"language": "pt",
+		"translate": false
+	},
+	"result": {
+		"language": "pt"
+	},
+	"transcription": [
+		{
+			"timestamps": {
+				"from": "00:00:00,000",
+				"to": "00:00:05,960"
+			},
+			"offsets": {
+				"from": 0,
+				"to": 5960
+			},
+			"text": " Essa é a oportunidade para você. O nosso Botox Day está chegando e Botox não precisa"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:05,960",
+				"to": "00:00:10,800"
+			},
+			"offsets": {
+				"from": 5960,
+				"to": 10800
+			},
+			"text": " transformar seu rosto em muito menos deixar você com aquela aparência congelada. Quando"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:10,800",
+				"to": "00:00:17,440"
+			},
+			"offsets": {
+				"from": 10800,
+				"to": 17440
+			},
+			"text": " bem indicado e bem aplicado, ele suaviza essas marcas e deixa a expressão ainda mais leve"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:17,440",
+				"to": "00:00:23,280"
+			},
+			"offsets": {
+				"from": 17440,
+				"to": 23280
+			},
+			"text": " e ainda ajuda a evitar essas linhas de movimento para que fiquem mais profundas. E eu faço"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:23,280",
+				"to": "00:00:28,920"
+			},
+			"offsets": {
+				"from": 23280,
+				"to": 28920
+			},
+			"text": " questão de avaliar cada rosto individualmente, porque não existe uma dose igual para todo"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:28,920",
+				"to": "00:00:34,280"
+			},
+			"offsets": {
+				"from": 28920,
+				"to": 34280
+			},
+			"text": " o mundo. Mas presta atenção, porque eu prepari uma condição muito especial para esse Botox"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:34,280",
+				"to": "00:00:42,800"
+			},
+			"offsets": {
+				"from": 34280,
+				"to": 42800
+			},
+			"text": " Day. São três áreas, festa, glabela e pés de galinha por R$ 89,90, 12 parcelinhas. Mas são"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:42,800",
+				"to": "00:00:49,760"
+			},
+			"offsets": {
+				"from": 42800,
+				"to": 49760
+			},
+			"text": " poucas vagas nessa condição. Me manda agora a palavra Botox no Direct ou no WhatsApp, que"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:49,760",
+				"to": "00:00:55,880"
+			},
+			"offsets": {
+				"from": 49760,
+				"to": 55880
+			},
+			"text": " minha equipe vai te passar os horários disponíveis. E eu já vou garantir o meu, porque eu estou"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:55,880",
+				"to": "00:01:01,560"
+			},
+			"offsets": {
+				"from": 55880,
+				"to": 61560
+			},
+			"text": " precisando para não entregar minha idade. Agora falta só você garantir o seu."
+		}
+	]
+}

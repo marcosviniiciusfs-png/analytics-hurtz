@@ -1,0 +1,10 @@
+﻿{
+    "release":  "master-812-ea7f0c8",
+    "model":  "C:\\Users\\Brito\\Desktop\\principal\\Projetos\\CBO\\ferramentas\\flux2-gguf\\models\\flux-2-klein-4b-Q4_K_M.gguf",
+    "cuda":  "C:\\Users\\Brito\\Desktop\\principal\\Projetos\\CBO\\ferramentas\\flux2-gguf\\bin\\cudart64_12.dll",
+    "sdCli":  "C:\\Users\\Brito\\Desktop\\principal\\Projetos\\CBO\\ferramentas\\flux2-gguf\\bin\\sd-cli.exe",
+    "vae":  "C:\\Users\\Brito\\Desktop\\principal\\Projetos\\CBO\\ferramentas\\flux2-gguf\\models\\flux2-full-encoder-small-decoder.safetensors",
+    "runtime":  "stable-diffusion.cpp",
+    "installedAt":  "2026-08-05T08:40:28.5628477-03:00",
+    "llm":  "C:\\Users\\Brito\\Desktop\\principal\\Projetos\\CBO\\ferramentas\\flux2-gguf\\models\\Qwen3-4B-Q4_K_M.gguf"
+}
