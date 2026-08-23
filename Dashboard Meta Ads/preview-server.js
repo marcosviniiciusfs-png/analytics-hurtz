@@ -33,11 +33,20 @@ const supabaseAuthCredentials=()=>{
   const secretFile=process.env.SUPABASE_SECRET_KEY__FILE;let fileKey='';if(secretFile){try{fileKey=fs.readFileSync(secretFile,'utf8').trim()}catch{}}
   return{base,key:process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY||fileKey};
 };
+const friendlyAuthError=message=>{
+  const value=String(message||'');
+  if(/invalid login credentials/i.test(value))return'E-mail ou senha incorretos.';
+  if(/email not confirmed/i.test(value))return'Confirme seu e-mail antes de entrar.';
+  if(/user already registered/i.test(value))return'Já existe uma conta com este e-mail.';
+  if(/password.*at least/i.test(value))return'A senha deve ter pelo menos 8 caracteres.';
+  if(/rate limit|too many/i.test(value))return'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+  return value||'Falha na autenticação.';
+};
 const supabaseAuthRequest=async(route,{method='POST',body,accessToken}={})=>{
   const{base,key}=supabaseAuthCredentials();if(!base||!key)throw new Error('Autenticação por e-mail não configurada.');
   const response=await fetch(`${base}/auth/v1/${route}`,{method,headers:{apikey:key,Authorization:`Bearer ${accessToken||key}`,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
   const text=await response.text();let payload={};try{payload=text?JSON.parse(text):{}}catch{payload={message:text}}
-  if(!response.ok){const error=new Error(payload?.msg||payload?.message||payload?.error_description||payload?.error||'Falha na autenticação.');error.status=response.status;throw error}
+  if(!response.ok){const error=new Error(friendlyAuthError(payload?.msg||payload?.message||payload?.error_description||payload?.error));error.status=response.status;throw error}
   return payload;
 };
 const authPublicUrl=()=>String(process.env.ANALYTICS_PUBLIC_URL||'https://analytics.hurtzcompany.com').replace(/\/$/,'');
