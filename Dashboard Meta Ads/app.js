@@ -1,7 +1,32 @@
 const MONITOR_API_BASE=location.hostname==='analytics.hurtzcompany.com'?'https://analytics-api.161-97-148-99.sslip.io':'';
 const MONITOR_SESSION_KEY='hurtz-monitor-session';
 const browserFetch=window.fetch.bind(window);
-window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input?.url||'',isMonitorApi=url.startsWith('/api/'),token=localStorage.getItem(MONITOR_SESSION_KEY);if(!isMonitorApi||!MONITOR_API_BASE)return browserFetch(input,options);return browserFetch(`${MONITOR_API_BASE}${url}`,{...options,headers:{...(options.headers||{}),...(token?{Authorization:`Bearer ${token}`}:{})}})};
+let monitorLoginWaiter=null;
+function waitForMonitorLogin(message='Sua sessão expirou. Entre novamente para continuar.'){
+  if(!monitorLoginWaiter){
+    let resolve;
+    const promise=new Promise(done=>{resolve=done});
+    monitorLoginWaiter={promise,resolve};
+  }
+  showAlertLogin(message);
+  return monitorLoginWaiter.promise;
+}
+function completeMonitorLogin(token){
+  localStorage.setItem(MONITOR_SESSION_KEY,token);
+  const waiter=monitorLoginWaiter;monitorLoginWaiter=null;waiter?.resolve(token);
+}
+async function monitorApiFetch(input,options={}){
+  const url=typeof input==='string'?input:input?.url||'',target=`${MONITOR_API_BASE}${url}`;
+  const request=async token=>browserFetch(target,{...options,headers:{...(options.headers||{}),...(token?{Authorization:`Bearer ${token}`}:{})}});
+  let response=await request(localStorage.getItem(MONITOR_SESSION_KEY));
+  if(response.status!==401)return response;
+  localStorage.removeItem(MONITOR_SESSION_KEY);
+  const renewedToken=await waitForMonitorLogin();
+  response=await request(renewedToken);
+  if(response.status===401){localStorage.removeItem(MONITOR_SESSION_KEY);showAlertLogin('A nova sessão não foi aceita. Entre novamente.');}
+  return response;
+}
+window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input?.url||'',isMonitorApi=url.startsWith('/api/');return isMonitorApi&&MONITOR_API_BASE?monitorApiFetch(input,options):browserFetch(input,options)};
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 async function fetchJsonWithRetry(url,{attempts=3,delay=700,...options}={}){
   let lastError;
@@ -1173,7 +1198,7 @@ async function loadAlerts(trigger=null){
   try{renderAlertHistory(await alertFetchJson('/api/alerts'))}catch(error){document.querySelector('#alertConnection').textContent='API de monitoramento indisponível';document.querySelector('#alertHistory').innerHTML=`<div class="alert-empty">${escapeHtml(error.message)}</div>`}finally{if(trigger)setButtonLoading(trigger,false)}
 }
 function initializeAlerts(){if(ALERT_API_BASE&&!localStorage.getItem(ALERT_SESSION_KEY))return showAlertLogin();if(alertsInitialized)return loadAlerts();alertsInitialized=true;loadAlerts()}
-document.querySelector('#alertLoginForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter,status=document.querySelector('#alertLoginStatus'),username=document.querySelector('#alertLoginUser').value.trim(),password=document.querySelector('#alertLoginPassword').value;button.disabled=true;status.textContent='Entrando...';try{const response=await fetch(`${ALERT_API_BASE}/api/session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})}),payload=await response.json();if(!response.ok)throw new Error(payload.error||'Não foi possível entrar.');localStorage.setItem(ALERT_SESSION_KEY,payload.token);location.reload()}catch(error){status.textContent=error.message||'Falha no login.'}finally{button.disabled=false}});
+document.querySelector('#alertLoginForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter,status=document.querySelector('#alertLoginStatus'),username=document.querySelector('#alertLoginUser').value.trim(),password=document.querySelector('#alertLoginPassword').value;button.disabled=true;status.textContent='Entrando...';try{const response=await browserFetch(`${ALERT_API_BASE}/api/session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})}),payload=await response.json();if(!response.ok)throw new Error(payload.error||'Não foi possível entrar.');completeMonitorLogin(payload.token);hideAlertLogin();if(!document.querySelector('#alerts').hidden)initializeAlerts()}catch(error){status.textContent=error.message||'Falha no login.'}finally{button.disabled=false}});
 document.querySelector('#alertLogout').onclick=()=>{localStorage.removeItem(ALERT_SESSION_KEY);alertsInitialized=false;showAlertLogin('Acesso desconectado deste navegador.')};
 document.querySelector('#alertSettings').addEventListener('submit',async event=>{
   event.preventDefault();const button=event.submitter,status=document.querySelector('#alertFormStatus'),thresholds=document.querySelector('#alertThresholds').value.split(',').map(value=>Number(value.trim())).filter(Number.isFinite);
