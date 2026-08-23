@@ -8,6 +8,8 @@
 - API pública validada e protegida, retornando 401 sem credencial.
 - Serviço `analytics-hurtz` ativo e serviço `analytics_hurtz_api` com uma réplica.
 
-## Trabalho restante
+## Publicação
 
-- Publicar a nova versão e confirmar o arquivo atualizado no domínio de produção.
+- GitHub Pages publicou a versão `20260823-1` com sucesso.
+- O domínio de produção entrega as funções de renovação e retomada da sessão.
+- Nenhum trabalho obrigatório permanece aberto nesta correção.
