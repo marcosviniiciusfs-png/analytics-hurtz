@@ -6,4 +6,4 @@
 - [x] T004 Retomar consultas suspensas depois do novo login.
 - [x] T005 Validar os endpoints e a proteção das métricas.
 - [x] T006 Publicar frontend e backend.
-- [ ] T007 Verificar produção e convergência.
+- [x] T007 Verificar produção e convergência.
