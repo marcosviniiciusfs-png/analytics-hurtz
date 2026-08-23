@@ -28,6 +28,19 @@ const readLargeBody = (req,callback) => {let body='';req.on('data',chunk=>{body+
 const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});res.end(JSON.stringify(payload))};
 const authFile=process.env.API_AUTH_FILE||'/opt/meta-ads-cli/secrets/analytics-api-basic.env';
 const authConfig=()=>{const values={};try{fs.readFileSync(authFile,'utf8').split(/\r?\n/).forEach(line=>{const index=line.indexOf('=');if(index>0)values[line.slice(0,index)]=line.slice(index+1)})}catch{}return values};
+const supabaseAuthCredentials=()=>{
+  const base=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
+  const secretFile=process.env.SUPABASE_SECRET_KEY__FILE;let fileKey='';if(secretFile){try{fileKey=fs.readFileSync(secretFile,'utf8').trim()}catch{}}
+  return{base,key:process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY||fileKey};
+};
+const supabaseAuthRequest=async(route,{method='POST',body,accessToken}={})=>{
+  const{base,key}=supabaseAuthCredentials();if(!base||!key)throw new Error('Autenticação por e-mail não configurada.');
+  const response=await fetch(`${base}/auth/v1/${route}`,{method,headers:{apikey:key,Authorization:`Bearer ${accessToken||key}`,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
+  const text=await response.text();let payload={};try{payload=text?JSON.parse(text):{}}catch{payload={message:text}}
+  if(!response.ok){const error=new Error(payload?.msg||payload?.message||payload?.error_description||payload?.error||'Falha na autenticação.');error.status=response.status;throw error}
+  return payload;
+};
+const authPublicUrl=()=>String(process.env.ANALYTICS_PUBLIC_URL||'https://analytics.hurtzcompany.com').replace(/\/$/,'');
 const safeEqual=(left,right)=>{const a=Buffer.from(String(left||'')),b=Buffer.from(String(right||''));return a.length===b.length&&crypto.timingSafeEqual(a,b)};
 const loginAttempts=new Map();
 const clientIp=req=>String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();
@@ -89,6 +102,36 @@ http.createServer((req,res)=>{
     const configured=secretValue('CREATIVE_AGENT_TOKEN','CREATIVE_AGENT_TOKEN__FILE'),submitted=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
     if(!configured||!safeEqual(submitted,configured))return jsonResponse(res,401,{error:'Agente local não autorizado.'});
   }
+  if(requestUrl.pathname.startsWith('/api/auth/')&&req.method==='POST')return readBody(req,(error,payload)=>{
+    if(error)return jsonResponse(res,400,{error:'Dados de autenticação inválidos.'});
+    const action=requestUrl.pathname.slice('/api/auth/'.length),email=String(payload?.email||'').trim().toLowerCase(),password=String(payload?.password||''),config=authConfig();
+    if(action==='login'){
+      if(!email||!password)return jsonResponse(res,400,{error:'Informe e-mail e senha.'});
+      return supabaseAuthRequest('token?grant_type=password',{body:{email,password}}).then(result=>jsonResponse(res,200,{ok:true,token:config.API_SESSION_TOKEN,user:{email:result.user?.email||email}})).catch(authError=>jsonResponse(res,authError.status===400?401:authError.status||502,{error:authError.message}));
+    }
+    if(action==='signup'){
+      if(!/^\S+@\S+\.\S+$/.test(email))return jsonResponse(res,400,{error:'Informe um e-mail válido.'});
+      if(password.length<8)return jsonResponse(res,400,{error:'A senha deve ter pelo menos 8 caracteres.'});
+      const redirectTo=`${authPublicUrl()}/?auth=confirmed`;
+      return supabaseAuthRequest(`signup?redirect_to=${encodeURIComponent(redirectTo)}`,{body:{email,password}}).then(result=>jsonResponse(res,201,{ok:true,confirmed:Boolean(result.access_token),message:result.access_token?'Conta criada e conectada.':'Conta criada. Confirme o e-mail antes de entrar.',token:result.access_token?config.API_SESSION_TOKEN:undefined})).catch(authError=>jsonResponse(res,authError.status||502,{error:authError.message}));
+    }
+    if(action==='recover'){
+      if(!/^\S+@\S+\.\S+$/.test(email))return jsonResponse(res,400,{error:'Informe um e-mail válido.'});
+      const redirectTo=`${authPublicUrl()}/?auth=recovery`;
+      return supabaseAuthRequest(`recover?redirect_to=${encodeURIComponent(redirectTo)}`,{body:{email}}).then(()=>jsonResponse(res,200,{ok:true,message:'Se o e-mail estiver cadastrado, você receberá o link para redefinir a senha.'})).catch(authError=>jsonResponse(res,authError.status||502,{error:authError.message}));
+    }
+    if(action==='update-password'){
+      const recoveryToken=String(payload?.access_token||'');
+      if(password.length<8)return jsonResponse(res,400,{error:'A nova senha deve ter pelo menos 8 caracteres.'});
+      if(!recoveryToken)return jsonResponse(res,401,{error:'O link de recuperação é inválido ou expirou.'});
+      return supabaseAuthRequest('user',{method:'PUT',accessToken:recoveryToken,body:{password}}).then(()=>jsonResponse(res,200,{ok:true,message:'Senha atualizada. Entre com a nova senha.'})).catch(authError=>jsonResponse(res,authError.status||502,{error:authError.message}));
+    }
+    if(action==='exchange'){
+      const accessToken=String(payload?.access_token||'');if(!accessToken)return jsonResponse(res,401,{error:'Confirmação inválida ou expirada.'});
+      return supabaseAuthRequest('user',{method:'GET',accessToken}).then(user=>jsonResponse(res,200,{ok:true,token:config.API_SESSION_TOKEN,user:{email:user.email}})).catch(authError=>jsonResponse(res,authError.status||502,{error:authError.message}));
+    }
+    return jsonResponse(res,404,{error:'Operação de autenticação não encontrada.'});
+  });
   if(!isCreativeAgentRoute&&process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){
     if(requestUrl.pathname==='/api/session'&&req.method==='POST')return readBody(req,(error,payload)=>{
       const ip=clientIp(req),now=Date.now(),attempt=(loginAttempts.get(ip)||{count:0,until:0});

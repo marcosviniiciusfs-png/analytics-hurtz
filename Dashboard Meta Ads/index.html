@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20260805-1" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260811-2" />
+  <link rel="stylesheet" href="styles.css?v=20260823-2" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260823-2" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -297,14 +297,35 @@
   <div class="modal-backdrop png-report-backdrop" id="pngReportModal" aria-hidden="true"><section class="png-report-modal" role="dialog" aria-modal="true" aria-labelledby="pngReportModalTitle"><div class="png-report-modal-head"><div><span>RELATÓRIO EM IMAGEM</span><h2 id="pngReportModalTitle">Relatório de Performance</h2></div><button type="button" id="closePngReport" aria-label="Fechar">×</button></div><div class="png-report-controls"><label>Nome exibido no relatório<input id="pngReportName" maxlength="70" /></label><button type="button" id="updatePngReport">Atualizar prévia</button><button class="primary" type="button" id="downloadPngReport">Baixar PNG</button></div><section class="bulk-png-editor" id="bulkPngEditor" hidden><div><strong>Contas incluídas no ZIP</strong><span id="bulkPngAccountCount">Selecione uma conta para editar todas as informações do PNG.</span></div><div class="bulk-png-name-list" id="bulkPngNames"></div></section><section class="png-field-editor"><div class="png-field-editor-head"><div><strong>Editar informações do PNG</strong><span>As alterações abaixo afetam somente a imagem exportada. Os dados auditados da Meta permanecem preservados.</span></div><button type="button" id="resetPngReportEdits">Restaurar dados auditados</button></div><div class="png-field-editor-fields" id="pngReportFields"></div></section><div class="png-report-preview"><canvas id="pngReportCanvas" width="1600" height="900"></canvas></div></section></div>
 
   <div class="alert-login-backdrop" id="alertLoginModal" hidden>
-    <form class="alert-login-card" id="alertLoginForm">
+    <section class="alert-login-card" role="dialog" aria-modal="true" aria-labelledby="alertAuthTitle">
       <img src="hurtz-logo.png" alt="Hurtz">
-      <p class="eyebrow">ACESSO PROTEGIDO</p><h2>Entrar no monitoramento</h2>
-      <p>Faça login uma vez para configurar os alertas. O acesso ficará salvo neste navegador.</p>
-      <label>Usuário<input id="alertLoginUser" autocomplete="username" required></label>
-      <label>Senha<input id="alertLoginPassword" type="password" autocomplete="current-password" required></label>
-      <button type="submit">Entrar</button><span id="alertLoginStatus"></span>
-    </form>
+      <p class="eyebrow">ACESSO PROTEGIDO</p><h2 id="alertAuthTitle">Entrar no Analytics</h2>
+      <p id="alertAuthDescription">Entre com seu e-mail para continuar a consulta.</p>
+      <form id="alertLoginForm" data-auth-panel="login">
+        <label>E-mail<input id="alertLoginUser" type="email" autocomplete="email" required></label>
+        <label>Senha<input id="alertLoginPassword" type="password" autocomplete="current-password" required></label>
+        <button type="submit">Entrar</button>
+        <div class="alert-auth-links"><button type="button" data-auth-mode="recover">Esqueci minha senha</button><button type="button" data-auth-mode="signup">Criar conta</button></div>
+      </form>
+      <form id="alertSignupForm" data-auth-panel="signup" hidden>
+        <label>E-mail<input id="alertSignupEmail" type="email" autocomplete="email" required></label>
+        <label>Senha<input id="alertSignupPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label>Confirmar senha<input id="alertSignupPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button type="submit">Criar conta</button>
+        <div class="alert-auth-links"><button type="button" data-auth-mode="login">Voltar para entrar</button></div>
+      </form>
+      <form id="alertRecoverForm" data-auth-panel="recover" hidden>
+        <label>E-mail cadastrado<input id="alertRecoverEmail" type="email" autocomplete="email" required></label>
+        <button type="submit">Enviar link de recuperação</button>
+        <div class="alert-auth-links"><button type="button" data-auth-mode="login">Voltar para entrar</button></div>
+      </form>
+      <form id="alertResetForm" data-auth-panel="reset" hidden>
+        <label>Nova senha<input id="alertResetPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label>Confirmar nova senha<input id="alertResetPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button type="submit">Salvar nova senha</button>
+      </form>
+      <span id="alertLoginStatus" role="status" aria-live="polite"></span>
+    </section>
   </div>
   <div class="alert-test-backdrop" id="alertTestModal" hidden>
     <section class="alert-test-card" role="dialog" aria-modal="true" aria-labelledby="alertTestTitle">
@@ -340,6 +361,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/tesseract.min.js"></script>
-  <script src="app.js?v=20260823-1"></script>
+  <script src="app.js?v=20260823-2"></script>
 </body>
 </html>
