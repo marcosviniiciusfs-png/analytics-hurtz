@@ -39,6 +39,7 @@ const friendlyAuthError=message=>{
   if(/email not confirmed/i.test(value))return'Confirme seu e-mail antes de entrar.';
   if(/user already registered/i.test(value))return'Já existe uma conta com este e-mail.';
   if(/password.*at least/i.test(value))return'A senha deve ter pelo menos 8 caracteres.';
+  if(/invalid jwt|token.*malformed|signature/i.test(value))return'O link é inválido ou expirou. Solicite um novo e-mail.';
   if(/rate limit|too many/i.test(value))return'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
   return value||'Falha na autenticação.';
 };
