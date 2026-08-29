@@ -68,12 +68,12 @@ function setButtonLoading(button,loading,label){
 }
 
 const accounts = [
-  {id:'act_478905369997301',name:'CA - Consórcio Certicon',initials:'CC',color:'#e87722',status:'active',objectives:['Leads','Mensagens'],spend:0,leads:0,cycleSpend:0,plan:{deposit:5000,depositDate:'2026-07-12',plannedDays:20,dailyLimit:300},campaigns:[]},
-  {id:'act_767057339654401',name:'CA - Malta Investimento',initials:'MI',color:'#6d4bc3',status:'active',objectives:['Leads','Mensagens'],spend:0,leads:0,cycleSpend:0,plan:{deposit:2200,depositDate:'2026-07-13',plannedDays:12,dailyLimit:230},campaigns:[]},
-  {id:'act_1467904571001656',name:'CA - Topázio 03 - 7219',initials:'T3',color:'#d36b2d',status:'active',objectives:['Mensagens'],spend:0,leads:0,cycleSpend:0,plan:{deposit:1500,depositDate:'2026-07-10',plannedDays:10,dailyLimit:180},campaigns:[]},
-  {id:'act_36589456883979012',name:'CA - Grupo União',initials:'GU',color:'#149374',status:'active',objectives:['Leads','Mensagens'],spend:0,leads:0,cycleSpend:0,plan:{deposit:10000,depositDate:'2026-07-09',plannedDays:30,dailyLimit:420},campaigns:[]},
-  {id:'act_2797573667298980',name:'CA - Ideal Créditos',initials:'IC',color:'#ca3f67',status:'active',objectives:['Leads'],spend:0,leads:0,cycleSpend:0,plan:{deposit:2800,depositDate:'2026-07-11',plannedDays:14,dailyLimit:250},campaigns:[]},
-  {id:'act_1505271587761873',name:'Gomes Invest',initials:'GI',color:'#2579b7',status:'active',objectives:['Mensagens'],spend:0,leads:0,cycleSpend:0,plan:{deposit:6000,depositDate:'2026-07-15',plannedDays:25,dailyLimit:280},campaigns:[]}
+  {id:'act_478905369997301',name:'CA - Consórcio Certicon',initials:'CC',color:'#e87722',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]},
+  {id:'act_767057339654401',name:'CA - Malta Investimento',initials:'MI',color:'#6d4bc3',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]},
+  {id:'act_1467904571001656',name:'CA - Topázio 03 - 7219',initials:'T3',color:'#d36b2d',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]},
+  {id:'act_36589456883979012',name:'CA - Grupo União',initials:'GU',color:'#149374',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]},
+  {id:'act_2797573667298980',name:'CA - Ideal Créditos',initials:'IC',color:'#ca3f67',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]},
+  {id:'act_1505271587761873',name:'Gomes Invest',initials:'GI',color:'#2579b7',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]}
 ];
 
 const AUDITED_META_DATA={
@@ -134,9 +134,6 @@ const netBudget=deposit=>Math.max(0,(Number(deposit)||0)-feeAmount(deposit));
 const isCreditAccount=account=>account?.plan?.paymentType==='credit';
 
 function loadPlans(){
-  const saved=JSON.parse(localStorage.getItem('hurtz-balance-plans')||'{}');
-  const idMigrations={act_90821734:'act_478905369997301',act_31177642:'act_767057339654401',act_55902811:'act_1467904571001656',act_21746390:'act_36589456883979012',act_66412098:'act_2797573667298980',act_78133025:'act_1505271587761873'};
-  Object.entries(idMigrations).forEach(([oldId,newId])=>{if(saved[oldId]&&!saved[newId])saved[newId]=saved[oldId]});
   accounts.forEach(a=>{
     if(!a.plan.paymentType)a.plan.paymentType='prepaid';
     if(a.plan.weeklyLimit==null)a.plan.weeklyLimit=0;
@@ -144,7 +141,7 @@ function loadPlans(){
     if(!a.plan.depositTime)a.plan.depositTime='00:00';
     a.trackingStart=a.plan.depositDate;
     a.trackedSpend=a.cycleSpend;
-    if(saved[a.id])a.plan={...a.plan,...saved[a.id]};
+    // O servidor é a fonte autoritativa. O cache local não pode preencher a visão geral com valores antigos ou não auditados.
   });
 }
 async function savePlans(){
@@ -168,7 +165,7 @@ function metrics(a){
   return {credit,start,elapsed,availableBudget:credit?0:availableBudget,fee:credit?0:feeAmount(a.plan.deposit),spendInCycle:credit?0:spendInCycle,balance:credit?null:balance,plannedEnd,calendarDaysRemaining:credit?null:calendarDaysRemaining,status};
 }
 const statusLabel={active:'Saudável',attention:'Até 3 dias',empty:'Saldo esgotado'};
-function isAccountActive(account){return account.activeCampaignCount==null?account.status==='active':account.activeCampaignCount>0}
+function isAccountActive(account){return account.activeCampaignCount!=null&&account.activeCampaignCount>0}
 function metaAccountStatus(account){
   if(account.activeCampaignCount>0)return {css:'active',label:`${account.activeCampaignCount} campanhas ativas`};
   if(account.activeCampaignCount===0)return {css:'inactive',label:'Sem campanhas ativas'};
@@ -356,7 +353,7 @@ function applyGlobalPeriod(from,to,label,trigger=null){
   renderSummary();
   renderAccounts(document.querySelector('#searchInput').value);
   if(selectedAccount){syncModalDates();renderModal()}
-  return loadAuditedPeriod(globalPeriod.from,globalPeriod.to,trigger).then(()=>loadRealControlData(globalPeriod.to));
+  return Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to,trigger),loadRealControlData(globalPeriod.to)]);
 }
 function setGlobalRange(range,trigger=null){
   const end=new Date(NOW),start=new Date(NOW);let label;
@@ -393,16 +390,16 @@ function storeAuditPayload(key,payload){
     if(objectives.length)account.objectives=objectives;
   });
 }
-async function loadAuditedPeriod(from,to,trigger=null){
+async function loadAuditedPeriod(from,to,trigger=null,force=false){
   const key=`${iso(from)}|${iso(to)}`;
-  const missing=[...selectedAccountIds].filter(id=>!LIVE_PERIOD_DATA[key]?.[id]);
+  const missing=[...selectedAccountIds].filter(id=>force||!LIVE_PERIOD_DATA[key]?.[id]);
   if(!missing.length)return;
   const progressButton=trigger;
   if(progressButton)setButtonLoading(progressButton,true,progressButton.id==='refreshButton'?'Atualizando...':undefined);
   const refresh=document.querySelector('#refreshButton span');
   refresh.textContent='Auditando Meta...';
   try{
-    const response=await fetch(`/api/meta-spend?from=${iso(from)}&to=${iso(to)}&accounts=${encodeURIComponent(missing.join(','))}`);
+    const response=await fetch(`/api/meta-spend?from=${iso(from)}&to=${iso(to)}&accounts=${encodeURIComponent(missing.join(','))}${force?'&refresh=1':''}`);
     if(!response.ok)throw new Error('Falha na coleta');
     const payload=await response.json();
     storeAuditPayload(key,payload);
@@ -421,7 +418,7 @@ async function loadRealControlData(to,force=false){
   const selected=accounts.filter(account=>selectedAccountIds.has(account.id)),starts=selected.map(account=>isCreditAccount(account)?startOfWeeklyCycle(to,account.plan.weekStartDay):parseDate(account.plan.depositDate)).filter(date=>date instanceof Date&&!Number.isNaN(date.valueOf())&&date<=to);
   if(!starts.length){realControlAuditKey='';return renderAccounts(document.querySelector('#searchInput').value)}
   const from=new Date(Math.min(...starts.map(date=>date.valueOf()))),key=`${iso(from)}|${iso(to)}`;realControlAuditKey=key;const missing=selected.filter(account=>!LIVE_PERIOD_DATA[key]?.[account.id]).map(account=>account.id);if(!force&&!missing.length)return renderAccounts(document.querySelector('#searchInput').value);
-  try{const response=await fetch(`/api/meta-spend?from=${iso(from)}&to=${iso(to)}&accounts=${encodeURIComponent((force?selected.map(account=>account.id):missing).join(','))}`);if(!response.ok)throw new Error('Falha na auditoria do saldo real');storeAuditPayload(key,await response.json())}catch{}renderSummary();renderAccounts(document.querySelector('#searchInput').value)
+  try{const response=await fetch(`/api/meta-spend?from=${iso(from)}&to=${iso(to)}&accounts=${encodeURIComponent((force?selected.map(account=>account.id):missing).join(','))}${force?'&refresh=1':''}`);if(!response.ok)throw new Error('Falha na auditoria do saldo real');storeAuditPayload(key,await response.json())}catch{}renderSummary();renderAccounts(document.querySelector('#searchInput').value)
 }
 async function loadSelectedAccountAudit(){
   if(!selectedAccount)return;
@@ -450,7 +447,7 @@ function dailyLimitBreaches(){
     return row?.reconciled&&row.daily?.some(day=>day.reconciled&&Number(day.account_spend)>account.plan.dailyLimit);
   })()).length;
 }
-function loadLastThreeDays(){const period=lastThreeDays();return loadAuditedPeriod(period.from,period.to)}
+function loadLastThreeDays(force=false){const period=lastThreeDays();return loadAuditedPeriod(period.from,period.to,null,force)}
 function exceedsDailyLimit(account){
   const row=LIVE_PERIOD_DATA[lastThreeDays().key]?.[account.id];
   return Boolean(row?.reconciled&&row.daily?.some(day=>day.reconciled&&Number(day.account_spend)>account.plan.dailyLimit));
@@ -673,7 +670,7 @@ function closeModal(){closeCampaignGoal();modal.classList.remove('open');modal.s
 document.querySelector('#searchInput').addEventListener('input',e=>renderAccounts(e.target.value));document.querySelector('#closeModal').onclick=closeModal;modal.onclick=e=>{if(e.target===modal)closeModal()};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});document.querySelectorAll('#quickDates button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));b.classList.add('active');setDates(b.dataset.range)});document.querySelectorAll('.custom-date input').forEach(i=>i.onchange=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));if(selectedAccount)updatePeriodLabel()});document.querySelector('#refreshButton').onclick=e=>{const b=e.currentTarget;b.querySelector('span').textContent='Atualizando...';setTimeout(()=>{b.querySelector('span').textContent='Atualizado agora';setTimeout(()=>b.querySelector('span').textContent='Atualizar',1500)},700)};
 document.querySelectorAll('#quickDates button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));b.classList.add('active');setDates(b.dataset.range);if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
 document.querySelectorAll('.custom-date input').forEach(i=>i.onchange=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
-document.querySelector('#refreshButton').onclick=async event=>{delete LIVE_PERIOD_DATA[`${iso(globalPeriod.from)}|${iso(globalPeriod.to)}`];delete LIVE_PERIOD_DATA[lastThreeDays().key];if(realControlAuditKey)delete LIVE_PERIOD_DATA[realControlAuditKey];await Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to,event.currentTarget).then(()=>loadRealControlData(globalPeriod.to,true)),loadLastThreeDays()])};
+document.querySelector('#refreshButton').onclick=async event=>{delete LIVE_PERIOD_DATA[`${iso(globalPeriod.from)}|${iso(globalPeriod.to)}`];delete LIVE_PERIOD_DATA[lastThreeDays().key];if(realControlAuditKey)delete LIVE_PERIOD_DATA[realControlAuditKey];await Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to,event.currentTarget,true),loadRealControlData(globalPeriod.to,true),loadLastThreeDays(true)])};
 loadAccountCatalog();selectedAccountIds=new Set(accounts.map(account=>account.id));loadPlans();renderAccountFilterOptions();refreshPresetSelect();const defaultPreset=readPresets().items[readPresets().defaultName];if(defaultPreset)applyPreset(defaultPreset,false);setGlobalRange('yesterday');document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;loadLastThreeDays();renderSummary();renderAccounts();setTimeout(()=>{if(accounts.some(account=>!account.businessPicture))findMetaAccounts(false)},250);
 
 /* Analise interativa: somente dados reconciliados pela API Meta. */
@@ -762,7 +759,8 @@ async function initializeReports(){if(reportInitialized)return;reportInitialized
 function syncReportAccountsWithDashboard(){
   const root=document.querySelector('#reportAccountOptions');
   if(!root)return;
-  const scoped=accounts.filter(account=>selectedAccountIds.has(account.id));
+  const selected=accounts.filter(account=>selectedAccountIds.has(account.id));
+  const scoped=selected.length?selected:accounts;
   root.innerHTML=scoped.map(account=>`<label><input type="checkbox" value="${account.id}" checked><span>${escapeHtml(account.name)}</span></label>`).join('');
   document.querySelector('#reportToggleAccounts').textContent=scoped.length?'Limpar seleção':'Selecionar todas';
   const status=document.querySelector('#reportStatus');
@@ -770,6 +768,9 @@ function syncReportAccountsWithDashboard(){
 }
 const initializeReportsFromMonitor=initializeReports;
 initializeReports=async function(){
+  // Exibe o catalogo local imediatamente. A consulta remota nao pode deixar o
+  // seletor vazio enquanto responde ou quando estiver indisponivel.
+  syncReportAccountsWithDashboard();
   if(!reportInitialized)await initializeReportsFromMonitor();
   syncReportAccountsWithDashboard();
 };
@@ -972,7 +973,7 @@ async function fetchReportBatch(accountIds,from,to){
   try{
     const [spendResponse,analysisResponse]=await Promise.all([
       fetch(`/api/meta-spend?${query}`,{signal:controller.signal}),
-      fetch(`/api/meta-analysis?${query}`,{signal:controller.signal})
+      fetch(`/api/meta-analysis?${query}&report=1`,{signal:controller.signal})
     ]);
     const [spend,analysis]=await Promise.all([spendResponse.json(),analysisResponse.json()]);
     if(!spendResponse.ok)throw new Error(spend.error||'Falha ao consultar gastos e campanhas.');
@@ -1244,7 +1245,7 @@ showDashboardView=function(view){
 document.querySelector('#alertsNav').onclick=null;
 ['analysisNav','reportsNav'].forEach(id=>document.querySelector(`#${id}`).addEventListener('click',()=>document.querySelector('#alerts').hidden=true));
 document.querySelectorAll('.sidebar nav a[href="#"],.sidebar nav a[href="#accounts"]').forEach(link=>link.addEventListener('click',()=>document.querySelector('#alerts').hidden=true));
-async function hydrateAlertPlans(){try{const response=await fetch('/api/alert-plans'),payload=await response.json(),remotePlans=payload.plans||{};if(Object.keys(remotePlans).length){for(const account of accounts)if(remotePlans[account.id])account.plan={...account.plan,...remotePlans[account.id]}}else savePlans();renderSummary();renderAccounts(document.querySelector('#searchInput').value)}catch{}}
+async function hydrateAlertPlans(){try{const response=await fetch('/api/alert-plans'),payload=await response.json(),remotePlans=payload.plans||{};if(Object.keys(remotePlans).length){for(const account of accounts)if(remotePlans[account.id])account.plan={...account.plan,...remotePlans[account.id]}}renderSummary();renderAccounts(document.querySelector('#searchInput').value)}catch{}}
 hydrateAlertPlans();
 document.querySelector('#analysisNav').onclick=null;document.querySelector('#reportsNav').onclick=null;
 const requestedView=new URLSearchParams(location.search).get('view');
@@ -1401,8 +1402,9 @@ function initializeTaskStructures(){
 }
 function renderTaskStructures(){
   const target=document.querySelector('#taskStructureExisting'),groups=[['Etapas','column',nativeTasks.columns],['Projetos','project',nativeTasks.projects],['Módulos','module',nativeTasks.modules],['Ciclos','cycle',nativeTasks.cycles]];
-  target.innerHTML=groups.map(([title,type,items])=>`<section><h4>${title}</h4>${items.map(item=>`<div><span>${escapeHtml(item.title)}</span><button type="button" data-edit-structure="${type}" data-id="${item.id}" data-title="${escapeHtml(item.title)}">Editar</button><button type="button" data-delete-structure="${type}" data-id="${item.id}">Excluir</button></div>`).join('')||'<small>Nenhum item.</small>'}</section>`).join('');
-  target.querySelectorAll('[data-edit-structure]').forEach(button=>button.onclick=async()=>{const title=prompt('Novo nome:',button.dataset.title);if(!title?.trim())return;const payload={id:button.dataset.id,title};if(button.dataset.editStructure==='column')payload.position=nativeTasks.columns.find(item=>item.id===button.dataset.id)?.position||0;await taskApi(`/api/task-${button.dataset.editStructure}s`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});await loadNativeTasks();renderTaskStructures()});
+  target.innerHTML=groups.map(([title,type,items])=>`<section class="task-structure-${type}s"><h4>${title}</h4>${type==='column'?'<p class="task-structure-help">Use as setas para definir a ordem exibida no quadro.</p>':''}${items.map((item,index)=>`<div><span title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>${type==='column'?`<span class="task-column-order"><button type="button" data-move-column="up" data-id="${item.id}" ${index===0?'disabled':''} aria-label="Mover ${escapeHtml(item.title)} para a esquerda">&#8592;</button><button type="button" data-move-column="down" data-id="${item.id}" ${index===items.length-1?'disabled':''} aria-label="Mover ${escapeHtml(item.title)} para a direita">&#8594;</button></span>`:''}<button type="button" data-edit-structure="${type}" data-id="${item.id}" data-title="${escapeHtml(item.title)}">Editar</button><button type="button" data-delete-structure="${type}" data-id="${item.id}">Excluir</button></div>`).join('')||'<small>Nenhum item.</small>'}</section>`).join('');
+  target.querySelectorAll('[data-move-column]').forEach(button=>button.onclick=async()=>{const index=nativeTasks.columns.findIndex(item=>item.id===button.dataset.id),nextIndex=index+(button.dataset.moveColumn==='up'?-1:1);if(index<0||nextIndex<0||nextIndex>=nativeTasks.columns.length)return;const reordered=[...nativeTasks.columns],[moved]=reordered.splice(index,1);reordered.splice(nextIndex,0,moved);button.disabled=true;status.textContent='Salvando ordem das etapas...';try{await Promise.all(reordered.map((column,position)=>taskApi('/api/task-columns',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:column.id,title:column.title,role:taskColumnRole(column),position})})));nativeTasks.columns=reordered.map((column,position)=>({...column,position}));status.textContent='Ordem atualizada.';renderNativeTasks();renderTaskStructures()}catch(error){status.textContent=error.message;button.disabled=false}});
+  target.querySelectorAll('[data-edit-structure]').forEach(button=>button.onclick=async()=>{const title=prompt('Novo nome:',button.dataset.title);if(!title?.trim())return;const payload={id:button.dataset.id,title};if(button.dataset.editStructure==='column'){const column=nativeTasks.columns.find(item=>item.id===button.dataset.id);payload.position=column?.position||0;payload.role=taskColumnRole(column)}await taskApi(`/api/task-${button.dataset.editStructure}s`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});await loadNativeTasks();renderTaskStructures()});
   target.querySelectorAll('[data-delete-structure]').forEach(button=>button.onclick=async()=>{const isColumn=button.dataset.deleteStructure==='column';if(!confirm(isColumn?'Excluir esta etapa? Ela precisa estar vazia.':'Excluir este item? As tarefas serão preservadas sem este vínculo.'))return;try{await taskApi(`/api/task-${button.dataset.deleteStructure}s?id=${button.dataset.id}`,{method:'DELETE'});await loadNativeTasks();renderTaskStructures()}catch(error){alert(error.message)}});
 }
 const showDashboardViewBeforeTasks=showDashboardView;
@@ -1456,6 +1458,26 @@ const prepareCreativeCover=async url=>{const response=await fetch(url);if(!respo
 const prioritizeCreativeCoversWithoutText=async(videos,onProgress)=>{if(!videos.length||!window.Tesseract)return videos;const workers=[];let next=0,done=0;try{workers.push(...await Promise.all(Array.from({length:Math.min(2,videos.length)},()=>Tesseract.createWorker('por'))));await Promise.all(workers.map(async worker=>{while(next<videos.length){const video=videos[next++];try{if(!video.thumbnail_proxy_url)throw new Error('Sem capa');const canvas=await prepareCreativeCover(video.thumbnail_proxy_url),result=await worker.recognize(canvas),text=String(result?.data?.text||'').replace(/[^\p{L}\p{N}]+/gu,' ').trim(),confidence=Number(result?.data?.confidence)||0;video.cover_ocr_checked=true;video.cover_ocr_confidence=Math.round(confidence);video.cover_text_detected=confidence>=35&&text.replace(/\s/g,'').length>=4}catch{video.cover_ocr_checked=true;video.cover_text_detected=null}onProgress?.(++done,videos.length)}}))}finally{await Promise.all(workers.map(worker=>worker.terminate().catch(()=>{})))}const weight=video=>video.cover_text_detected===false?0:video.cover_text_detected===true?2:1;return videos.map((video,index)=>({video,index})).sort((a,b)=>weight(a.video)-weight(b.video)||a.index-b.index).map(item=>item.video)};
 initializeCreativeLibrary=function(){
   if(creativeLibraryInitialized)return;creativeLibraryInitialized=true;const form=document.querySelector('#creativeSearchForm'),progress=document.querySelector('#creativeSearchProgress'),clear=document.querySelector('#clearCreativeResults'),downloadSelected=document.querySelector('#downloadSelectedCreative');
+  const activeSearchKey='hurtz-active-creative-search';
+  const resumeCreativeSearch=async saved=>{
+    const button=form.querySelector('[type="submit"]'),progressTitle=progress.querySelector('strong'),progressDetail=progress.querySelector('small');
+    button.disabled=true;progress.hidden=false;progressTitle.textContent='Retomando pesquisa de vídeos...';
+    try{
+      let payload;
+      do{
+        const response=await fetch(`/api/creative-audit/status?id=${encodeURIComponent(saved.id)}`);payload=await response.json();
+        if(!response.ok)throw new Error(payload.error||'A pesquisa temporária não está mais disponível.');
+        progressTitle.textContent=payload.status==='complete'?'Finalizando resultados...':payload.agent_online?`Analisando ${payload.processed} de ${payload.total} vídeos`:'Aguardando o computador de análise...';
+        progressDetail.textContent=payload.agent_online?'A busca continua no servidor mesmo fora desta página.':'Ligue o agente Hurtz neste computador para continuar automaticamente.';
+        document.querySelector('#creativeLibraryStatus').textContent=`Auditoria local: ${payload.processed} de ${payload.total}`;
+        if(payload.status!=='complete')await wait(2500);
+      }while(payload.status!=='complete');
+      creativeVideos=payload.approved||[];renderCreativeLibrary();
+      document.querySelector('#creativeLibraryStatus').textContent=`${creativeVideos.length} vídeo(s) encontrados • pesquisa retomada • nada foi armazenado`;
+      clear.hidden=false;downloadSelected.hidden=!creativeVideos.some(video=>video.download_url);sessionStorage.removeItem(activeSearchKey);
+    }catch(error){sessionStorage.removeItem(activeSearchKey);document.querySelector('#creativeLibraryStatus').textContent=error.message}
+    finally{progress.hidden=true;button.disabled=false}
+  };
   const presetSelect=document.querySelector('#creativePresetSelect'),presetName=document.querySelector('#creativePresetName'),presetStatus=document.querySelector('#creativePresetStatus'),savePreset=document.querySelector('#saveCreativePreset'),deletePreset=document.querySelector('#deleteCreativePreset'),deleteAllPresets=document.querySelector('#deleteAllCreativePresets'),termsField=document.querySelector('#creativeSearchTerms');let creativePresets=[];
   const showPresetStatus=(message,type='')=>{presetStatus.textContent=message;presetStatus.className=type};
   const renderCreativePresets=(selectedId='')=>{presetSelect.innerHTML='<option value="">Selecione uma predefinição</option>'+creativePresets.map(preset=>`<option value="${escapeHtml(preset.id)}">${escapeHtml(preset.name)}</option>`).join('');presetSelect.value=selectedId;deletePreset.disabled=!selectedId;deleteAllPresets.disabled=!creativePresets.length;savePreset.textContent=selectedId?'Atualizar termos':'Salvar nova'};
@@ -1465,10 +1487,41 @@ initializeCreativeLibrary=function(){
   deletePreset.onclick=async()=>{const id=presetSelect.value,preset=creativePresets.find(item=>item.id===id);if(!preset||!confirm(`Excluir a predefinição “${preset.name}”?`))return;deletePreset.disabled=true;showPresetStatus('Excluindo...');try{const response=await fetch(`/api/creative-search-settings?id=${encodeURIComponent(id)}`,{method:'DELETE'}),payload=await response.json();if(!response.ok)throw new Error(payload.error||'Não foi possível excluir.');creativePresets=creativePresets.filter(item=>item.id!==id);renderCreativePresets();presetName.value='';showPresetStatus('Predefinição excluída.','success')}catch(error){showPresetStatus(error.message,'error');deletePreset.disabled=false}};
   deleteAllPresets.onclick=async()=>{if(!creativePresets.length||!confirm(`Excluir permanentemente todas as ${creativePresets.length} predefinições de termos?`))return;deleteAllPresets.disabled=true;showPresetStatus('Excluindo todas...');try{const response=await fetch('/api/creative-search-settings?all=1',{method:'DELETE'}),payload=await response.json();if(!response.ok)throw new Error(payload.error||'Não foi possível excluir todas.');creativePresets=[];renderCreativePresets();presetName.value='';showPresetStatus('Todas as predefinições foram excluídas.','success')}catch(error){showPresetStatus(error.message,'error');deleteAllPresets.disabled=false}};
   loadCreativePresets();
-  const creativeRequestFetch=window.fetch.bind(window);window.fetch=(input,options={})=>{if(input==='/api/creative-search'&&options.body){try{const payload=JSON.parse(options.body);payload.platform=document.querySelector('#creativeSearchPlatform')?.value||'both';options={...options,body:JSON.stringify(payload)}}catch{}}return creativeRequestFetch(input,options)};
+  try{const saved=JSON.parse(sessionStorage.getItem(activeSearchKey)||'null');if(saved?.id)resumeCreativeSearch(saved)}catch{sessionStorage.removeItem(activeSearchKey)}
+  const creativeRequestFetch=window.fetch.bind(window);window.fetch=(input,options={})=>{if(input==='/api/creative-search'&&options.body){try{const payload=JSON.parse(options.body);payload.platform=document.querySelector('#creativeSearchPlatform')?.value||'both';options={...options,body:JSON.stringify(payload)}}catch{}}else if(typeof input==='string'&&input.startsWith('/api/creative-audit/status?id=')){const id=new URL(input,location.origin).searchParams.get('id');if(id)sessionStorage.setItem(activeSearchKey,JSON.stringify({id,startedAt:Date.now()}))}return creativeRequestFetch(input,options)};
   form.onsubmit=async event=>{event.preventDefault();const terms=[...new Set(document.querySelector('#creativeSearchTerms').value.split(/\r?\n|,/).map(value=>value.trim()).filter(Boolean))],limit=Math.min(30,Math.max(1,Number(document.querySelector('#creativeResultLimit').value)||10)),preferNoText=document.querySelector('#creativePreferNoText').checked;if(!terms.length)return alert('Informe pelo menos um termo, usando uma linha para cada pesquisa.');if(terms.length*limit>150)return alert('O máximo por execução é 150 vídeos. Reduza os termos ou a quantidade por termo.');const button=form.querySelector('[type="submit"]'),progressTitle=progress.querySelector('strong'),progressDetail=progress.querySelector('small');button.disabled=true;progress.hidden=false;progressTitle.textContent='Pesquisando vídeos...';progressDetail.textContent='A análise quadro a quadro está desativada.';document.querySelector('#creativeLibraryStatus').textContent=`Pesquisando ${terms.length} termo(s)...`;try{const response=await fetch('/api/creative-search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({terms,limit,content_type:document.querySelector('#creativeContentType').value,sorting:document.querySelector('#creativeSearchSorting').value,period:document.querySelector('#creativeSearchPeriod').value})}),started=await response.json();if(!response.ok)throw new Error(started.error||'A pesquisa não foi iniciada.');let payload=started;while(payload.status!=='complete'){await new Promise(resolve=>setTimeout(resolve,2500));const statusResponse=await fetch(`/api/creative-audit/status?id=${encodeURIComponent(started.id)}`);payload=await statusResponse.json();if(!statusResponse.ok)throw new Error(payload.error||'A auditoria local foi interrompida.');progressTitle.textContent=payload.agent_online?`Analisando ${payload.processed} de ${payload.total} vídeos`:'Aguardando o computador de análise...';progressDetail.textContent=payload.agent_online?'A RTX está verificando quadros do vídeo. Nada será armazenado.':'Ligue o agente Hurtz neste computador para continuar automaticamente.';document.querySelector('#creativeLibraryStatus').textContent=`Auditoria local: ${payload.processed} de ${payload.total}`};creativeVideos=payload.approved||[];renderCreativeLibrary();if(preferNoText&&creativeVideos.length){progressTitle.textContent='Priorizando capas sem texto...';progressDetail.textContent='Lendo somente a primeira imagem de cada vídeo.';creativeVideos=await prioritizeCreativeCoversWithoutText(creativeVideos,(done,total)=>{document.querySelector('#creativeLibraryStatus').textContent=`Verificando capas: ${done} de ${total}`});renderCreativeLibrary()}document.querySelector('#creativeLibraryStatus').textContent=preferNoText?`${creativeVideos.length} vídeo(s) encontrados • capas sem texto priorizadas • vídeo completo não analisado`:(payload.visual_audit_enabled===false?`${creativeVideos.length} vídeo(s) encontrados • análise visual desativada • nada foi armazenado`:`${creativeVideos.length} vídeo(s) aprovados • ${payload.rejected||0} sem relação removido(s) • nada foi armazenado`);clear.hidden=false;downloadSelected.hidden=!creativeVideos.some(video=>video.download_url)}catch(error){document.querySelector('#creativeLibraryStatus').textContent=error.message;document.querySelector('#creativeLibrary').innerHTML=`<div class="creative-library-empty"><strong>Não foi possível concluir</strong><span>${escapeHtml(error.message)}</span></div>`}finally{progress.hidden=true;button.disabled=false}};
-  clear.onclick=()=>{creativeVideos=[];renderCreativeLibrary();clear.hidden=true;downloadSelected.hidden=true};
+  clear.onclick=()=>{creativeVideos=[];sessionStorage.removeItem(activeSearchKey);renderCreativeLibrary();clear.hidden=true;downloadSelected.hidden=true};
   document.querySelector('#creativeLibrary').onclick=async event=>{const preview=event.target.closest('[data-preview-creative]');if(preview){const video=creativeVideos[Number(preview.dataset.previewCreative)];preview.outerHTML=`<div class="creative-thumb creative-embed"><iframe src="${escapeHtml(video.embed_url)}" title="Preview do ${video.platform==='instagram'?'Instagram':'TikTok'}" allow="encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;return}const download=event.target.closest('.creative-video-actions a.primary');if(download){event.preventDefault();const index=Number(download.closest('[data-creative-index]')?.dataset.creativeIndex),video=creativeVideos[index];if(!video?.download_url)return;download.style.pointerEvents='none';download.textContent='Preparando...';try{const response=await fetch(video.download_url);if(!response.ok)throw new Error('Não foi possível preparar este vídeo.');const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download=`${video.platform||'video'}-${video.id}.mp4`;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000)}catch(error){alert(error.message)}finally{download.style.pointerEvents='';download.textContent='Baixar vídeo'}}};
   downloadSelected.onclick=async()=>{const selected=[...document.querySelectorAll('[data-select-creative]:checked')].map(input=>creativeVideos[Number(input.dataset.selectCreative)]).filter(video=>video?.download_url);if(!selected.length)return alert('Selecione pelo menos um vídeo com download disponível.');downloadSelected.disabled=true;try{for(const video of selected){const response=await fetch(video.download_url);if(!response.ok)throw new Error(`Não foi possível baixar ${video.title||video.id}.`);const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download=`${video.platform||'video'}-${video.id}.mp4`;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000)}}catch(error){alert(error.message)}finally{downloadSelected.disabled=false}};
 };
 if(requestedView==='creative-search')showDashboardView('creative-search');
+
+// Detalhamento por campanha/anuncio. Edicoes abaixo sao apenas de apresentacao:
+// os objetos auditados recebidos da Meta permanecem imutaveis.
+const reportAdPresentationEdits=new Map();
+function reportAdKey(accountId,ad){return `${accountId}:${ad.ad_id||ad.ad_name}`}
+function reportAdsForAccount(accountId){const analysis=currentReportContext?.analysis?.accounts?.[accountId];return (analysis?.ads||[]).filter(ad=>Number(ad.spend)>0).sort((a,b)=>String(a.campaign_name||'').localeCompare(String(b.campaign_name||''),'pt-BR')||Number(b.spend)-Number(a.spend))}
+function reportAdStatus(ad){const status=String(ad.effective_status||ad.status||'UNKNOWN').toUpperCase();return {active:status==='ACTIVE',label:status==='ACTIVE'?'ATIVO':({PAUSED:'PAUSADO',CAMPAIGN_PAUSED:'CAMPANHA PAUSADA',ADSET_PAUSED:'CONJUNTO PAUSADO',ARCHIVED:'ARQUIVADO',DELETED:'EXCLUÍDO'}[status]||'STATUS INDISPONÍVEL')}}
+function reportAdCard(accountId,ad,index){
+  const key=reportAdKey(accountId,ad),edit=reportAdPresentationEdits.get(key)||{},status=reportAdStatus(ad),leads=Number(ad.results||0),cpl=ad.cost_per_result==null&&leads?Number(ad.spend)/leads:ad.cost_per_result,name=edit.name??ad.ad_name??'Anúncio sem nome',campaign=edit.campaign??ad.campaign_name??'Campanha sem nome';
+  return `<article class="report-ad-card" data-report-ad="${escapeHtml(key)}" data-account-id="${escapeHtml(accountId)}" data-ad-index="${index}"><div class="report-ad-creative">${ad.thumbnail_url?`<img src="${escapeHtml(ad.thumbnail_url)}" alt="Prévia do anúncio ${escapeHtml(name)}" loading="lazy" referrerpolicy="no-referrer">`:`<div class="report-ad-no-preview" aria-label="Prévia indisponível"><span>▧</span><b>Prévia indisponível</b><small>A Meta não retornou uma imagem para esta peça.</small></div>`}<span class="report-ad-format">${escapeHtml(ad.format||'Formato não identificado')}</span></div><div class="report-ad-content"><div class="report-ad-heading"><div><span class="report-ad-campaign" contenteditable="true" spellcheck="false" data-ad-edit="campaign">${escapeHtml(campaign)}</span><h4 contenteditable="true" spellcheck="false" data-ad-edit="name">${escapeHtml(name)}</h4><small>ID ${escapeHtml(ad.ad_id||'não informado')}</small></div><span class="report-ad-status ${status.active?'active':'inactive'}"><i></i>${status.label}</span></div><div class="report-ad-metrics"><div><span>LEADS</span><strong>${num(leads)}</strong><small>Resultado atribuído</small></div><div><span>VALOR GASTO</span><strong>${brl(ad.spend)}</strong><small>Investimento auditado</small></div><div><span>CUSTO POR LEAD</span><strong>${cpl==null?'—':brl(cpl)}</strong><small>Gasto ÷ leads</small></div></div><div class="report-ad-actions"><span>Alterações de texto afetam somente a exportação.</span><button type="button" data-reset-ad>Restaurar</button><button type="button" class="primary" data-download-ad>Baixar este anúncio</button></div></div></article>`
+}
+function renderDetailedAdsIntoReport(){
+  if(!currentReportContext)return;
+  document.querySelectorAll('#reportOutput .report-account').forEach((section,sectionIndex)=>{if(section.querySelector('.report-ads-detail'))return;const accountId=currentReportContext.selectedIds[sectionIndex],ads=reportAdsForAccount(accountId),detail=document.createElement('section');section.dataset.reportAccount=accountId;detail.className='report-ads-detail';detail.innerHTML=`<div class="report-ads-title"><div><span>DETALHAMENTO POR ANÚNCIO</span><h4>Campanhas e peças veiculadas</h4><p>Somente anúncios com gasto no período selecionado.</p></div><b>${ads.length} ${ads.length===1?'anúncio':'anúncios'}</b></div><div class="report-ad-list">${ads.map((ad,index)=>reportAdCard(accountId,ad,index)).join('')||'<p class="report-ads-empty">Nenhum anúncio teve veiculação no período.</p>'}</div>`;section.querySelector('footer')?.before(detail)})
+}
+function reportAdDownloadName(ad){return `${safeReportFileName(ad.campaign_name||'Campanha')} - ${safeReportFileName(ad.ad_name||'Anúncio')}.png`}
+let html2CanvasLoader=null;
+function loadHtml2Canvas(){
+  if(window.html2canvas)return Promise.resolve(window.html2canvas);
+  if(html2CanvasLoader)return html2CanvasLoader;
+  html2CanvasLoader=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';script.async=true;script.onload=()=>window.html2canvas?resolve(window.html2canvas):reject(new Error('Biblioteca de imagem indisponível.'));script.onerror=()=>reject(new Error('Não foi possível carregar o gerador de imagem.'));document.head.appendChild(script)});
+  return html2CanvasLoader;
+}
+async function downloadReportAdCard(card){
+  const accountId=card.dataset.accountId,ad=reportAdsForAccount(accountId)[Number(card.dataset.adIndex)],button=card.querySelector('[data-download-ad]');button.disabled=true;button.textContent='Gerando...';
+  try{const render=await loadHtml2Canvas(),canvas=await render(card,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});canvas.toBlob(blob=>blob&&downloadBlob(blob,reportAdDownloadName(ad)),'image/png')}catch(error){alert(`Não foi possível baixar este anúncio: ${error.message}`)}finally{button.disabled=false;button.textContent='Baixar este anúncio'}
+}
+document.addEventListener('input',event=>{const field=event.target.closest('[data-ad-edit]'),card=field?.closest('[data-report-ad]');if(!field||!card)return;const current=reportAdPresentationEdits.get(card.dataset.reportAd)||{};current[field.dataset.adEdit]=field.textContent.trim();reportAdPresentationEdits.set(card.dataset.reportAd,current)});
+document.addEventListener('click',event=>{const card=event.target.closest('[data-report-ad]');if(!card)return;if(event.target.closest('[data-download-ad]'))downloadReportAdCard(card);if(event.target.closest('[data-reset-ad]')){reportAdPresentationEdits.delete(card.dataset.reportAd);const accountId=card.dataset.accountId,index=Number(card.dataset.adIndex),ad=reportAdsForAccount(accountId)[index];card.outerHTML=reportAdCard(accountId,ad,index)}});
+const reportOutputElement=document.querySelector('#reportOutput');if(reportOutputElement)new MutationObserver(()=>requestAnimationFrame(renderDetailedAdsIntoReport)).observe(reportOutputElement,{childList:true});

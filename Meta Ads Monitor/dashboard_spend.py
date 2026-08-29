@@ -68,12 +68,22 @@ def get(path, params):
 
 def audit(account_id, period):
     attempts = []
-    campaign_details = get(f"{account_id}/campaigns", {"fields": "id,name,objective,status,effective_status", "limit": 500})
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        campaign_details_future = pool.submit(get, f"{account_id}/campaigns", {"fields": "id,name,objective,status,effective_status", "limit": 500})
+        campaign_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "campaign", "fields": "campaign_id,campaign_name,spend,actions,cost_per_action_type", "time_range": period, "time_increment": 1, "limit": 500})
+        account_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "account", "fields": "account_id,account_name,spend,actions", "time_range": period, "time_increment": 1, "limit": 500})
+        campaign_details = campaign_details_future.result()
+        campaign_daily = campaign_daily_future.result()
+        account_daily = account_daily_future.result()
     campaign_meta = {row["id"]: row for row in campaign_details}
     active_campaign_count = sum(1 for row in campaign_details if row.get("effective_status") == "ACTIVE")
     for attempt_index in range(3):
-        campaign_daily = get(f"{account_id}/insights", {"level": "campaign", "fields": "campaign_id,campaign_name,spend,actions,cost_per_action_type", "time_range": period, "time_increment": 1, "limit": 500})
-        account_daily = get(f"{account_id}/insights", {"level": "account", "fields": "account_id,account_name,spend,actions", "time_range": period, "time_increment": 1, "limit": 500})
+        if attempt_index:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                campaign_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "campaign", "fields": "campaign_id,campaign_name,spend,actions,cost_per_action_type", "time_range": period, "time_increment": 1, "limit": 500})
+                account_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "account", "fields": "account_id,account_name,spend,actions", "time_range": period, "time_increment": 1, "limit": 500})
+                campaign_daily = campaign_daily_future.result()
+                account_daily = account_daily_future.result()
         account_by_date = {row["date_start"]: Decimal(row.get("spend", "0")) for row in account_daily}
         account_actions = {}
         for account_row in account_daily:

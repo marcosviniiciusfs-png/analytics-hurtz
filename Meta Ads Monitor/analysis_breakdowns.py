@@ -94,17 +94,24 @@ def money_equal(left: Decimal, right: Decimal) -> bool:
     return abs(left - right) < Decimal("0.01")
 
 
-def breakdown(account_id: str, period: str) -> dict:
+def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
     base_fields = "spend,impressions,reach,clicks,ctr,cpm,cpc,actions"
-    account_rows = get(f"{account_id}/insights", {"level": "account", "fields": base_fields, "time_range": period, "limit": 100})
+    if report_only:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            account_future = pool.submit(get, f"{account_id}/insights", {"level": "account", "fields": base_fields, "time_range": period, "limit": 100})
+            ads_future = pool.submit(get, f"{account_id}/insights", {"level": "ad", "fields": f"ad_id,ad_name,campaign_id,campaign_name,{base_fields}", "time_range": period, "limit": 500})
+            account_rows = account_future.result()
+            ad_rows = ads_future.result()
+    else:
+        account_rows = get(f"{account_id}/insights", {"level": "account", "fields": base_fields, "time_range": period, "limit": 100})
+        ad_rows = get(f"{account_id}/insights", {"level": "ad", "fields": f"ad_id,ad_name,campaign_id,campaign_name,{base_fields}", "time_range": period, "limit": 500})
     account_row = account_rows[0] if account_rows else {}
     account_metrics = metrics(account_row)
     account_spend = money(account_row)
 
-    age_rows = get(f"{account_id}/insights", {"level": "account", "fields": base_fields, "breakdowns": "age", "time_range": period, "limit": 100})
-    region_rows = get(f"{account_id}/insights", {"level": "account", "fields": base_fields, "breakdowns": "region", "time_range": period, "limit": 500})
-    placement_rows = get(f"{account_id}/insights", {"level": "account", "fields": base_fields, "breakdowns": "publisher_platform,platform_position", "time_range": period, "limit": 500})
-    ad_rows = get(f"{account_id}/insights", {"level": "ad", "fields": f"ad_id,ad_name,campaign_id,campaign_name,{base_fields}", "time_range": period, "limit": 500})
+    age_rows = [] if report_only else get(f"{account_id}/insights", {"level": "account", "fields": base_fields, "breakdowns": "age", "time_range": period, "limit": 100})
+    region_rows = [] if report_only else get(f"{account_id}/insights", {"level": "account", "fields": base_fields, "breakdowns": "region", "time_range": period, "limit": 500})
+    placement_rows = [] if report_only else get(f"{account_id}/insights", {"level": "account", "fields": base_fields, "breakdowns": "publisher_platform,platform_position", "time_range": period, "limit": 500})
     ad_ids = [row["ad_id"] for row in ad_rows if row.get("ad_id")]
     campaign_ids = sorted({row["campaign_id"] for row in ad_rows if row.get("campaign_id")})
     campaign_result_types: dict[str, set[str]] = {}
@@ -113,16 +120,25 @@ def breakdown(account_id: str, period: str) -> dict:
         if row.get("campaign_id") and family != "Sem resultado atribuído":
             campaign_result_types.setdefault(row["campaign_id"], set()).add(family)
     ad_formats: dict[str, str] = {}
+    ad_details: dict[str, dict] = {}
     campaign_objectives: dict[str, str] = {}
     for start in range(0, len(ad_ids), 50):
         batch = ",".join(ad_ids[start:start + 50])
         if not batch:
             continue
-        query = urllib.parse.urlencode({"ids": batch, "fields": "id,creative{id,name,object_type,video_id,image_hash,object_story_spec,asset_feed_spec}", "access_token": TOKEN})
+        query = urllib.parse.urlencode({"ids": batch, "fields": "id,status,effective_status,creative{id,name,object_type,video_id,image_hash,thumbnail_url,object_story_spec,asset_feed_spec}", "access_token": TOKEN})
         with urllib.request.urlopen(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50) as response:
             payload = json.load(response)
         for ad_id, item in payload.items():
-            ad_formats[ad_id] = creative_format(item.get("creative") or {})
+            creative = item.get("creative") or {}
+            ad_formats[ad_id] = creative_format(creative)
+            ad_details[ad_id] = {
+                "status": item.get("status") or "UNKNOWN",
+                "effective_status": item.get("effective_status") or item.get("status") or "UNKNOWN",
+                "creative_id": creative.get("id"),
+                "creative_name": creative.get("name"),
+                "thumbnail_url": creative.get("thumbnail_url"),
+            }
     for start in range(0, len(campaign_ids), 50):
         batch = ",".join(campaign_ids[start:start + 50])
         if not batch:
@@ -153,22 +169,25 @@ def breakdown(account_id: str, period: str) -> dict:
         "id": account_id,
         "reconciled": money_equal(ad_spend, account_spend),
         "account": account_metrics,
-        "age": {"reconciled": money_equal(age_spend, account_spend), "rows": [{"age": row.get("age", "Não informado"), **metrics(row)} for row in age_rows]},
-        "geography": {"level": "region", "reconciled": money_equal(region_spend, account_spend), "rows": [{"region": row.get("region", "Não informado"), **metrics(row)} for row in region_rows]},
-        "placement": {"reconciled": money_equal(placement_spend, account_spend), "rows": [{"publisher_platform": row.get("publisher_platform", "unknown"), "platform_position": row.get("platform_position", "unknown"), **metrics(row)} for row in placement_rows]},
+        "age": {"reconciled": False if report_only else money_equal(age_spend, account_spend), "rows": [{"age": row.get("age", "Não informado"), **metrics(row)} for row in age_rows]},
+        "geography": {"level": "region", "reconciled": False if report_only else money_equal(region_spend, account_spend), "rows": [{"region": row.get("region", "Não informado"), **metrics(row)} for row in region_rows]},
+        "placement": {"reconciled": False if report_only else money_equal(placement_spend, account_spend), "rows": [{"publisher_platform": row.get("publisher_platform", "unknown"), "platform_position": row.get("platform_position", "unknown"), **metrics(row)} for row in placement_rows]},
         "format": {"reconciled": money_equal(ad_spend, account_spend), "rows": list(formats.values())},
-        "ads": [{"account_id": account_id, "ad_id": row.get("ad_id"), "ad_name": row.get("ad_name"), "campaign_id": row.get("campaign_id"), "campaign_name": row.get("campaign_name"), "objective": campaign_objectives.get(row.get("campaign_id"), "Objetivo não informado"), "result_type": (next(iter(campaign_result_types.get(row.get("campaign_id"), set()))) if len(campaign_result_types.get(row.get("campaign_id"), set())) == 1 else result_type(row)), "format": ad_formats.get(row.get("ad_id"), "Não identificado"), **metrics(row)} for row in ad_rows],
+        "ads": [{"account_id": account_id, "ad_id": row.get("ad_id"), "ad_name": row.get("ad_name"), "campaign_id": row.get("campaign_id"), "campaign_name": row.get("campaign_name"), "objective": campaign_objectives.get(row.get("campaign_id"), "Objetivo não informado"), "result_type": (next(iter(campaign_result_types.get(row.get("campaign_id"), set()))) if len(campaign_result_types.get(row.get("campaign_id"), set())) == 1 else result_type(row)), "format": ad_formats.get(row.get("ad_id"), "Não identificado"), **ad_details.get(row.get("ad_id"), {}), **metrics(row)} for row in ad_rows],
         "audit": {"account_spend": float(account_spend), "age_sum": float(age_spend), "region_sum": float(region_spend), "placement_sum": float(placement_spend), "ad_sum": float(ad_spend)},
     }
 
 
 def main() -> None:
-    since, until, *account_ids = sys.argv[1:]
+    arguments = sys.argv[1:]
+    report_only = os.environ.get("ANALYSIS_REPORT_ONLY") == "1" or "--report" in arguments
+    arguments = [argument for argument in arguments if argument != "--report"]
+    since, until, *account_ids = arguments
     if not account_ids:
         raise SystemExit("Informe ao menos uma conta.")
     period = json.dumps({"since": since, "until": until}, separators=(",", ":"))
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        rows = list(pool.map(lambda account_id: breakdown(account_id, period), account_ids))
+        rows = list(pool.map(lambda account_id: breakdown(account_id, period, report_only), account_ids))
     print(json.dumps({"since": since, "until": until, "accounts": {row["id"]: row for row in rows}}, ensure_ascii=False))
 
 

@@ -10,6 +10,9 @@ const port = Number(process.env.PORT || 8091);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.svg':'image/svg+xml'};
 const analysisResponseCache = new Map();
 const ANALYSIS_CACHE_TTL = 15 * 60 * 1000;
+const spendResponseCache = new Map();
+const spendRequestsInFlight = new Map();
+const SPEND_CACHE_TTL = 60 * 1000;
 const taskDataCache={payload:null,expiresAt:0};
 const TASK_CACHE_TTL=30*1000;
 const secretValue=(directName,fileName)=>{const direct=process.env[directName];if(direct)return String(direct).trim();const file=process.env[fileName];if(file){try{return fs.readFileSync(file,'utf8').trim()}catch{}}return ''};
@@ -278,7 +281,7 @@ http.createServer((req,res)=>{
     if(req.method==='PUT')return readBody(req,(error,payload)=>{const id=cleanUuid(payload?.id),title=String(payload?.title||'').trim(),role=['standard','in_progress','review','blocked','completed'].includes(payload?.role)?payload.role:'standard';if(error||!id||!title)return jsonResponse(res,400,{error:'Etapa inválida'});supabaseRequest(`task_columns?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({title:title.slice(0,80),position:Number(payload.position)||0,role})}).then(data=>jsonResponse(res,200,data?.[0])).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
     if(req.method==='DELETE'){const id=cleanUuid(requestUrl.searchParams.get('id'));if(!id)return jsonResponse(res,400,{error:'Etapa inválida'});return supabaseRequest(`tasks?column_id=eq.${id}&select=id&limit=1`).then(rows=>{if(rows?.length)throw new Error('Mova as tarefas antes de excluir esta etapa.');return supabaseRequest(`task_columns?id=eq.${id}`,{method:'DELETE'})}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,409,{error:error.message}))}
   }
-  if(requestUrl.pathname==='/api/task-order'&&req.method==='PUT')return readBody(req,async(error,payload)=>{const rows=Array.isArray(payload?.items)?payload.items.slice(0,500):[];if(error||!rows.length||rows.some(row=>!cleanUuid(row.id)||!cleanUuid(row.column_id)))return jsonResponse(res,400,{error:'Ordem das tarefas inválida'});try{for(const row of rows)await supabaseRequest(`tasks?id=eq.${cleanUuid(row.id)}`,{method:'PATCH',body:JSON.stringify({column_id:cleanUuid(row.column_id),position:Math.max(0,Number(row.position)||0),completed_at:row.completed_at||null})});jsonResponse(res,200,{ok:true,updated:rows.length})}catch(dbError){jsonResponse(res,502,{error:dbError.message})}});
+  if(requestUrl.pathname==='/api/task-order'&&req.method==='PUT')return readBody(req,async(error,payload)=>{const rows=Array.isArray(payload?.items)?payload.items.slice(0,500):[];if(error||!rows.length||rows.some(row=>!cleanUuid(row.id)||!cleanUuid(row.column_id)))return jsonResponse(res,400,{error:'Ordem das tarefas inválida'});try{const updates=rows.map(row=>()=>supabaseRequest(`tasks?id=eq.${cleanUuid(row.id)}`,{method:'PATCH',body:JSON.stringify({column_id:cleanUuid(row.column_id),position:Math.max(0,Number(row.position)||0),completed_at:row.completed_at||null})}));for(let index=0;index<updates.length;index+=12)await Promise.all(updates.slice(index,index+12).map(update=>update()));jsonResponse(res,200,{ok:true,updated:rows.length})}catch(dbError){jsonResponse(res,502,{error:dbError.message})}});
   if(requestUrl.pathname==='/api/task-notifications'&&req.method==='POST')return readBody(req,(error,payload)=>{const taskId=cleanUuid(payload?.task_id),recipients=Array.isArray(payload?.recipients)?[...new Set(payload.recipients.map(value=>String(value).trim()).filter(Boolean))].slice(0,20):[];if(error||!taskId||!recipients.length)return jsonResponse(res,400,{error:'Menção inválida'});supabaseRequest('task_notifications?on_conflict=task_id,recipient_name',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(recipients.map(recipient_name=>({task_id:taskId,recipient_name}))) }).then(data=>jsonResponse(res,201,{created:data?.length||0})).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
   if(['/api/task-projects','/api/task-modules','/api/task-cycles'].includes(requestUrl.pathname)){
     const table=requestUrl.pathname==='/api/task-projects'?'task_projects':requestUrl.pathname==='/api/task-modules'?'task_modules':'task_cycles';
@@ -394,10 +397,23 @@ http.createServer((req,res)=>{
     if (accountIds.some(id=>!/^act_\d+$/.test(id))) {
       res.writeHead(400, {'Content-Type':'application/json'}); return res.end(JSON.stringify({error:'Conta inválida'}));
     }
+    const cacheKey = `${from}|${to}|${[...accountIds].sort().join(',')}`;
+    const forceRefresh = requestUrl.searchParams.get('refresh') === '1';
+    const cached = spendResponseCache.get(cacheKey);
+    if (!forceRefresh && cached && Date.now() - cached.createdAt < SPEND_CACHE_TTL) {
+      res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Meta-Cache':'HIT'});return res.end(cached.body);
+    }
+    const waiting = spendRequestsInFlight.get(cacheKey);
+    if (waiting) { waiting.push(res); return; }
+    spendRequestsInFlight.set(cacheKey,[res]);
     const remote = `set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/dashboard_spend.py ${from} ${to}${accountIds.length?` ${accountIds.join(' ')}`:''}`;
     return runMonitorCommand(remote,{timeout:120000,maxBuffer:5*1024*1024},(error,stdout,stderr)=>{
-      if(error){res.writeHead(502,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Falha na auditoria Meta',detail:stderr.trim()}))}
-      res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(stdout);
+      const listeners=spendRequestsInFlight.get(cacheKey)||[res];spendRequestsInFlight.delete(cacheKey);
+      if(error){const body=JSON.stringify({error:'Falha na auditoria Meta',detail:stderr.trim()});return listeners.forEach(response=>{response.writeHead(502,{'Content-Type':'application/json'});response.end(body)})}
+      try{JSON.parse(stdout)}catch{const body=JSON.stringify({error:'Resposta inválida da auditoria Meta'});return listeners.forEach(response=>{response.writeHead(502,{'Content-Type':'application/json'});response.end(body)})}
+      spendResponseCache.set(cacheKey,{createdAt:Date.now(),body:stdout});
+      if(spendResponseCache.size>100){const oldest=spendResponseCache.keys().next().value;spendResponseCache.delete(oldest)}
+      listeners.forEach(response=>{response.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Meta-Cache':'MISS'});response.end(stdout)});
     });
   }
   if (requestUrl.pathname === '/api/meta-accounts') {
@@ -416,12 +432,13 @@ http.createServer((req,res)=>{
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || '') || !accountIds.length || accountIds.some(id=>!/^act_\d+$/.test(id)||!allowed.includes(id))) {
       res.writeHead(400, {'Content-Type':'application/json'}); return res.end(JSON.stringify({error:'Parâmetros de análise inválidos'}));
     }
-    const cacheKey = `${from}|${to}|${[...accountIds].sort().join(',')}`;
+    const reportOnly = requestUrl.searchParams.get('report') === '1';
+    const cacheKey = `${reportOnly?'report':'full'}|${from}|${to}|${[...accountIds].sort().join(',')}`;
     const cached = analysisResponseCache.get(cacheKey);
     if (cached && Date.now() - cached.createdAt < ANALYSIS_CACHE_TTL) {
       res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Analysis-Cache':'HIT'});return res.end(cached.body);
     }
-    const remote = `set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/analysis_breakdowns.py ${from} ${to} ${accountIds.join(' ')}`;
+    const remote = `set -a; . /opt/meta-ads-cli/secrets/.env; set +a; ${reportOnly?'ANALYSIS_REPORT_ONLY=1 ':''}python3 /opt/meta-ads-cli/monitor/analysis_breakdowns.py ${from} ${to} ${accountIds.join(' ')}`;
     return runMonitorCommand(remote,{timeout:180000,maxBuffer:12*1024*1024},(error,stdout,stderr)=>{
       if(error){res.writeHead(502,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Falha na análise Meta',detail:stderr.trim()}))}
       try{JSON.parse(stdout)}catch{res.writeHead(502,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Resposta inválida da análise Meta'}))}
