@@ -126,11 +126,22 @@ def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
         batch = ",".join(ad_ids[start:start + 50])
         if not batch:
             continue
-        query = urllib.parse.urlencode({"ids": batch, "fields": "id,status,effective_status,creative{id,name,object_type,video_id,image_hash,thumbnail_url,object_story_spec,asset_feed_spec}", "access_token": TOKEN})
+        query = urllib.parse.urlencode({"ids": batch, "fields": "id,status,effective_status,creative{id,name,object_type,video_id,image_hash,image_url,thumbnail_url,object_story_spec,asset_feed_spec}", "access_token": TOKEN})
         with urllib.request.urlopen(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50) as response:
             payload = json.load(response)
         for ad_id, item in payload.items():
             creative = item.get("creative") or {}
+            story = creative.get("object_story_spec") or {}
+            video_data = story.get("video_data") or {}
+            link_data = story.get("link_data") or {}
+            photo_data = story.get("photo_data") or {}
+            preview_url = (
+                creative.get("image_url")
+                or video_data.get("image_url")
+                or link_data.get("picture")
+                or photo_data.get("url")
+                or creative.get("thumbnail_url")
+            )
             ad_formats[ad_id] = creative_format(creative)
             ad_details[ad_id] = {
                 "status": item.get("status") or "UNKNOWN",
@@ -138,6 +149,7 @@ def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
                 "creative_id": creative.get("id"),
                 "creative_name": creative.get("name"),
                 "thumbnail_url": creative.get("thumbnail_url"),
+                "preview_url": preview_url,
             }
     for start in range(0, len(campaign_ids), 50):
         batch = ",".join(campaign_ids[start:start + 50])
