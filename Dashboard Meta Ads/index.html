@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260823-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260829-5" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260830-1" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -294,6 +294,7 @@
     </section>
   </div>
   <div class="report-loader" id="reportLoader" role="status" aria-live="polite" hidden><div class="report-loader-content"><div id="reportLottie"></div><strong>Criando relatório auditado...</strong><span>Consultando contas e conciliando campanhas com a Meta.</span></div></div>
+  <div class="modal-backdrop report-ads-modal-backdrop" id="reportAdsModal" aria-hidden="true"><section class="report-ads-modal" role="dialog" aria-modal="true" aria-labelledby="reportAdsModalTitle"><header class="report-ads-modal-head"><div><span>ANÚNCIOS DA CONTA</span><h2 id="reportAdsModalTitle">Anúncios</h2><p id="reportAdsModalMeta"></p></div><button type="button" id="closeReportAdsModal" aria-label="Fechar anúncios">×</button></header><div class="report-ads-modal-body" id="reportAdsModalBody"></div></section></div>
   <div class="modal-backdrop png-report-backdrop" id="pngReportModal" aria-hidden="true"><section class="png-report-modal" role="dialog" aria-modal="true" aria-labelledby="pngReportModalTitle"><div class="png-report-modal-head"><div><span>RELATÓRIO EM IMAGEM</span><h2 id="pngReportModalTitle">Relatório de Performance</h2></div><button type="button" id="closePngReport" aria-label="Fechar">×</button></div><div class="png-report-controls"><label>Nome exibido no relatório<input id="pngReportName" maxlength="70" /></label><button type="button" id="updatePngReport">Atualizar prévia</button><button class="primary" type="button" id="downloadPngReport">Baixar PNG</button></div><section class="bulk-png-editor" id="bulkPngEditor" hidden><div><strong>Contas incluídas no ZIP</strong><span id="bulkPngAccountCount">Selecione uma conta para editar todas as informações do PNG.</span></div><div class="bulk-png-name-list" id="bulkPngNames"></div></section><section class="png-field-editor"><div class="png-field-editor-head"><div><strong>Editar informações do PNG</strong><span>As alterações abaixo afetam somente a imagem exportada. Os dados auditados da Meta permanecem preservados.</span></div><button type="button" id="resetPngReportEdits">Restaurar dados auditados</button></div><div class="png-field-editor-fields" id="pngReportFields"></div></section><div class="png-report-preview"><canvas id="pngReportCanvas" width="1600" height="900"></canvas></div></section></div>
 
   <div class="alert-login-backdrop" id="alertLoginModal" hidden>
@@ -361,6 +362,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/tesseract.min.js"></script>
-  <script src="app.js?v=20260829-5"></script>
+  <script src="app.js?v=20260830-1"></script>
 </body>
 </html>
