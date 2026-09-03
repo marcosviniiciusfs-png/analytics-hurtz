@@ -1,0 +1,555 @@
+[
+  {
+    "text": "Você",
+    "startMs": 340,
+    "endMs": 430,
+    "timestampMs": 540,
+    "confidence": 0.874459
+  },
+  {
+    "text": " sabia",
+    "startMs": 430,
+    "endMs": 890,
+    "timestampMs": 980,
+    "confidence": 0.989849
+  },
+  {
+    "text": " que",
+    "startMs": 890,
+    "endMs": 1120,
+    "timestampMs": 1440,
+    "confidence": 0.982572
+  },
+  {
+    "text": " um",
+    "startMs": 1120,
+    "endMs": 1380,
+    "timestampMs": 1640,
+    "confidence": 0.610421
+  },
+  {
+    "text": " único",
+    "startMs": 1380,
+    "endMs": 1800,
+    "timestampMs": 1960,
+    "confidence": 0.997965
+  },
+  {
+    "text": " erro",
+    "startMs": 1800,
+    "endMs": 2140,
+    "timestampMs": 2240,
+    "confidence": 0.998041
+  },
+  {
+    "text": " na",
+    "startMs": 2140,
+    "endMs": 2310,
+    "timestampMs": 2380,
+    "confidence": 0.978414
+  },
+  {
+    "text": " sua",
+    "startMs": 2310,
+    "endMs": 2600,
+    "timestampMs": 2580,
+    "confidence": 0.991789
+  },
+  {
+    "text": " folha",
+    "startMs": 2600,
+    "endMs": 2800,
+    "timestampMs": 2800,
+    "confidence": 0.822512
+  },
+  {
+    "text": " de",
+    "startMs": 2800,
+    "endMs": 3060,
+    "timestampMs": 3000,
+    "confidence": 0.979419
+  },
+  {
+    "text": " pagamento",
+    "startMs": 3060,
+    "endMs": 3810,
+    "timestampMs": 3160,
+    "confidence": 0.973469
+  },
+  {
+    "text": " pode",
+    "startMs": 3810,
+    "endMs": 4000,
+    "timestampMs": 3980,
+    "confidence": 0.873046
+  },
+  {
+    "text": " gerar",
+    "startMs": 4000,
+    "endMs": 4360,
+    "timestampMs": 4220,
+    "confidence": 0.799776
+  },
+  {
+    "text": " multas",
+    "startMs": 4360,
+    "endMs": 4800,
+    "timestampMs": 4680,
+    "confidence": 0.951103
+  },
+  {
+    "text": " para",
+    "startMs": 4800,
+    "endMs": 5080,
+    "timestampMs": 5080,
+    "confidence": 0.785511
+  },
+  {
+    "text": " a",
+    "startMs": 5080,
+    "endMs": 5230,
+    "timestampMs": 5220,
+    "confidence": 0.562783
+  },
+  {
+    "text": " sua",
+    "startMs": 5230,
+    "endMs": 5450,
+    "timestampMs": 5280,
+    "confidence": 0.991414
+  },
+  {
+    "text": " empresa?",
+    "startMs": 5450,
+    "endMs": 6000,
+    "timestampMs": 5720,
+    "confidence": 0.921906
+  },
+  {
+    "text": " Uma",
+    "startMs": 6000,
+    "endMs": 6360,
+    "timestampMs": 7600,
+    "confidence": 0.971254
+  },
+  {
+    "text": " admissão",
+    "startMs": 6360,
+    "endMs": 7420,
+    "timestampMs": 7980,
+    "confidence": 0.868475
+  },
+  {
+    "text": " fora",
+    "startMs": 7420,
+    "endMs": 7900,
+    "timestampMs": 8520,
+    "confidence": 0.989623
+  },
+  {
+    "text": " do",
+    "startMs": 7900,
+    "endMs": 8160,
+    "timestampMs": 8700,
+    "confidence": 0.964277
+  },
+  {
+    "text": " prazo,",
+    "startMs": 8160,
+    "endMs": 9000,
+    "timestampMs": 8920,
+    "confidence": 0.982098
+  },
+  {
+    "text": " uma",
+    "startMs": 9000,
+    "endMs": 9200,
+    "timestampMs": 9440,
+    "confidence": 0.943653
+  },
+  {
+    "text": " rescisão",
+    "startMs": 9200,
+    "endMs": 9680,
+    "timestampMs": 9640,
+    "confidence": 0.438675
+  },
+  {
+    "text": " calculada",
+    "startMs": 9680,
+    "endMs": 10200,
+    "timestampMs": 10120,
+    "confidence": 0.960373
+  },
+  {
+    "text": " de",
+    "startMs": 10200,
+    "endMs": 10220,
+    "timestampMs": 10600,
+    "confidence": 0.983751
+  },
+  {
+    "text": " forma",
+    "startMs": 10220,
+    "endMs": 10480,
+    "timestampMs": 10780,
+    "confidence": 0.966461
+  },
+  {
+    "text": " incorreta",
+    "startMs": 10480,
+    "endMs": 11000,
+    "timestampMs": 11040,
+    "confidence": 0.87284
+  },
+  {
+    "text": " ou",
+    "startMs": 11000,
+    "endMs": 11500,
+    "timestampMs": 11640,
+    "confidence": 0.581998
+  },
+  {
+    "text": " uma",
+    "startMs": 11500,
+    "endMs": 11620,
+    "timestampMs": 11800,
+    "confidence": 0.922328
+  },
+  {
+    "text": " falha",
+    "startMs": 11620,
+    "endMs": 12000,
+    "timestampMs": 12020,
+    "confidence": 0.907125
+  },
+  {
+    "text": " no",
+    "startMs": 12000,
+    "endMs": 12170,
+    "timestampMs": 12220,
+    "confidence": 0.95373
+  },
+  {
+    "text": " eSocial",
+    "startMs": 12170,
+    "endMs": 13000,
+    "timestampMs": 12360,
+    "confidence": 0.401341
+  },
+  {
+    "text": " podem",
+    "startMs": 13000,
+    "endMs": 13340,
+    "timestampMs": 13400,
+    "confidence": 0.991104
+  },
+  {
+    "text": " trazer",
+    "startMs": 13340,
+    "endMs": 13750,
+    "timestampMs": 13760,
+    "confidence": 0.988369
+  },
+  {
+    "text": " prejuízos",
+    "startMs": 13750,
+    "endMs": 14410,
+    "timestampMs": 14160,
+    "confidence": 0.970223
+  },
+  {
+    "text": " e",
+    "startMs": 14410,
+    "endMs": 14470,
+    "timestampMs": 15000,
+    "confidence": 0.997135
+  },
+  {
+    "text": " processos",
+    "startMs": 14470,
+    "endMs": 15080,
+    "timestampMs": 15280,
+    "confidence": 0.968086
+  },
+  {
+    "text": " trabalhistas",
+    "startMs": 15080,
+    "endMs": 15900,
+    "timestampMs": 15780,
+    "confidence": 0.987172
+  },
+  {
+    "text": " para",
+    "startMs": 15900,
+    "endMs": 16180,
+    "timestampMs": 16280,
+    "confidence": 0.983273
+  },
+  {
+    "text": " a",
+    "startMs": 16180,
+    "endMs": 16230,
+    "timestampMs": 16380,
+    "confidence": 0.825063
+  },
+  {
+    "text": " sua",
+    "startMs": 16230,
+    "endMs": 16430,
+    "timestampMs": 16480,
+    "confidence": 0.99875
+  },
+  {
+    "text": " empresa.",
+    "startMs": 16430,
+    "endMs": 17000,
+    "timestampMs": 16860,
+    "confidence": 0.999775
+  },
+  {
+    "text": " Nós",
+    "startMs": 17000,
+    "endMs": 17310,
+    "timestampMs": 17420,
+    "confidence": 0.994829
+  },
+  {
+    "text": " cuidamos",
+    "startMs": 17310,
+    "endMs": 17930,
+    "timestampMs": 17640,
+    "confidence": 0.994516
+  },
+  {
+    "text": " de",
+    "startMs": 17930,
+    "endMs": 18160,
+    "timestampMs": 18100,
+    "confidence": 0.994833
+  },
+  {
+    "text": " todo",
+    "startMs": 18160,
+    "endMs": 18390,
+    "timestampMs": 18320,
+    "confidence": 0.996922
+  },
+  {
+    "text": " o",
+    "startMs": 18390,
+    "endMs": 18460,
+    "timestampMs": 18500,
+    "confidence": 0.990989
+  },
+  {
+    "text": " departamento",
+    "startMs": 18460,
+    "endMs": 19420,
+    "timestampMs": 18680,
+    "confidence": 0.857527
+  },
+  {
+    "text": " pessoal,",
+    "startMs": 19420,
+    "endMs": 20170,
+    "timestampMs": 19580,
+    "confidence": 0.979189
+  },
+  {
+    "text": " a",
+    "startMs": 20170,
+    "endMs": 20250,
+    "timestampMs": 20040,
+    "confidence": 0.478313
+  },
+  {
+    "text": " admissão,",
+    "startMs": 20250,
+    "endMs": 21200,
+    "timestampMs": 20240,
+    "confidence": 0.953332
+  },
+  {
+    "text": " férias,",
+    "startMs": 21200,
+    "endMs": 22000,
+    "timestampMs": 21240,
+    "confidence": 0.94021
+  },
+  {
+    "text": " rescisão",
+    "startMs": 22000,
+    "endMs": 23000,
+    "timestampMs": 22200,
+    "confidence": 0.530667
+  },
+  {
+    "text": " e",
+    "startMs": 23000,
+    "endMs": 23180,
+    "timestampMs": 23040,
+    "confidence": 0.649558
+  },
+  {
+    "text": " eSocial",
+    "startMs": 23180,
+    "endMs": 24000,
+    "timestampMs": 23580,
+    "confidence": 0.952506
+  },
+  {
+    "text": " para",
+    "startMs": 24000,
+    "endMs": 24250,
+    "timestampMs": 24100,
+    "confidence": 0.965366
+  },
+  {
+    "text": " que",
+    "startMs": 24250,
+    "endMs": 24430,
+    "timestampMs": 24240,
+    "confidence": 0.998372
+  },
+  {
+    "text": " a",
+    "startMs": 24430,
+    "endMs": 24490,
+    "timestampMs": 24340,
+    "confidence": 0.978054
+  },
+  {
+    "text": " sua",
+    "startMs": 24490,
+    "endMs": 24670,
+    "timestampMs": 24460,
+    "confidence": 0.995372
+  },
+  {
+    "text": " empresa",
+    "startMs": 24670,
+    "endMs": 25100,
+    "timestampMs": 24800,
+    "confidence": 0.999821
+  },
+  {
+    "text": " fique",
+    "startMs": 25100,
+    "endMs": 25410,
+    "timestampMs": 25120,
+    "confidence": 0.995051
+  },
+  {
+    "text": " em",
+    "startMs": 25410,
+    "endMs": 25620,
+    "timestampMs": 25520,
+    "confidence": 0.993434
+  },
+  {
+    "text": " dia",
+    "startMs": 25620,
+    "endMs": 25780,
+    "timestampMs": 25780,
+    "confidence": 0.776997
+  },
+  {
+    "text": " com",
+    "startMs": 25780,
+    "endMs": 25960,
+    "timestampMs": 26040,
+    "confidence": 0.983914
+  },
+  {
+    "text": " a",
+    "startMs": 25960,
+    "endMs": 26020,
+    "timestampMs": 26180,
+    "confidence": 0.993714
+  },
+  {
+    "text": " legislação.",
+    "startMs": 26020,
+    "endMs": 27000,
+    "timestampMs": 26320,
+    "confidence": 0.958021
+  },
+  {
+    "text": " Fale",
+    "startMs": 27000,
+    "endMs": 27500,
+    "timestampMs": 27600,
+    "confidence": 0.741826
+  },
+  {
+    "text": " com",
+    "startMs": 27500,
+    "endMs": 27720,
+    "timestampMs": 27920,
+    "confidence": 0.995957
+  },
+  {
+    "text": " a",
+    "startMs": 27720,
+    "endMs": 27860,
+    "timestampMs": 28080,
+    "confidence": 0.994691
+  },
+  {
+    "text": " nossa",
+    "startMs": 27860,
+    "endMs": 28350,
+    "timestampMs": 28300,
+    "confidence": 0.98891
+  },
+  {
+    "text": " equipe",
+    "startMs": 28350,
+    "endMs": 29060,
+    "timestampMs": 28680,
+    "confidence": 0.998386
+  },
+  {
+    "text": " e",
+    "startMs": 29060,
+    "endMs": 29080,
+    "timestampMs": 29140,
+    "confidence": 0.94729
+  },
+  {
+    "text": " descubra",
+    "startMs": 29080,
+    "endMs": 29930,
+    "timestampMs": 29480,
+    "confidence": 0.790585
+  },
+  {
+    "text": " como",
+    "startMs": 29930,
+    "endMs": 30070,
+    "timestampMs": 30120,
+    "confidence": 0.97022
+  },
+  {
+    "text": " podemos",
+    "startMs": 30070,
+    "endMs": 30550,
+    "timestampMs": 30700,
+    "confidence": 0.948633
+  },
+  {
+    "text": " lhe",
+    "startMs": 30550,
+    "endMs": 30790,
+    "timestampMs": 30880,
+    "confidence": 0.937131
+  },
+  {
+    "text": " ajudar.",
+    "startMs": 30790,
+    "endMs": 31400,
+    "timestampMs": 31240,
+    "confidence": 0.995209
+  }
+]

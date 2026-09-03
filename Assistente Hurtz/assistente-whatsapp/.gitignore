@@ -1,0 +1,5 @@
+.env
+data/*.sqlite
+data/*.sqlite-*
+data/tmp/
+logs/

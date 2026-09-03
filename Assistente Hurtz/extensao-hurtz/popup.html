@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="popup.css">
+  <title>Assistente de Reunião</title>
+</head>
+<body>
+  <main>
+    <header>
+      <span class="logo">H</span>
+      <div><strong>Assistente de Reunião</strong><small>Áudio isolado da reunião</small></div>
+      <i id="health"></i>
+    </header>
+    <section class="tab-card">
+      <span class="eyebrow">ABA SELECIONADA</span>
+      <h1 id="tabTitle">Verificando a aba...</h1>
+      <p id="tabHost"></p>
+    </section>
+    <section class="channels">
+      <div><i class="orange"></i><span><b>Você</b><small>Microfone do computador</small></span></div>
+      <div><i class="blue"></i><span><b>Participantes</b><small>Somente esta aba</small></span></div>
+    </section>
+    <p class="message" id="message">Abra uma reunião no Meet, Zoom, Teams ou Webex.</p>
+    <button id="toggle" disabled>Conectar esta reunião</button>
+    <footer>Outras abas e aplicativos serão ignorados.</footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

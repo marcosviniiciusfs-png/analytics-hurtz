@@ -1,0 +1,310 @@
+[
+  {
+    "text": "Sua",
+    "startMs": 20,
+    "endMs": 220,
+    "timestampMs": 220,
+    "confidence": 0.0436175
+  },
+  {
+    "text": " empresa",
+    "startMs": 220,
+    "endMs": 780,
+    "timestampMs": 660,
+    "confidence": 0.999306
+  },
+  {
+    "text": " em",
+    "startMs": 780,
+    "endMs": 890,
+    "timestampMs": 900,
+    "confidence": 0.705896
+  },
+  {
+    "text": " Paralapébas",
+    "startMs": 890,
+    "endMs": 1890,
+    "timestampMs": 1060,
+    "confidence": 0.528701
+  },
+  {
+    "text": " pode",
+    "startMs": 1890,
+    "endMs": 1980,
+    "timestampMs": 2020,
+    "confidence": 0.898187
+  },
+  {
+    "text": " estar",
+    "startMs": 1980,
+    "endMs": 2250,
+    "timestampMs": 2220,
+    "confidence": 0.941768
+  },
+  {
+    "text": " pagando",
+    "startMs": 2250,
+    "endMs": 2540,
+    "timestampMs": 2340,
+    "confidence": 0.991694
+  },
+  {
+    "text": " imposto",
+    "startMs": 2540,
+    "endMs": 2920,
+    "timestampMs": 2660,
+    "confidence": 0.731457
+  },
+  {
+    "text": " a",
+    "startMs": 2920,
+    "endMs": 3000,
+    "timestampMs": 2960,
+    "confidence": 0.9458
+  },
+  {
+    "text": " mais",
+    "startMs": 3000,
+    "endMs": 3330,
+    "timestampMs": 3300,
+    "confidence": 0.986894
+  },
+  {
+    "text": " sem",
+    "startMs": 3330,
+    "endMs": 3520,
+    "timestampMs": 3520,
+    "confidence": 0.778851
+  },
+  {
+    "text": " saber.",
+    "startMs": 3520,
+    "endMs": 3980,
+    "timestampMs": 3900,
+    "confidence": 0.980805
+  },
+  {
+    "text": " Muita",
+    "startMs": 3980,
+    "endMs": 4280,
+    "timestampMs": 4160,
+    "confidence": 0.972262
+  },
+  {
+    "text": " gente",
+    "startMs": 4280,
+    "endMs": 4590,
+    "timestampMs": 4560,
+    "confidence": 0.972414
+  },
+  {
+    "text": " fica",
+    "startMs": 4590,
+    "endMs": 4900,
+    "timestampMs": 4880,
+    "confidence": 0.980572
+  },
+  {
+    "text": " há",
+    "startMs": 4900,
+    "endMs": 5020,
+    "timestampMs": 5100,
+    "confidence": 0.706661
+  },
+  {
+    "text": " anos",
+    "startMs": 5020,
+    "endMs": 5270,
+    "timestampMs": 5280,
+    "confidence": 0.999129
+  },
+  {
+    "text": " no",
+    "startMs": 5270,
+    "endMs": 5390,
+    "timestampMs": 5420,
+    "confidence": 0.963892
+  },
+  {
+    "text": " Regime",
+    "startMs": 5390,
+    "endMs": 5750,
+    "timestampMs": 5600,
+    "confidence": 0.328261
+  },
+  {
+    "text": " Errado.",
+    "startMs": 5750,
+    "endMs": 6180,
+    "timestampMs": 5900,
+    "confidence": 0.704067
+  },
+  {
+    "text": " Aqui",
+    "startMs": 6180,
+    "endMs": 6510,
+    "timestampMs": 6540,
+    "confidence": 0.991957
+  },
+  {
+    "text": " na",
+    "startMs": 6510,
+    "endMs": 6580,
+    "timestampMs": 6700,
+    "confidence": 0.881609
+  },
+  {
+    "text": " Integra",
+    "startMs": 6580,
+    "endMs": 7040,
+    "timestampMs": 6900,
+    "confidence": 0.75931
+  },
+  {
+    "text": " Contábil,",
+    "startMs": 7040,
+    "endMs": 7830,
+    "timestampMs": 7300,
+    "confidence": 0.475824
+  },
+  {
+    "text": " fazemos",
+    "startMs": 7830,
+    "endMs": 8130,
+    "timestampMs": 7800,
+    "confidence": 0.933941
+  },
+  {
+    "text": " o",
+    "startMs": 8130,
+    "endMs": 8180,
+    "timestampMs": 8080,
+    "confidence": 0.995401
+  },
+  {
+    "text": " diagnóstico",
+    "startMs": 8180,
+    "endMs": 8890,
+    "timestampMs": 8240,
+    "confidence": 0.926263
+  },
+  {
+    "text": " e",
+    "startMs": 8890,
+    "endMs": 8900,
+    "timestampMs": 8960,
+    "confidence": 0.894672
+  },
+  {
+    "text": " mostramos",
+    "startMs": 8900,
+    "endMs": 9700,
+    "timestampMs": 9180,
+    "confidence": 0.974677
+  },
+  {
+    "text": " com",
+    "startMs": 9700,
+    "endMs": 9860,
+    "timestampMs": 9900,
+    "confidence": 0.60178
+  },
+  {
+    "text": " números",
+    "startMs": 9860,
+    "endMs": 10280,
+    "timestampMs": 10380,
+    "confidence": 0.972068
+  },
+  {
+    "text": " quanto",
+    "startMs": 10280,
+    "endMs": 10600,
+    "timestampMs": 10740,
+    "confidence": 0.84319
+  },
+  {
+    "text": " você",
+    "startMs": 10600,
+    "endMs": 10860,
+    "timestampMs": 11060,
+    "confidence": 0.996702
+  },
+  {
+    "text": " pode",
+    "startMs": 10860,
+    "endMs": 11130,
+    "timestampMs": 11220,
+    "confidence": 0.99807
+  },
+  {
+    "text": " economizar.",
+    "startMs": 11130,
+    "endMs": 11780,
+    "timestampMs": 11500,
+    "confidence": 0.999464
+  },
+  {
+    "text": " Clique",
+    "startMs": 11780,
+    "endMs": 12120,
+    "timestampMs": 11900,
+    "confidence": 0.884085
+  },
+  {
+    "text": " no",
+    "startMs": 12120,
+    "endMs": 12230,
+    "timestampMs": 12140,
+    "confidence": 0.996778
+  },
+  {
+    "text": " botão",
+    "startMs": 12230,
+    "endMs": 12620,
+    "timestampMs": 12320,
+    "confidence": 0.998511
+  },
+  {
+    "text": " e",
+    "startMs": 12620,
+    "endMs": 12660,
+    "timestampMs": 12680,
+    "confidence": 0.950599
+  },
+  {
+    "text": " peça",
+    "startMs": 12660,
+    "endMs": 13040,
+    "timestampMs": 12940,
+    "confidence": 0.982789
+  },
+  {
+    "text": " seu",
+    "startMs": 13040,
+    "endMs": 13170,
+    "timestampMs": 13220,
+    "confidence": 0.955374
+  },
+  {
+    "text": " diagnóstico",
+    "startMs": 13170,
+    "endMs": 13940,
+    "timestampMs": 13460,
+    "confidence": 0.993072
+  },
+  {
+    "text": " gratuito",
+    "startMs": 13940,
+    "endMs": 14470,
+    "timestampMs": 14040,
+    "confidence": 0.930442
+  },
+  {
+    "text": " agora.",
+    "startMs": 14470,
+    "endMs": 15020,
+    "timestampMs": 14880,
+    "confidence": 0.973851
+  }
+]

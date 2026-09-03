@@ -1,0 +1,1 @@
+{"name":"integra01-remotion","private":true,"version":"1.0.0","scripts":{"lint":"tsc --noEmit","render":"remotion render src/index.ts Integra01"},"dependencies":{"@remotion/cli":"4.0.503","react":"19.2.3","react-dom":"19.2.3","remotion":"4.0.503"},"devDependencies":{"@types/react":"19.2.7","typescript":"5.9.3"}}

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Assistente de Reunião</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app" data-session="idle">
+    <header class="command-bar">
+      <button class="drag" aria-label="Mover">⠿</button>
+      <button class="brand" id="toggleExpand" aria-label="Expandir ou recolher">
+        <span class="mark">H</span>
+        <span class="brand-copy"><b>Assistente de Reunião</b><small id="status">Conectando...</small></span>
+      </button>
+      <span class="app-version" id="appVersion" title="Versão do backend">v—</span>
+      <div class="audio-level" aria-label="Laranja: seu microfone. Azul: áudio da chamada" title="Laranja: você • Azul: participantes">
+        <i class="mic"></i><i class="mic"></i><i class="call"></i><i class="call"></i>
+      </div>
+      <span class="meeting-source" id="meetingSource" title="Fonte azul da reunião">Aba desconectada</span>
+      <select id="mode" aria-label="Modo de assistência" title="Escolha como a IA deve ajudar" hidden>
+        <option value="vendas">Vendas</option>
+        <option value="objecoes">Objeções</option>
+        <option value="apresentacao">Apresentação</option>
+        <option value="reuniao">Reunião</option>
+      </select>
+      <button class="session-button primary" id="startSession" hidden>Iniciar</button>
+      <button class="session-button finish" id="finishSession" hidden>Encerrar</button>
+      <button class="icon-button" id="hideWindow" title="Ocultar (Ctrl+Shift+H)">—</button>
+      <button class="icon-button" id="closeWindow" title="Fechar">×</button>
+    </header>
+
+    <section class="setup-screen" id="setupScreen">
+      <div class="setup-heading">
+        <span class="setup-kicker">PREPARAÇÃO DA SESSÃO</span>
+        <h1>Configure o Assistente de Reunião</h1>
+        <p>Adicione o conhecimento que orientará as respostas e diga como o assistente deve agir.</p>
+      </div>
+
+      <section class="setup-card">
+        <div class="step-number">1</div>
+        <div class="setup-content">
+          <div class="setup-title">
+            <div><b>Documentos de treinamento</b><small>PDFs com serviços, processos, objeções, preços e regras.</small></div>
+            <span class="required">OBRIGATÓRIO</span>
+          </div>
+          <button class="upload-zone" id="choosePdfs">
+            <span class="upload-icon">↑</span>
+            <b>Selecionar documentos PDF</b>
+            <small>Você pode adicionar vários arquivos</small>
+          </button>
+          <div class="selected-files" id="selectedFiles"><p>Nenhum documento selecionado.</p></div>
+        </div>
+      </section>
+
+      <section class="setup-card">
+        <div class="step-number">2</div>
+        <div class="setup-content">
+          <div class="setup-title">
+            <div><b>Instruções do assistente</b><small>Defina tom, objetivo e limites das respostas.</small></div>
+            <span class="required">OBRIGATÓRIO</span>
+          </div>
+          <textarea id="assistantInstructions" rows="5">Você é um assistente comercial da Hurtz. Responda em português, de forma natural, segura e objetiva. Use os documentos como fonte principal, não invente preços, prazos ou condições e indique claramente quando uma informação não estiver disponível.</textarea>
+        </div>
+      </section>
+
+      <div class="setup-footer">
+        <span id="setupStatus">Conectando aos componentes locais...</span>
+        <button id="activateAssistant" disabled>Preparar e ativar assistente</button>
+      </div>
+    </section>
+
+    <section class="workspace" id="workspace" hidden>
+      <section class="live-coach" id="presentationCard" hidden>
+        <div class="live-coach-source">
+          <span>DOCUMENTO ATIVO</span>
+          <strong id="activeDocument"></strong>
+          <small id="documentConfidence"></small>
+        </div>
+        <div class="live-script">
+          <div class="say-now">
+            <span>DIGA AGORA</span>
+            <p id="guidanceText"></p>
+          </div>
+          <div class="say-next" id="liveNextSteps">
+            <span>EM SEGUIDA</span>
+            <p id="nextGuidanceText"></p>
+          </div>
+        </div>
+      </section>
+
+      <nav class="tabs" aria-label="Seções">
+        <button class="active" data-tab="assist">Assistir <span id="answerBadge" hidden>1</span></button>
+        <button data-tab="transcript">Transcrição</button>
+        <button data-tab="notes">Notas <span id="noteBadge" hidden>0</span></button>
+      </nav>
+
+      <section class="tab-panel active" id="assist">
+        <div class="mode-help" id="modeHelp"><b>Vendas</b><span>Respostas comerciais com foco em valor e conversão.</span></div>
+        <div class="empty-state" id="assistEmpty">
+          <span class="empty-icon">✦</span>
+          <h1>Preparando o acompanhamento</h1>
+          <p>O documento ativo e as orientações de apresentação aparecerão aqui desde o início da leitura.</p>
+        </div>
+        <article class="answer-card" id="answerCard" hidden>
+          <div class="card-label"><span>RESPOSTA EM TEMPO REAL</span><time id="answerTime"></time></div>
+          <h2 id="detectedQuestion">Aguardando pergunta...</h2>
+          <p id="answerText"></p>
+          <div class="answer-actions">
+            <button id="copyAnswer">Copiar</button>
+            <button id="shortenAnswer">Mais curta</button>
+            <button id="regenerateAnswer">Regenerar</button>
+          </div>
+        </article>
+        <div class="thinking" id="thinking" hidden><i></i><span>Analisando o contexto...</span></div>
+      </section>
+
+      <section class="tab-panel" id="transcript">
+        <div class="panel-heading">
+          <div><b>Transcrição ao vivo</b><small>Separada por origem do áudio</small></div>
+          <button id="clearTranscript">Limpar tela</button>
+        </div>
+        <div class="channel-key">
+          <span class="user-channel">● VOCÊ • MICROFONE</span>
+          <span class="listener-channel">● PARTICIPANTES • ÁUDIO DA CALL</span>
+        </div>
+        <div class="transcript-list" id="transcriptList">
+          <p class="placeholder">A transcrição aparecerá quando a sessão começar.</p>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="notes">
+        <div class="panel-heading">
+          <div><b>Notas e próximos passos</b><small>Registre pontos importantes durante a conversa</small></div>
+        </div>
+        <form class="note-form" id="noteForm">
+          <input id="noteInput" placeholder="Adicionar uma nota..." autocomplete="off">
+          <button type="submit">Adicionar</button>
+        </form>
+        <div class="notes-list" id="notesList"><p class="placeholder">Nenhuma nota registrada.</p></div>
+        <section class="meeting-result" id="meetingResult" hidden>
+          <h3>Resumo</h3><p id="summaryText"></p>
+          <h3>Próximos passos</h3><ul id="nextSteps"></ul>
+        </section>
+      </section>
+
+      <form class="ask-bar" id="askForm">
+        <input id="askInput" placeholder="Pergunte qualquer coisa sobre a reunião..." autocomplete="off">
+        <span>Ctrl ↵</span>
+        <button type="submit">Enviar</button>
+      </form>
+    </section>
+  </main>
+  <script src="renderer.js"></script>
+</body>
+</html>

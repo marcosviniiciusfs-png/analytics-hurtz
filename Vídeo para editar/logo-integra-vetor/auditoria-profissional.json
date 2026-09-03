@@ -1,0 +1,104 @@
+{
+  "status": "APROVADO",
+  "metodo": "Reconstrucao geometrica e tipografica independente; nenhuma mascara fonte foi reutilizada como path.",
+  "tipografia": {
+    "familia": "Montserrat convertida em curvas",
+    "titulo_peso": 675,
+    "subtitulo_peso": 500
+  },
+  "estrutura": {
+    "barras": "3 retangulos com 4 vertices cada",
+    "seta": "1 path com 2 curvas Bezier cubicas e segmentos geometricos",
+    "texto": "glifos originais da fonte convertidos em paths"
+  },
+  "grupos": {
+    "arrow": {
+      "iou": 0.91066,
+      "erro_borda_px": 0.6997,
+      "bbox_fonte": [
+        127,
+        432,
+        302,
+        560
+      ],
+      "bbox_vetor": [
+        128,
+        434,
+        302,
+        560
+      ],
+      "erro_bbox_max_px": 2
+    },
+    "bars": {
+      "iou": 0.95941,
+      "erro_borda_px": 0.5118,
+      "bbox_fonte": [
+        152,
+        507,
+        294,
+        640
+      ],
+      "bbox_vetor": [
+        152,
+        507,
+        295,
+        641
+      ],
+      "erro_bbox_max_px": 1
+    },
+    "title": {
+      "iou": 0.8969,
+      "erro_borda_px": 0.9783,
+      "bbox_fonte": [
+        344,
+        473,
+        959,
+        576
+      ],
+      "bbox_vetor": [
+        344,
+        473,
+        959,
+        576
+      ],
+      "erro_bbox_max_px": 0
+    },
+    "tagline": {
+      "iou": 0.83159,
+      "erro_borda_px": 0.393,
+      "bbox_fonte": [
+        345,
+        597,
+        964,
+        637
+      ],
+      "bbox_vetor": [
+        345,
+        597,
+        964,
+        637
+      ],
+      "erro_bbox_max_px": 0
+    }
+  },
+  "ssim_roi": 0.94949,
+  "limites": {
+    "arrow_iou_min": 0.88,
+    "bars_iou_min": 0.93,
+    "title_iou_min": 0.74,
+    "tagline_iou_min": 0.62,
+    "edge_error_max_px": 2.0,
+    "bbox_error_max_px": 3,
+    "ssim_min": 0.9
+  },
+  "checagens": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "observacao": "A comparacao perceptiva inclui a apresentacao JPEG; pequenas diferencas de textura e sombra sao esperadas. A geometria nao copia serrilhado ou ruido."
+}

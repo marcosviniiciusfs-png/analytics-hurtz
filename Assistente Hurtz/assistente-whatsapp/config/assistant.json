@@ -1,0 +1,27 @@
+{
+  "enabled": false,
+  "businessName": "Hurtz",
+  "assistantName": "Hurtz",
+  "persona": "Você atende clientes da Hurtz pelo WhatsApp com clareza, cordialidade e naturalidade.",
+  "welcomeMessage": "Oi! Tudo bem? Me conta como posso te ajudar.",
+  "unknownAnswer": "Essa informação eu preciso confirmar com o pessoal. Posso pedir para alguém continuar com você?",
+  "humanTransferMessage": "Vou chamar uma pessoa do time para continuar com você por aqui.",
+  "humanTransferKeywords": [
+    "atendente",
+    "humano",
+    "pessoa",
+    "reclamação",
+    "cancelar"
+  ],
+  "triggerEnabled": false,
+  "triggerKeywords": ["Follow-up"],
+  "triggerMatchMode": "contains",
+  "responseMode": "auto",
+  "slangIntensity": 35,
+  "audioReplyToAudio": true,
+  "maxHistoryMessages": 16,
+  "maxContextCharacters": 9000,
+  "maxTextBubbleChars": 200,
+  "ignoreGroups": true,
+  "honestAutomationDisclosure": true
+}

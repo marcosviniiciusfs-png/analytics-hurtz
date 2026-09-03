@@ -1,0 +1,23 @@
+# Tasks: Corrigir geração real do Cloudflare
+
+- [x] T010 Normalizar `copySpecificity` nas escalas `0-1` ou `0-100` e paralelizar auditorias objetiva e semântica
+- [x] T001 Remover `seed` de todas as chamadas Cloudflare
+- [x] T002 Cobrir os contratos principal e fallback sem `seed`
+- [x] T003 Separar direção visual global e direções exclusivas por slide
+- [x] T004 Isolar interpretação, prompt, auditoria e fingerprint por slide
+- [x] T005 Criar teste de contaminação com cinco marcadores visuais exclusivos
+- [x] T006 Executar regressões locais e construir a versão atualizada
+- [x] T007 Gerar cinco imagens reais e confirmar sua visibilidade nos cards
+- [x] T011 Persistir imagens aprovadas fora do `localStorage` e validar reabertura do projeto
+- [x] T012 Sincronizar o projeto de validação sem confundir arquivo local com caminho do Supabase Storage
+- [x] T008 Salvar o carrossel aprovado no dashboard e validar o executável instalado
+- [x] T009 Executar convergência contra a especificação
+- [x] T013 Criar contrato visual determinístico por slide e preservar simultaneamente copy e direção exclusiva
+- [x] T014 Compactar prompts abaixo do limite do provedor preservando isolamento e regra sem texto
+- [x] T015 Tornar OCR e auditoria semântica sensíveis a pseudotexto, evidência ausente e contexto de outro slide
+- [x] T016 Pontuar e guardar as quatro candidatas, aplicando a melhor como último recurso quando nenhuma for aprovada
+- [x] T017 [US1] Criar regressão “uma concluída + quatro pendentes + Tentar” em `Hurtz Flow Studio/scripts/cloudflare-queue-retry-e2e-test.js`
+- [x] T018 [US1] Garantir IDs estáveis e retry seletivo da fila em `Hurtz Flow Studio/app.js`
+- [x] T019 [US1] Isolar falhas remotas por tentativa sem interromper os outros slides em `Hurtz Flow Studio/app.js`
+- [x] T020 [US1] Executar regressões, empacotar, instalar e validar cinco imagens visíveis no executável instalado
+- [x] T021 Executar convergência contra FR-019–FR-022 e SC-009–SC-010

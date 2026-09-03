@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Roteiros para Gravação de Anúncios</title>
+  <style>
+    :root {
+      --orange: #ff5424;
+      --ink: #1b1b1b;
+      --muted: #666;
+      --line: #dedede;
+    }
+    * { box-sizing: border-box; }
+    @page { size: A4 portrait; margin: 0; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #eee;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    .page {
+      width: 210mm;
+      height: 297mm;
+      padding: 18mm 19mm 16mm;
+      position: relative;
+      overflow: hidden;
+      background: #fff;
+      break-after: page;
+      page-break-after: always;
+    }
+    .page:last-child { break-after: auto; page-break-after: auto; }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 5mm;
+      border-bottom: 1px solid var(--line);
+    }
+    .header img {
+      width: 13mm;
+      height: 13mm;
+      object-fit: contain;
+    }
+    .header span {
+      color: var(--muted);
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .title {
+      margin: 10mm 0 8mm;
+    }
+    .number {
+      margin-bottom: 2mm;
+      color: var(--orange);
+      font-size: 9pt;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22pt;
+      line-height: 1.15;
+    }
+    .part {
+      display: grid;
+      grid-template-columns: 28mm 1fr;
+      gap: 6mm;
+      padding: 6mm 0;
+      border-top: 1px solid var(--line);
+    }
+    .part:first-of-type { border-top: 2px solid var(--orange); }
+    .label {
+      color: var(--muted);
+      font-size: 8pt;
+      font-weight: 700;
+      line-height: 1.35;
+      text-transform: uppercase;
+    }
+    .label strong {
+      display: block;
+      margin-bottom: 1.5mm;
+      color: var(--orange);
+      font-size: 10pt;
+    }
+    .speech {
+      margin: 0;
+      font-size: 13pt;
+      font-weight: 600;
+      line-height: 1.48;
+    }
+    .field {
+      color: var(--orange);
+      font-weight: 700;
+    }
+    .footer {
+      position: absolute;
+      left: 19mm;
+      right: 19mm;
+      bottom: 8mm;
+      display: flex;
+      justify-content: space-between;
+      padding-top: 3mm;
+      border-top: 1px solid var(--line);
+      color: #777;
+      font-size: 7pt;
+    }
+  </style>
+</head>
+<body>
+  <section class="page">
+    <header class="header">
+      <img src="../../hurtz-logo-transparente.png" alt="Hurtz">
+      <span>Roteiros para gravação de anúncios</span>
+    </header>
+    <div class="title">
+      <div class="number">Roteiro 01</div>
+      <h1>Contabilidade para MEI, Simples Nacional, Lucro Presumido e Lucro Real</h1>
+    </div>
+    <div class="part">
+      <div class="label"><strong>0–5s</strong>Gancho · mito</div>
+      <p class="speech">“Você acha que MEI e Simples Nacional são sempre a opção mais barata? Nem sempre.”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>5–15s</strong>Problema</div>
+      <p class="speech">“Isso é um mito que faz muito empresário de <span class="field">Parauapebas</span> pagar imposto a mais, todos os meses, sem nem saber.”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>15–25s</strong>Solução</div>
+      <p class="speech">“Na <span class="field">Integra Contábil</span>, analisamos o seu enquadramento tributário e mostramos, com números reais, se existe uma forma de pagar menos imposto legalmente.”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>25–30s</strong>CTA</div>
+      <p class="speech">“Clique no botão abaixo e descubra quanto a sua empresa pode economizar.”</p>
+    </div>
+    <footer class="footer"><span>Hurtz</span><span>01</span></footer>
+  </section>
+
+  <section class="page">
+    <header class="header">
+      <img src="../../hurtz-logo-transparente.png" alt="Hurtz">
+      <span>Roteiros para gravação de anúncios</span>
+    </header>
+    <div class="title">
+      <div class="number">Roteiro 02</div>
+      <h1>Departamento Pessoal</h1>
+    </div>
+    <div class="part">
+      <div class="label"><strong>0–5s</strong>Pergunta direta</div>
+      <p class="speech">“Se a Justiça do Trabalho batesse na sua porta hoje, sua empresa estaria com tudo em dia?”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>5–15s</strong>Problema</div>
+      <p class="speech">“Admissão errada, atraso no eSocial, rescisão mal calculada... pequenos deslizes que viram multa e processo trabalhista.”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>15–25s</strong>Solução</div>
+      <p class="speech">“Aqui na <span class="field">Integra Contábil</span>, cuidamos de todo o seu Departamento Pessoal dentro do prazo: admissão, folha, férias, rescisão e eSocial sempre em dia.”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>25–30s</strong>CTA</div>
+      <p class="speech">“Envie uma mensagem agora e solicite uma avaliação gratuita do seu Departamento Pessoal.”</p>
+    </div>
+    <footer class="footer"><span>Hurtz</span><span>02</span></footer>
+  </section>
+
+  <section class="page">
+    <header class="header">
+      <img src="../../hurtz-logo-transparente.png" alt="Hurtz">
+      <span>Roteiros para gravação de anúncios</span>
+    </header>
+    <div class="title">
+      <div class="number">Roteiro 03</div>
+      <h1>Planejamento Tributário</h1>
+    </div>
+    <div class="part">
+      <div class="label"><strong>0–5s</strong>Curiosidade</div>
+      <p class="speech">“Sabia que duas empresas iguais podem pagar valores bem diferentes de imposto? A diferença está na estratégia.”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>5–15s</strong>Problema</div>
+      <p class="speech">“A maioria das empresas paga imposto no automático, sem planejamento algum. E isso pode significar perder dinheiro todos os meses.”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>15–25s</strong>Solução</div>
+      <p class="speech">“Fazemos um raio-X tributário da sua empresa e mostramos onde é possível economizar legalmente, com o enquadramento certo para o seu negócio.”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>25–30s</strong>CTA</div>
+      <p class="speech">“Clique no botão e solicite agora o seu diagnóstico tributário gratuito.”</p>
+    </div>
+    <footer class="footer"><span>Hurtz</span><span>03</span></footer>
+  </section>
+
+  <section class="page">
+    <header class="header">
+      <img src="../../hurtz-logo-transparente.png" alt="Hurtz">
+      <span>Roteiros para gravação de anúncios</span>
+    </header>
+    <div class="title">
+      <div class="number">Roteiro 04</div>
+      <h1>Assessoria Contábil para Profissionais da Saúde</h1>
+    </div>
+    <div class="part">
+      <div class="label"><strong>0–5s</strong>Identificação direta</div>
+      <p class="speech">“Médico, dentista ou psicólogo: você tem certeza de que não está pagando imposto a mais todo mês?”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>5–15s</strong>Problema</div>
+      <p class="speech">“Você estudou para cuidar de pessoas, não para entender de imposto. E uma contabilidade genérica não entende as particularidades da área da saúde.”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>15–25s</strong>Solução</div>
+      <p class="speech">“Somos especialistas em contabilidade para profissionais da saúde e mostramos onde existem oportunidades reais de economia no seu caso.”</p>
+    </div>
+    <div class="part">
+      <div class="label"><strong>25–30s</strong>CTA</div>
+      <p class="speech">“Fale com a nossa equipe agora e agende a sua consultoria gratuita.”</p>
+    </div>
+    <footer class="footer"><span>Hurtz</span><span>04</span></footer>
+  </section>
+</body>
+</html>

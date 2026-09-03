@@ -1,0 +1,1246 @@
+{
+  "videoPath": "C:\\Users\\Brito\\Desktop\\principal\\Projetos\\CBO\\Vídeo para editar\\vídeo 01.mp4",
+  "filename": "vídeo 01.mp4",
+  "upload": {
+    "uploads": [
+      {
+        "upload_url": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/894965d2-2340-4f0c-aec2-cacdb260d404.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260704%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260704T165047Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=dba9f330b8e1132ad13368006b9476f7f631ce83030d65f5317b69f8f03aecd1",
+        "media_id": "894965d2-2340-4f0c-aec2-cacdb260d404",
+        "url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3EXlu77aiKxoXWgwOzVRR6YYarB/894965d2-2340-4f0c-aec2-cacdb260d404.mp4",
+        "expires_in_seconds": 900,
+        "method": "PUT",
+        "content_type": "video/mp4",
+        "instructions": "Upload the file using: curl -X PUT -H \"Content-Type: video/mp4\" --data-binary @vídeo 01.mp4 'https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/894965d2-2340-4f0c-aec2-cacdb260d404.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260704%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260704T165047Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=dba9f330b8e1132ad13368006b9476f7f631ce83030d65f5317b69f8f03aecd1'. After upload, call the media_confirm tool with type \"video\" and media_id \"894965d2-2340-4f0c-aec2-cacdb260d404\"."
+      }
+    ]
+  },
+  "uploadUrl": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/894965d2-2340-4f0c-aec2-cacdb260d404.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260704%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260704T165047Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=dba9f330b8e1132ad13368006b9476f7f631ce83030d65f5317b69f8f03aecd1",
+  "mediaId": "894965d2-2340-4f0c-aec2-cacdb260d404",
+  "putStatus": 200,
+  "putStatusText": "OK",
+  "confirm": {
+    "results": [
+      {
+        "media_id": "894965d2-2340-4f0c-aec2-cacdb260d404",
+        "status": "uploaded"
+      }
+    ]
+  },
+  "confirmedVideoId": "894965d2-2340-4f0c-aec2-cacdb260d404",
+  "analysis": {
+    "result": {
+      "id": "178a9e34-0934-4a9a-af76-8c74a8a4c75d",
+      "video_input_id": "894965d2-2340-4f0c-aec2-cacdb260d404",
+      "youtube_url": null,
+      "status": "queued",
+      "fail_reason": null,
+      "video_s3_url": null,
+      "scenes": null,
+      "created_at": "2026-07-04T18:13:47.645824Z",
+      "updated_at": "2026-07-04T18:13:47.645827Z"
+    }
+  },
+  "analysisId": "178a9e34-0934-4a9a-af76-8c74a8a4c75d",
+  "analysisStatus": {
+    "result": {
+      "id": "178a9e34-0934-4a9a-af76-8c74a8a4c75d",
+      "video_input_id": "894965d2-2340-4f0c-aec2-cacdb260d404",
+      "youtube_url": null,
+      "status": "completed",
+      "fail_reason": null,
+      "video_s3_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3EXlu77aiKxoXWgwOzVRR6YYarB/894965d2-2340-4f0c-aec2-cacdb260d404.mp4",
+      "scenes": [
+        {
+          "audio": "Upbeat, rhythmic percussive music starts. Distant echoes of a gymnasium environment.",
+          "label": "Opening Hook",
+          "visual": "A man approximately 20-30 years old with a tan complexion, short dark curly hair, and a short dark beard is seen from behind. He is wearing a white judo gi. He stands on a blue indoor sports court against a background of yellow and green gymnasium walls, tying a long red competition belt around his waist. He drops the remainder of the belt on the floor next to red and yellow judo mats. A pair of white slides rest on the blue floor nearby.",
+          "shot_type": "Medium Shot",
+          "scene_number": 1,
+          "timestamp_end": "0:02",
+          "timestamp_start": "0:00"
+        },
+        {
+          "audio": "Ambient crowd chatter mixed with the rhythmic percussion music.",
+          "label": "Product Information",
+          "visual": "The camera pans quickly to the right across a crowd of spectators sitting on yellow and green concrete bleachers inside the gymnasium. People of various ages are dressed in casual clothing, watching the floor below.",
+          "shot_type": "Medium Shot",
+          "scene_number": 2,
+          "timestamp_end": "0:03",
+          "timestamp_start": "0:02"
+        },
+        {
+          "audio": "Distant whistles and cheering from the crowd overlaid with the music.",
+          "label": "Product Information",
+          "visual": "A high-angle view looking down from the bleachers onto the organized competition area. Multiple squares of yellow and red judo mats fill the floor. Several pairs of younger athletes are engaged in matches, with referees in white shirts and black pants standing over them. Large blue banners are visible on the far walls.",
+          "shot_type": "Wide Shot",
+          "scene_number": 3,
+          "timestamp_end": "0:05",
+          "timestamp_start": "0:03"
+        },
+        {
+          "audio": "Portuguese dialogue: 'Agora é o Leandrão. Bora pai!' (Now it's Leandrão. Let's go, buddy!). Music continues.",
+          "label": "Real Experience",
+          "visual": "A tracking shot follows the man from the first scene, now wearing a black graphic t-shirt and white judo pants. He descends the yellow and green bleacher steps carrying a black plastic bag in his left hand. He looks toward the camera with a smile, adjusts his bag, and continues walking toward the mat area. He passes another man wearing judo pants and a black shirt.",
+          "shot_type": "Medium Shot",
+          "scene_number": 4,
+          "timestamp_end": "0:12",
+          "timestamp_start": "0:05"
+        },
+        {
+          "audio": "Rhythmic music continues. Muffled instructions and cheers from the crowd.",
+          "label": "Usage Scenarios",
+          "visual": "The man, now in his full white gi and orange belt, grapples with an opponent (male, tan skin, white gi, orange belt) in the center of the yellow mat. They move dynamically, fighting for dominant grips on each other's collars and sleeves. The camera is steady, following their movement.",
+          "shot_type": "Medium Shot",
+          "scene_number": 5,
+          "timestamp_end": "0:23",
+          "timestamp_start": "0:12"
+        },
+        {
+          "audio": "A heavy thud as the athletes hit the mat. Background shouting in Portuguese.",
+          "label": "Usage Scenarios",
+          "visual": "The man executes a high-amplitude hip throw on his opponent. He rotates his body, pulls the opponent over his hip, and slams him onto the yellow mat. The man follows through with the motion, landing on top of the opponent to secure the position. Spectators in the background react.",
+          "shot_type": "Medium Shot",
+          "scene_number": 6,
+          "timestamp_end": "0:29",
+          "timestamp_start": "0:23"
+        },
+        {
+          "audio": "Portuguese shouting: 'Cuidora, cuidora, ei! Faz pegada, entendeu?' (Watch out, watch out! Get a grip, do you understand?).",
+          "label": "Usage Scenarios",
+          "visual": "A new match begins. The man (white gi) and a different opponent (male, dark skin, blue gi, yellow belt) bow and then begin grappling. They circle each other on the mat, contesting for grips. A referee in a white polo shirt and black trousers stands behind them, watching carefully. The gymnasium's tiered seating is empty directly behind them.",
+          "shot_type": "Medium Shot",
+          "scene_number": 7,
+          "timestamp_end": "0:47",
+          "timestamp_start": "0:29"
+        },
+        {
+          "audio": "Sounds of floor impact and heavy breathing. Percussive music remains steady.",
+          "label": "Usage Scenarios",
+          "visual": "The fight moves to the ground. The man in the white gi forces the opponent in the blue gi down. He works to maintain side control, using his weight and arms to pin the opponent's chest to the mat. The opponent struggles to escape.",
+          "shot_type": "Medium Shot",
+          "scene_number": 8,
+          "timestamp_end": "0:57",
+          "timestamp_start": "0:47"
+        },
+        {
+          "audio": "Impact sounds and excited cheering from the onlookers.",
+          "label": "Usage Scenarios",
+          "visual": "The man in the white gi executes another successful throw against the opponent in the blue gi. He steps in deep, hooks the opponent's torso, and flips him over his back. Both land on the mat with the man in the white gi landing in a dominant position.",
+          "shot_type": "Medium Shot",
+          "scene_number": 9,
+          "timestamp_end": "1:06",
+          "timestamp_start": "0:57"
+        },
+        {
+          "audio": "Music volume increases. General gymnasium ambiance.",
+          "label": "Call to Action",
+          "visual": "The match concludes. The man in the white gi stands up from the mat, breathes heavily, and adjusts his gi jacket and belt. He faces the referee. He then walks off the mat toward the edge of the screen, passing a scoreboard as other athletes and spectators watch in the background.",
+          "shot_type": "Medium Shot",
+          "scene_number": 10,
+          "timestamp_end": "1:14",
+          "timestamp_start": "1:06"
+        },
+        {
+          "audio": "Music concludes with a final beat.",
+          "label": "Real Experience",
+          "visual": "A static photograph showcases the man from the video and another young man (tan skin, dark wavy hair) standing at the top of a green podium marked '1º'. Both are wearing white judo gis, orange belts, and medals with blue ribbons. They stand against a yellow and maroon wall. The man from the video is on the left, smiling at the camera.",
+          "shot_type": "Medium Shot",
+          "scene_number": 11,
+          "timestamp_end": "1:20",
+          "timestamp_start": "1:14"
+        }
+      ],
+      "created_at": "2026-07-04T18:13:47.645824Z",
+      "updated_at": "2026-07-04T18:14:34.591809Z"
+    }
+  },
+  "presets": {
+    "items": [
+      {
+        "id": "96b08270-3588-46d8-960e-2942e26e8f59",
+        "name": "Blueprint",
+        "thumbnail": {
+          "url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/7e863439-96e3-4eb5-83f1-58b6e86bfb53.mp4",
+          "type": "video",
+          "width": 600,
+          "height": 1066,
+          "optimized_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/41ae6ed0-bdb1-4cf7-b9cc-873c2040430c.webp",
+          "thumbnail_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/735a0fec-5fbd-4d4f-bbea-e668f9678dd3.webp"
+        },
+        "source": "preset",
+        "preset_source": "cms",
+        "video_medias": [],
+        "image_medias": []
+      },
+      {
+        "id": "a30e1b50-d78d-4d21-a926-1c9d028628e7",
+        "name": "Bold Caption",
+        "thumbnail": {
+          "url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/cf4f9927-0cd1-49bb-bfed-d13ef3825a11.mp4",
+          "type": "video",
+          "width": 600,
+          "height": 1066,
+          "optimized_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/051a5015-f7ec-48a8-8be6-0c8ee6dbc983.webp",
+          "thumbnail_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/c3ebf064-719f-413c-843f-eb5dc476a650.webp"
+        },
+        "source": "preset",
+        "preset_source": "cms",
+        "video_medias": [],
+        "image_medias": []
+      },
+      {
+        "id": "3b67223a-6675-4a17-ad92-6dd9e54f9e76",
+        "name": "Bounding Box",
+        "thumbnail": {
+          "url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/c4265d8e-a2cf-4e3b-8984-b35cec8166af.mp4",
+          "type": "video",
+          "width": 600,
+          "height": 1066,
+          "optimized_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/92deb059-fd38-4728-8f96-0d7ddd7afc96.webp",
+          "thumbnail_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/994899e4-b19f-4dbe-9954-fde73f41aab7.webp"
+        },
+        "source": "preset",
+        "preset_source": "cms",
+        "video_medias": [],
+        "image_medias": []
+      },
+      {
+        "id": "b14f02e4-e996-4e6b-9742-e29c2878285b",
+        "name": "Circuit",
+        "thumbnail": {
+          "url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/2281f89a-066e-45ed-ac18-5d95fe08e44a.mp4",
+          "type": "video",
+          "width": 600,
+          "height": 1066,
+          "optimized_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/46c451e9-597e-473c-9c94-c642bb0d2699.webp",
+          "thumbnail_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/09ea8319-9a3b-4b08-aeec-62c742253388.webp"
+        },
+        "source": "preset",
+        "preset_source": "cms",
+        "video_medias": [],
+        "image_medias": []
+      },
+      {
+        "id": "4ae118f4-fcb4-40d3-b809-a0b28a50f2e9",
+        "name": "Comic Burst",
+        "thumbnail": {
+          "url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/a2826d45-5b27-487b-86df-7bad6a161061.mp4",
+          "type": "video",
+          "width": 600,
+          "height": 1066,
+          "optimized_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/981db780-8091-40b8-81b2-8a39522db3bc.webp",
+          "thumbnail_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/a4b62824-428c-4072-af8e-84c98254af9d.webp"
+        },
+        "source": "preset",
+        "preset_source": "cms",
+        "video_medias": [],
+        "image_medias": []
+      },
+      {
+        "id": "8bd8b5d0-4560-4b7e-bb8b-63f009ee1de9",
+        "name": "Comic Pop",
+        "thumbnail": {
+          "url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/d6714a54-d1a4-45fe-964f-ea012e851bfd.mp4",
+          "type": "video",
+          "width": 600,
+          "height": 1066,
+          "optimized_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/68e644d9-263e-4a84-a2ae-475267a31aba.webp",
+          "thumbnail_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/87e0d337-30be-42c2-9d5a-65916ec4f204.webp"
+        },
+        "source": "preset",
+        "preset_source": "cms",
+        "video_medias": [],
+        "image_medias": []
+      },
+      {
+        "id": "abe12582-7c28-4093-af94-887423c30382",
+        "name": "Pink Wash",
+        "thumbnail": {
+          "url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/9d2dca52-9349-465a-b9db-ba41c3c0cff6.mp4",
+          "type": "video",
+          "width": 600,
+          "height": 1066,
+          "optimized_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/b421c1b5-0251-4578-ae3d-0eebd8dc74ac.webp",
+          "thumbnail_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/72aab82e-f42d-4414-accb-71513c73c27c.webp"
+        },
+        "source": "preset",
+        "preset_source": "cms",
+        "video_medias": [],
+        "image_medias": []
+      },
+      {
+        "id": "9ae2ba43-f648-49d6-8b95-d9515a99e92a",
+        "name": "Gold Stars",
+        "thumbnail": {
+          "url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/7b115462-c29b-4e35-aa94-4c1343940cd0.mp4",
+          "type": "video",
+          "width": 600,
+          "height": 1066,
+          "optimized_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/408bbb6e-d732-4edd-8ea8-39d18d75b130.webp",
+          "thumbnail_url": "https://cdn.higgsfield.ai/reels_preset_thumbnail/25f63f30-7a71-4461-af73-ed5c11efba2d.webp"
+        },
+        "source": "preset",
+        "preset_source": "cms",
+        "video_medias": [],
+        "image_medias": []
+      }
+    ],
+    "next_cursor": ":24",
+    "has_more": true,
+    "can_create_preset": true
+  },
+  "shortsPresetId": "4ae118f4-fcb4-40d3-b809-a0b28a50f2e9",
+  "shortsPresetSource": "cms",
+  "shortsSession": {
+    "error": "Something went wrong. Please try again.",
+    "request_id": "0065fd25-f64e-472d-b125-9e3b847d885d"
+  },
+  "shortsSessionId": null,
+  "videoModelRecommendation": {
+    "items": [
+      {
+        "id": "marketing_studio_video",
+        "name": "Marketing Studio",
+        "provider_name": "Higgsfield",
+        "description": "One-click product ads, TikTok/Reels ready",
+        "output_type": "video",
+        "parameters": [
+          {
+            "name": "resolution",
+            "required": "optional",
+            "type": "string",
+            "description": "Video resolution",
+            "default": "720p",
+            "options": [
+              "480p",
+              "720p",
+              "1080p"
+            ]
+          },
+          {
+            "name": "generate_audio",
+            "required": "optional",
+            "type": "bool",
+            "description": "Generate audio for the video",
+            "default": true
+          },
+          {
+            "name": "mode",
+            "required": "optional",
+            "type": "string",
+            "description": "Marketing video mode slug — the creative format/style (get the options from `marketing_list_video_presets` or `show_marketing_studio` with `action='presets'`). Choose it deliberately rather than letting it default; pass the chosen format's `presets[].slug`. Omit only when the user explicitly wants a generic video."
+          },
+          {
+            "name": "folder_id",
+            "required": "optional",
+            "type": "string",
+            "description": "Marketing project / folder id"
+          },
+          {
+            "name": "width",
+            "required": "optional",
+            "type": "number",
+            "description": "Optional explicit output width"
+          },
+          {
+            "name": "height",
+            "required": "optional",
+            "type": "number",
+            "description": "Optional explicit output height"
+          },
+          {
+            "name": "avatar_ids",
+            "required": "optional",
+            "type": "string_array",
+            "description": "Avatar ids as a plain UUID array (like `product_ids`) — the server resolves preset vs custom for you, so you don't pass { id, type }. Preferred for a single avatar: `avatar_ids: ['<uuid>']`. Max 1. Pass at most one of `avatars` / `avatar_ids` (if both are given, `avatars` is ignored in favor of `avatar_ids`).",
+            "max": 1
+          },
+          {
+            "name": "product_ids",
+            "required": "optional",
+            "type": "string_array",
+            "description": "Product ids. Field name is `product_ids` (plural array of UUID strings). Do NOT use `product_id` (singular) — the server only accepts `product_ids`. For a single product pass `product_ids: ['<uuid>']`."
+          },
+          {
+            "name": "assets",
+            "required": "optional",
+            "type": "string_array",
+            "description": "Optional backend asset ids"
+          },
+          {
+            "name": "hook_id",
+            "required": "optional",
+            "type": "string",
+            "description": "Optional Marketing Studio Setup hook id (the 'what' — attention-grabbing mechanic, e.g. 'Object flies into frame'). Get available ids from `show_marketing_studio` with `type='hook'`. Hooks/settings are supported only for these presets: UGC, Tutorial, Unboxing, Product Review, UGC Virtual Try On. If the user asks for hooks but does not provide `hook_id`, list hooks first via `show_marketing_studio(action='list', type='hook')` and ask/select from that list before calling generate_video. INDEPENDENT of `setting_id` — you can pass `hook_id` alone, `setting_id` alone, both, or neither. MUTUALLY EXCLUSIVE with `ad_reference_id` — hook/setting compose a video from explicit building blocks, while ad_reference recreates an existing video's scenario. Pick one approach, never both."
+          },
+          {
+            "name": "setting_id",
+            "required": "optional",
+            "type": "string",
+            "description": "Optional Marketing Studio Setup setting id (the 'where' — location/vibe, e.g. 'Sunlit kitchen, morning light'). Get available ids from `show_marketing_studio` with `type='setting'`. Hooks/settings are supported only for these presets: UGC, Tutorial, Unboxing, Product Review, UGC Virtual Try On. INDEPENDENT of `hook_id` — you can pass `setting_id` alone, `hook_id` alone, both, or neither. MUTUALLY EXCLUSIVE with `ad_reference_id` — see `hook_id` for explanation."
+          },
+          {
+            "name": "ad_reference_id",
+            "required": "optional",
+            "type": "string",
+            "description": "Optional ad reference id. When set, the new marketing video follows the analyzed scenario of an existing reference video (scene composition, pacing, hook, narration) instead of inventing a structure from the prompt alone. Use this when the user wants to 'recreate this ad', 'make a video like this', or 'copy the style of this clip'. Create/list/edit ad references via `show_marketing_studio` with `type='ad_reference'`. AVATAR/PRODUCT ARE NOT AUTO-PULLED: if the ad reference was created with a linked avatar and/or product, those links are stored on the ad_reference for organizational/reference purposes only — they are NOT applied at generation time. The backend executor only reads avatar/product from explicit `avatars` / `product_ids` on this call. Rule: if the user wants the new video to feature the same avatar/product that was linked to the ad_reference (or a different one they specify), you MUST pass them explicitly here as `avatars: [{id, type: 'custom'|'preset'}]` and `product_ids: ['<uuid>']`. Example: ad_reference X was created with Sofia (preset) + On Cloud shoes linked, and the user says 'generate the marketing video' — you still pass `avatars: [{id: <sofia-id>, type: 'preset'}]` and `product_ids: ['<on-cloud-id>']` along with `ad_reference_id`. If the user asks for a different avatar/product than what was linked, just pass the new ones — the ad_reference still drives the scenario. MUTUALLY EXCLUSIVE with `hook_id` and `setting_id` — ad_reference replaces the explicit hook/setting composition with a reference-driven scenario. Pick one approach, never both."
+          }
+        ],
+        "medias": [
+          {
+            "name": "avatars",
+            "type": "image"
+          },
+          {
+            "name": "medias",
+            "type": "image",
+            "roles": [
+              "image",
+              "start_image",
+              "end_image"
+            ]
+          }
+        ],
+        "aspect_ratios": [
+          "auto",
+          "21:9",
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16"
+        ],
+        "tags": [
+          "marketing",
+          "ugc",
+          "ads",
+          "tiktok",
+          "reels",
+          "product",
+          "social-media"
+        ],
+        "duration_range": {
+          "min": 12,
+          "max": 15
+        },
+        "score": 280,
+        "match_reason": "social: tags+40; media: tags+40; commercial-intent: marketing-video-model+200"
+      },
+      {
+        "id": "kling3_0",
+        "name": "Kling v3.0",
+        "provider_name": "Kling",
+        "description": "Multi-shot, audio sync, motion transfer",
+        "output_type": "video",
+        "parameters": [
+          {
+            "name": "duration",
+            "required": "optional",
+            "type": "number",
+            "description": "Duration in seconds (3-15).",
+            "min": 3,
+            "max": 15,
+            "default": 5
+          },
+          {
+            "name": "mode",
+            "required": "optional",
+            "type": "string",
+            "description": "Generation mode: 'std' (standard), 'pro' (higher quality), or '4k' (4K resolution).",
+            "options": [
+              "std",
+              "pro",
+              "4k"
+            ],
+            "default": "std"
+          },
+          {
+            "name": "sound",
+            "required": "optional",
+            "type": "string",
+            "description": "Generate audio. Use 'off' for silent video and lower credits.",
+            "options": [
+              "on",
+              "off"
+            ],
+            "default": "on"
+          }
+        ],
+        "medias": [
+          {
+            "name": "medias",
+            "type": "image",
+            "roles": [
+              "start_image",
+              "end_image"
+            ]
+          }
+        ],
+        "aspect_ratios": [
+          "16:9",
+          "9:16",
+          "1:1"
+        ],
+        "tags": [
+          "multi-shot",
+          "audio",
+          "motion-transfer",
+          "cinematic",
+          "advanced"
+        ],
+        "score": 160,
+        "match_reason": "cinematic: tags+40; video-intent: secondary-model+120"
+      },
+      {
+        "id": "seedance_2_0",
+        "name": "Seedance 2.0",
+        "provider_name": "Bytedance",
+        "description": "Reference-driven video with image/video/audio reference inputs, consistent identity, multi-SKU; optional generate_audio for native audio",
+        "output_type": "video",
+        "parameters": [
+          {
+            "name": "duration",
+            "required": "optional",
+            "type": "number",
+            "description": "Duration in seconds (4-15).",
+            "min": 4,
+            "max": 15,
+            "default": 5
+          },
+          {
+            "name": "resolution",
+            "required": "optional",
+            "type": "string",
+            "description": "Output resolution. 4k/1080p require mode='std'; mode='fast' supports 480p/720p only.",
+            "options": [
+              "480p",
+              "720p",
+              "1080p",
+              "4k"
+            ],
+            "default": "720p"
+          },
+          {
+            "name": "mode",
+            "required": "optional",
+            "type": "string",
+            "description": "'std' = higher quality, supports 480p/720p/1080p/4k; 'fast' = cheaper/faster, supports 480p/720p only.",
+            "options": [
+              "std",
+              "fast"
+            ],
+            "default": "std"
+          },
+          {
+            "name": "bitrate_mode",
+            "required": "optional",
+            "type": "string",
+            "description": "'standard' = normal output bitrate; 'high' = higher bitrate output.",
+            "options": [
+              "standard",
+              "high"
+            ],
+            "default": "standard"
+          },
+          {
+            "name": "genre",
+            "required": "optional",
+            "type": "string",
+            "description": "Cinematic genre hint.",
+            "options": [
+              "auto",
+              "action",
+              "horror",
+              "comedy",
+              "noir",
+              "drama",
+              "epic"
+            ],
+            "default": "auto"
+          },
+          {
+            "name": "generate_audio",
+            "required": "optional",
+            "type": "bool",
+            "description": "Generate native audio for the video. Set false for a silent video. Independent of audio_references.",
+            "default": true
+          }
+        ],
+        "medias": [
+          {
+            "name": "medias",
+            "type": "image",
+            "roles": [
+              "start_image",
+              "end_image",
+              "image_references",
+              "video_references",
+              "audio_references"
+            ]
+          }
+        ],
+        "aspect_ratios": [
+          "auto",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "1:1",
+          "21:9"
+        ],
+        "tags": [
+          "reference",
+          "identity",
+          "consistent",
+          "product",
+          "multi-sku",
+          "e-commerce",
+          "audio",
+          "audio-reference",
+          "video-reference",
+          "start-frame",
+          "end-frame",
+          "4k",
+          "high-resolution"
+        ],
+        "score": 140,
+        "match_reason": "video-intent: default-model+140"
+      },
+      {
+        "id": "cinematic_studio_video_v2",
+        "name": "Cinema Studio Video",
+        "provider_name": "Higgsfield",
+        "description": "Refined cinematic camera and color, genre control",
+        "output_type": "video",
+        "parameters": [
+          {
+            "name": "genre",
+            "required": "optional",
+            "type": "string",
+            "description": "Video genre/style",
+            "default": "auto",
+            "options": [
+              "auto",
+              "action",
+              "horror",
+              "comedy",
+              "western",
+              "suspense",
+              "intimate",
+              "spectacle"
+            ]
+          },
+          {
+            "name": "mode",
+            "required": "optional",
+            "type": "string",
+            "description": "Quality mode: pro or standard",
+            "default": "std",
+            "options": [
+              "pro",
+              "std"
+            ]
+          },
+          {
+            "name": "sound",
+            "required": "optional",
+            "type": "string",
+            "description": "Generate audio. Use 'off' for a silent video.",
+            "default": "on",
+            "options": [
+              "on",
+              "off"
+            ]
+          },
+          {
+            "name": "speedramp",
+            "required": "optional",
+            "type": "string",
+            "description": "Speed-ramp time effect (slowmo, speedup, etc.).",
+            "default": "auto",
+            "options": [
+              "auto",
+              "custom",
+              "linear",
+              "slowmo",
+              "speedup",
+              "impact"
+            ]
+          },
+          {
+            "name": "multi_shots",
+            "required": "optional",
+            "type": "bool",
+            "description": "Split the video into multiple shots driven by multi_prompt.",
+            "default": false
+          },
+          {
+            "name": "multi_shot_mode",
+            "required": "optional",
+            "type": "string",
+            "description": "'auto' lets the model plan shots; 'custom' uses the given multi_prompt.",
+            "default": "custom",
+            "options": [
+              "auto",
+              "custom"
+            ]
+          },
+          {
+            "name": "cfg_scale",
+            "required": "optional",
+            "type": "number",
+            "description": "Prompt adherence strength (0-1).",
+            "default": 0.5,
+            "min": 0,
+            "max": 1
+          },
+          {
+            "name": "preset_id",
+            "required": "optional",
+            "type": "string",
+            "description": "Preset id from presets_show."
+          }
+        ],
+        "medias": [
+          {
+            "name": "medias",
+            "type": "image",
+            "roles": [
+              "image",
+              "start_image",
+              "end_image"
+            ]
+          }
+        ],
+        "aspect_ratios": [
+          "1:1",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16"
+        ],
+        "tags": [
+          "cinematic",
+          "camera",
+          "color",
+          "genre",
+          "refined"
+        ],
+        "duration_range": {
+          "min": 3,
+          "max": 12
+        },
+        "score": 110,
+        "match_reason": "and: description+30; cinematic: tags+40, description+30, id+10"
+      },
+      {
+        "id": "cinematic_studio_3_0",
+        "name": "Cinema Studio Video 3.0",
+        "provider_name": "Higgsfield",
+        "description": "Most advanced cinema-grade model",
+        "output_type": "video",
+        "parameters": [
+          {
+            "name": "resolution",
+            "required": "optional",
+            "type": "string",
+            "description": "Output resolution (higher = more credits)",
+            "default": "720p",
+            "options": [
+              "480p",
+              "720p",
+              "1080p",
+              "4k"
+            ]
+          },
+          {
+            "name": "genre",
+            "required": "optional",
+            "type": "string",
+            "description": "Cinematic genre hint",
+            "default": "auto",
+            "options": [
+              "auto",
+              "action",
+              "horror",
+              "comedy",
+              "noir",
+              "drama",
+              "epic"
+            ]
+          },
+          {
+            "name": "generate_audio",
+            "required": "optional",
+            "type": "bool",
+            "description": "Generate audio for the video.",
+            "default": false
+          }
+        ],
+        "medias": [
+          {
+            "name": "medias",
+            "type": "image",
+            "roles": [
+              "image",
+              "start_image",
+              "end_image"
+            ]
+          }
+        ],
+        "aspect_ratios": [
+          "auto",
+          "21:9",
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16"
+        ],
+        "tags": [
+          "cinematic",
+          "premium",
+          "advanced",
+          "sota",
+          "film",
+          "best-quality"
+        ],
+        "duration_range": {
+          "min": 4,
+          "max": 15
+        },
+        "score": 90,
+        "match_reason": "best: tags+40; cinematic: tags+40, id+10"
+      },
+      {
+        "id": "cinematic_studio_video",
+        "name": "Cinema Studio Video",
+        "provider_name": "Higgsfield",
+        "description": "Solid cinematic, dramatic compositions",
+        "output_type": "video",
+        "parameters": [
+          {
+            "name": "slow_motion",
+            "required": "optional",
+            "type": "bool",
+            "description": "Enable slow motion effect",
+            "default": false
+          },
+          {
+            "name": "sound",
+            "required": "optional",
+            "type": "bool",
+            "description": "Enable sound generation",
+            "default": true
+          }
+        ],
+        "medias": [
+          {
+            "name": "medias",
+            "type": "image",
+            "roles": [
+              "image",
+              "start_image",
+              "end_image"
+            ]
+          }
+        ],
+        "aspect_ratios": [
+          "1:1",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16"
+        ],
+        "tags": [
+          "cinematic",
+          "dramatic",
+          "compositions",
+          "sound",
+          "slow-motion"
+        ],
+        "durations": [
+          5,
+          10
+        ],
+        "score": 80,
+        "match_reason": "cinematic: tags+40, description+30, id+10"
+      },
+      {
+        "id": "grok_video_v15",
+        "name": "Grok Video 1.5",
+        "provider_name": "xAI",
+        "description": "Image-to-video preview model that animates one start image into cinematic video with native audio direction",
+        "output_type": "video",
+        "parameters": [
+          {
+            "name": "resolution",
+            "required": "optional",
+            "type": "string",
+            "description": "Output resolution.",
+            "options": [
+              "480p",
+              "720p"
+            ],
+            "default": "720p"
+          },
+          {
+            "name": "duration",
+            "required": "optional",
+            "type": "number",
+            "description": "Duration in seconds (2-15).",
+            "min": 2,
+            "max": 15,
+            "default": 5
+          }
+        ],
+        "medias": [
+          {
+            "name": "medias",
+            "type": "image",
+            "roles": [
+              "start_image"
+            ]
+          }
+        ],
+        "aspect_ratios": [],
+        "tags": [
+          "audio",
+          "cinematic",
+          "image-to-video",
+          "start-frame",
+          "physics",
+          "camera-motion",
+          "preview"
+        ],
+        "score": 70,
+        "match_reason": "cinematic: tags+40, description+30"
+      },
+      {
+        "id": "kling2_6",
+        "name": "Kling 2.6 Video",
+        "provider_name": "Kling",
+        "description": "Cinematic motion, advanced physics",
+        "output_type": "video",
+        "parameters": [
+          {
+            "name": "duration",
+            "required": "optional",
+            "type": "number",
+            "description": "Video duration in seconds.",
+            "options": [
+              5,
+              10
+            ],
+            "default": 5
+          },
+          {
+            "name": "sound",
+            "required": "optional",
+            "type": "bool",
+            "description": "Generate the video with native audio.",
+            "default": true
+          }
+        ],
+        "medias": [
+          {
+            "name": "medias",
+            "type": "image",
+            "roles": [
+              "start_image"
+            ]
+          }
+        ],
+        "aspect_ratios": [
+          "16:9",
+          "9:16",
+          "1:1"
+        ],
+        "tags": [
+          "cinematic",
+          "motion",
+          "physics",
+          "advanced",
+          "audio"
+        ],
+        "score": 70,
+        "match_reason": "cinematic: tags+40, description+30"
+      },
+      {
+        "id": "veo3",
+        "name": "Google Veo 3",
+        "provider_name": "Google",
+        "description": "Reliable cinematic, broad creative range",
+        "output_type": "video",
+        "parameters": [
+          {
+            "name": "variant",
+            "required": "optional",
+            "type": "string",
+            "description": "Veo 3 variant: 'veo-3-preview' = best quality; 'veo-3-fast' = faster generation.",
+            "options": [
+              "veo-3-preview",
+              "veo-3-fast"
+            ],
+            "default": "veo-3-fast"
+          }
+        ],
+        "medias": [
+          {
+            "name": "medias",
+            "type": "image",
+            "roles": [
+              "start_image"
+            ]
+          }
+        ],
+        "aspect_ratios": [
+          "16:9",
+          "9:16"
+        ],
+        "tags": [
+          "cinematic",
+          "reliable",
+          "creative",
+          "audio",
+          "image-to-video"
+        ],
+        "score": 70,
+        "match_reason": "cinematic: tags+40, description+30"
+      },
+      {
+        "id": "veo3_1",
+        "name": "Google Veo 3.1",
+        "provider_name": "Google",
+        "description": "Ultra-realistic, top-tier cinematic quality",
+        "output_type": "video",
+        "parameters": [
+          {
+            "name": "duration",
+            "required": "optional",
+            "type": "number",
+            "description": "Duration of the output video in seconds.",
+            "options": [
+              4,
+              6,
+              8
+            ],
+            "default": 8
+          },
+          {
+            "name": "quality",
+            "required": "optional",
+            "type": "string",
+            "description": "Output quality tier.",
+            "options": [
+              "basic",
+              "high",
+              "ultra"
+            ],
+            "default": "basic"
+          },
+          {
+            "name": "variant",
+            "required": "optional",
+            "type": "string",
+            "description": "Veo 3.1 variant: 'veo-3-1-preview' = best quality, 'veo-3-1-fast' = faster generation.",
+            "options": [
+              "veo-3-1-preview",
+              "veo-3-1-fast"
+            ],
+            "default": "veo-3-1-fast"
+          }
+        ],
+        "medias": [
+          {
+            "name": "medias",
+            "type": "image",
+            "roles": [
+              "start_image"
+            ]
+          }
+        ],
+        "aspect_ratios": [
+          "16:9",
+          "9:16"
+        ],
+        "tags": [
+          "ultra-realistic",
+          "cinematic",
+          "top-tier",
+          "quality",
+          "audio"
+        ],
+        "score": 70,
+        "match_reason": "cinematic: tags+40, description+30"
+      }
+    ]
+  },
+  "generatedVideo": {
+    "error": "seedance_2_0 backend request failed (403): \"Pro\" or \"Ultimate\" plan required",
+    "request_id": "395f2c80-fc09-493a-b53b-8eb9c0a36b1b"
+  },
+  "generatedVideoJobId": null,
+  "bestShortJobId": null,
+  "finalJobId": null,
+  "finalVideoPath": "C:\\Users\\Brito\\Desktop\\principal\\Projetos\\CBO\\Vídeo para editar\\judo_edit_epico_local.mp4",
+  "finalFilename": "judo_edit_epico_local.mp4",
+  "finalUpload": {
+    "uploads": [
+      {
+        "upload_url": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/b6eee8ca-8707-4b4d-99b4-0704b857ac9d.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260704%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260704T201422Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=c51a93a4e921d99912e0961a643bf2fe248c163a5f558f92c7f87351d28f3d06",
+        "media_id": "b6eee8ca-8707-4b4d-99b4-0704b857ac9d",
+        "url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3EXlu77aiKxoXWgwOzVRR6YYarB/b6eee8ca-8707-4b4d-99b4-0704b857ac9d.mp4",
+        "expires_in_seconds": 900,
+        "method": "PUT",
+        "content_type": "video/mp4",
+        "instructions": "Upload the file using: curl -X PUT -H \"Content-Type: video/mp4\" --data-binary @judo_edit_epico_local.mp4 'https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/b6eee8ca-8707-4b4d-99b4-0704b857ac9d.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260704%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260704T201422Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=c51a93a4e921d99912e0961a643bf2fe248c163a5f558f92c7f87351d28f3d06'. After upload, call the media_confirm tool with type \"video\" and media_id \"b6eee8ca-8707-4b4d-99b4-0704b857ac9d\"."
+      }
+    ]
+  },
+  "finalUploadUrl": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/b6eee8ca-8707-4b4d-99b4-0704b857ac9d.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260704%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260704T201422Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=c51a93a4e921d99912e0961a643bf2fe248c163a5f558f92c7f87351d28f3d06",
+  "finalMediaId": "b6eee8ca-8707-4b4d-99b4-0704b857ac9d",
+  "finalPutStatus": 200,
+  "finalPutStatusText": "OK",
+  "finalConfirm": {
+    "results": [
+      {
+        "media_id": "b6eee8ca-8707-4b4d-99b4-0704b857ac9d",
+        "status": "uploaded"
+      }
+    ]
+  },
+  "finalConfirmedVideoId": "b6eee8ca-8707-4b4d-99b4-0704b857ac9d",
+  "reframe": {
+    "error": "Something went wrong. Please try again.",
+    "request_id": "903ebca9-7802-49d0-85a2-bdd0e367c5d2"
+  },
+  "reframeJobId": null,
+  "upscale": {
+    "error": "Requires basic plan or higher.",
+    "request_id": "600abbb0-37ff-4ba5-8adb-b79ee4881592",
+    "monetization_intent": "upgrade",
+    "recovery_tool": "show_plans_and_credits",
+    "recovery_tool_args": {
+      "intent": "upgrade"
+    },
+    "recovery_reason": "Requires basic plan or higher."
+  },
+  "upscaleJobId": null,
+  "upscaledVideoPath": "C:\\Users\\Brito\\Desktop\\principal\\Projetos\\CBO\\Vídeo para editar\\judo_edit_epico_upscaled.mp4",
+  "upscaledFilename": "judo_edit_epico_upscaled.mp4",
+  "upscaledUpload": {
+    "uploads": [
+      {
+        "upload_url": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/fc89858a-14fa-4f6c-bf4c-0ba6266e1c65.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260704%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260704T202824Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=6da91f4296c1eb01cf5bb601e5208cb5b9b098336f1b64375881082639744ad9",
+        "media_id": "fc89858a-14fa-4f6c-bf4c-0ba6266e1c65",
+        "url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3EXlu77aiKxoXWgwOzVRR6YYarB/fc89858a-14fa-4f6c-bf4c-0ba6266e1c65.mp4",
+        "expires_in_seconds": 900,
+        "method": "PUT",
+        "content_type": "video/mp4",
+        "instructions": "Upload the file using: curl -X PUT -H \"Content-Type: video/mp4\" --data-binary @judo_edit_epico_upscaled.mp4 'https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/fc89858a-14fa-4f6c-bf4c-0ba6266e1c65.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260704%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260704T202824Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=6da91f4296c1eb01cf5bb601e5208cb5b9b098336f1b64375881082639744ad9'. After upload, call the media_confirm tool with type \"video\" and media_id \"fc89858a-14fa-4f6c-bf4c-0ba6266e1c65\"."
+      }
+    ]
+  },
+  "upscaledUploadUrl": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/fc89858a-14fa-4f6c-bf4c-0ba6266e1c65.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260704%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260704T202824Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=6da91f4296c1eb01cf5bb601e5208cb5b9b098336f1b64375881082639744ad9",
+  "upscaledMediaId": "fc89858a-14fa-4f6c-bf4c-0ba6266e1c65",
+  "upscaledPublicUrl": "https://d2ol7oe51mr4n9.cloudfront.net/user_3EXlu77aiKxoXWgwOzVRR6YYarB/fc89858a-14fa-4f6c-bf4c-0ba6266e1c65.mp4",
+  "upscaledPutStatus": 200,
+  "upscaledPutStatusText": "OK",
+  "upscaledConfirm": {
+    "results": [
+      {
+        "media_id": "fc89858a-14fa-4f6c-bf4c-0ba6266e1c65",
+        "status": "uploaded"
+      }
+    ]
+  },
+  "upscaledConfirmedVideoId": "fc89858a-14fa-4f6c-bf4c-0ba6266e1c65",
+  "v2_upscaledVideoPath": "C:\\Users\\Brito\\Desktop\\principal\\Projetos\\CBO\\Vídeo para editar\\judo_edit_epico_v2_upscaled.mp4",
+  "v2_upscaledFilename": "judo_edit_epico_v2_upscaled.mp4",
+  "v2_upscaledUpload": {
+    "uploads": [
+      {
+        "upload_url": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/dbb226df-dac4-43f5-8722-473fbfaa7050.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260705%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260705T132012Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=34764a4c2d4fe4ebaca9b6527ecc9961f69f676b73a58567e4d7b74fcd7e2032",
+        "media_id": "dbb226df-dac4-43f5-8722-473fbfaa7050",
+        "url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3EXlu77aiKxoXWgwOzVRR6YYarB/dbb226df-dac4-43f5-8722-473fbfaa7050.mp4",
+        "expires_in_seconds": 900,
+        "method": "PUT",
+        "content_type": "video/mp4",
+        "instructions": "Upload the file using: curl -X PUT -H \"Content-Type: video/mp4\" --data-binary @judo_edit_epico_v2_upscaled.mp4 'https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/dbb226df-dac4-43f5-8722-473fbfaa7050.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260705%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260705T132012Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=34764a4c2d4fe4ebaca9b6527ecc9961f69f676b73a58567e4d7b74fcd7e2032'. After upload, call the media_confirm tool with type \"video\" and media_id \"dbb226df-dac4-43f5-8722-473fbfaa7050\"."
+      }
+    ]
+  },
+  "v2_upscaledUploadUrl": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/dbb226df-dac4-43f5-8722-473fbfaa7050.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260705%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260705T132012Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=34764a4c2d4fe4ebaca9b6527ecc9961f69f676b73a58567e4d7b74fcd7e2032",
+  "v2_upscaledMediaId": "dbb226df-dac4-43f5-8722-473fbfaa7050",
+  "v2_upscaledPublicUrl": "https://d2ol7oe51mr4n9.cloudfront.net/user_3EXlu77aiKxoXWgwOzVRR6YYarB/dbb226df-dac4-43f5-8722-473fbfaa7050.mp4",
+  "v2_upscaledPutStatus": 200,
+  "v2_upscaledPutStatusText": "OK",
+  "v2_upscaledConfirm": {
+    "results": [
+      {
+        "media_id": "dbb226df-dac4-43f5-8722-473fbfaa7050",
+        "status": "uploaded"
+      }
+    ]
+  },
+  "v2_upscaledConfirmedVideoId": "dbb226df-dac4-43f5-8722-473fbfaa7050",
+  "v3_finalVideoPath": "C:\\Users\\Brito\\Desktop\\principal\\Projetos\\CBO\\Vídeo para editar\\judo_edit_epico_v3_FINAL.mp4",
+  "v3_finalFilename": "judo_edit_epico_v3_FINAL.mp4",
+  "v3_finalUpload": {
+    "uploads": [
+      {
+        "upload_url": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/357e38e3-181e-4eae-9211-9613aad2a19b.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260705%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260705T140034Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=ac608f94e0263879725446acdfe21e728dea1a8ff60b55fab7493a77221872b7",
+        "media_id": "357e38e3-181e-4eae-9211-9613aad2a19b",
+        "url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3EXlu77aiKxoXWgwOzVRR6YYarB/357e38e3-181e-4eae-9211-9613aad2a19b.mp4",
+        "expires_in_seconds": 900,
+        "method": "PUT",
+        "content_type": "video/mp4",
+        "instructions": "Upload the file using: curl -X PUT -H \"Content-Type: video/mp4\" --data-binary @judo_edit_epico_v3_FINAL.mp4 'https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/357e38e3-181e-4eae-9211-9613aad2a19b.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260705%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260705T140034Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=ac608f94e0263879725446acdfe21e728dea1a8ff60b55fab7493a77221872b7'. After upload, call the media_confirm tool with type \"video\" and media_id \"357e38e3-181e-4eae-9211-9613aad2a19b\"."
+      }
+    ]
+  },
+  "v3_finalUploadUrl": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/357e38e3-181e-4eae-9211-9613aad2a19b.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260705%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260705T140034Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=ac608f94e0263879725446acdfe21e728dea1a8ff60b55fab7493a77221872b7",
+  "v3_finalMediaId": "357e38e3-181e-4eae-9211-9613aad2a19b",
+  "v3_finalPublicUrl": "https://d2ol7oe51mr4n9.cloudfront.net/user_3EXlu77aiKxoXWgwOzVRR6YYarB/357e38e3-181e-4eae-9211-9613aad2a19b.mp4",
+  "v3_finalPutStatus": 200,
+  "v3_finalPutStatusText": "OK",
+  "v3_finalConfirm": {
+    "results": [
+      {
+        "media_id": "357e38e3-181e-4eae-9211-9613aad2a19b",
+        "status": "uploaded"
+      }
+    ]
+  },
+  "v3_finalConfirmedVideoId": "357e38e3-181e-4eae-9211-9613aad2a19b",
+  "v4_realVideoPath": "C:\\Users\\Brito\\Desktop\\principal\\Projetos\\CBO\\Vídeo para editar\\judo_edit_epico_v4_musica_real.mp4",
+  "v4_realFilename": "judo_edit_epico_v4_musica_real.mp4",
+  "v4_realUpload": {
+    "uploads": [
+      {
+        "upload_url": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/06fae63e-6d44-42c7-87f4-d84549a74d21.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260705%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260705T142423Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=c5b1a2db7432c1fac152122adae2ba82fd18ced370a17fa80e7870119c46f450",
+        "media_id": "06fae63e-6d44-42c7-87f4-d84549a74d21",
+        "url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3EXlu77aiKxoXWgwOzVRR6YYarB/06fae63e-6d44-42c7-87f4-d84549a74d21.mp4",
+        "expires_in_seconds": 900,
+        "method": "PUT",
+        "content_type": "video/mp4",
+        "instructions": "Upload the file using: curl -X PUT -H \"Content-Type: video/mp4\" --data-binary @judo_edit_epico_v4_musica_real.mp4 'https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/06fae63e-6d44-42c7-87f4-d84549a74d21.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260705%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260705T142423Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=c5b1a2db7432c1fac152122adae2ba82fd18ced370a17fa80e7870119c46f450'. After upload, call the media_confirm tool with type \"video\" and media_id \"06fae63e-6d44-42c7-87f4-d84549a74d21\"."
+      }
+    ]
+  },
+  "v4_realUploadUrl": "https://upload.higgsfield.ai/user_3EXlu77aiKxoXWgwOzVRR6YYarB/06fae63e-6d44-42c7-87f4-d84549a74d21.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYPNTVMCGYPZMTKFK%2F20260705%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20260705T142423Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=c5b1a2db7432c1fac152122adae2ba82fd18ced370a17fa80e7870119c46f450",
+  "v4_realMediaId": "06fae63e-6d44-42c7-87f4-d84549a74d21",
+  "v4_realPublicUrl": "https://d2ol7oe51mr4n9.cloudfront.net/user_3EXlu77aiKxoXWgwOzVRR6YYarB/06fae63e-6d44-42c7-87f4-d84549a74d21.mp4",
+  "v4_realPutStatus": 200,
+  "v4_realPutStatusText": "OK",
+  "v4_realConfirm": {
+    "results": [
+      {
+        "media_id": "06fae63e-6d44-42c7-87f4-d84549a74d21",
+        "status": "uploaded"
+      }
+    ]
+  },
+  "v4_realConfirmedVideoId": "06fae63e-6d44-42c7-87f4-d84549a74d21"
+}

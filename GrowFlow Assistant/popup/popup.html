@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GrowFlow Assistant</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">G</span><div><strong>GrowFlow</strong><small>ASSISTANT</small></div></div>
+    <span id="connection" class="connection">Verificando…</span>
+  </header>
+  <main>
+    <section class="hero">
+      <div><span class="eyebrow">PAINEL DE HOJE</span><h1>Prospecção com controle.</h1><p>Organize perfis visíveis e revise cada ação antes de executá-la.</p></div>
+      <div class="score"><strong id="reviewedCount">0</strong><span id="limitLabel">/ 30</span><small>revisados</small></div>
+    </section>
+    <nav class="tabs" aria-label="Seções">
+      <button class="active" data-tab="queue">Fila <span id="queueBadge">0</span></button>
+      <button data-tab="schedule">Agenda</button>
+      <button data-tab="history">Histórico</button>
+      <button data-tab="settings">Ajustes</button>
+    </nav>
+
+    <section id="queue" class="panel active">
+      <button id="collectBtn" class="primary"><span>＋</span> Coletar perfis visíveis</button>
+      <div class="section-head"><div><h2>Fila de revisão</h2><p>Abra o perfil e confirme manualmente.</p></div><span id="collectedToday" class="metric">0 hoje</span></div>
+      <div id="queueList" class="list"></div>
+    </section>
+
+    <section id="schedule" class="panel">
+      <div class="section-head"><div><h2>Novo lembrete</h2><p>O Instagram será aberto no horário escolhido.</p></div></div>
+      <form id="scheduleForm" class="form">
+        <label>Perfil<input id="scheduleTarget" placeholder="@usuario" pattern="@?[A-Za-z0-9._]+" required></label>
+        <label>Data e hora<input id="scheduleWhen" type="datetime-local" required></label>
+        <label>Nota<input id="scheduleLabel" maxlength="60" placeholder="Ex.: revisar conteúdo recente"></label>
+        <button class="primary" type="submit">Criar lembrete</button>
+      </form>
+      <div id="scheduleList" class="list"></div>
+    </section>
+
+    <section id="history" class="panel">
+      <div class="section-head"><div><h2>Histórico</h2><p>Últimas revisões concluídas.</p></div><button id="exportBtn" class="ghost">Exportar CSV</button></div>
+      <div id="historyList" class="list"></div>
+    </section>
+
+    <section id="settings" class="panel">
+      <div class="section-head"><div><h2>Limites saudáveis</h2><p>Defina um ritmo confortável para a revisão.</p></div></div>
+      <form id="settingsForm" class="form">
+        <label>Revisões por dia<input id="dailyLimit" type="number" min="1" max="100" required></label>
+        <label>Pausa sugerida (minutos)<input id="breakMinutes" type="number" min="1" max="60" required></label>
+        <label class="check"><input id="notifications" type="checkbox"><span>Mostrar alertas de lembrete</span></label>
+        <button class="primary" type="submit">Salvar ajustes</button>
+      </form>
+      <div class="notice"><strong>Você está no controle</strong><p>A extensão não segue, curte ou comenta automaticamente e não tenta contornar proteções da plataforma.</p></div>
+    </section>
+    <div id="toast" role="status" aria-live="polite"></div>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

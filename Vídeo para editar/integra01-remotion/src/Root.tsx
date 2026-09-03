@@ -1,0 +1,1 @@
+import {Composition} from 'remotion';import {Integra01} from './Composition';export const Root=()=> <Composition id="Integra01" component={Integra01} durationInFrames={1412} fps={30} width={1440} height={2000}/>;

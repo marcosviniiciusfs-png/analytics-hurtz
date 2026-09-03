@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Estratégia de campanha para emagrecimento</title>
+  <style>
+    :root {
+      --orange: #d8611d;
+      --navy: #10264d;
+      --ink: #20242c;
+      --muted: #68707e;
+      --line: #e0e3e7;
+      --soft: #f5f6f8;
+      --warn: #fff5ee;
+    }
+    * { box-sizing: border-box; }
+    @page { size: A4 portrait; margin: 0; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #ededed;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    .page {
+      width: 210mm;
+      height: 297mm;
+      position: relative;
+      overflow: hidden;
+      padding: 18mm 19mm 16mm;
+      background: #fff;
+      break-after: page;
+      page-break-after: always;
+    }
+    .page:last-child { break-after: auto; page-break-after: auto; }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 6mm;
+      border-bottom: 1px solid var(--line);
+    }
+    .header img { width: 20mm; height: 20mm; object-fit: contain; }
+    .header span {
+      color: var(--muted);
+      font-size: 7.5pt;
+      font-weight: 700;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: 37pt;
+      line-height: 1.06;
+      letter-spacing: -.04em;
+    }
+    h1 span { color: var(--orange); }
+    h2 {
+      margin: 0 0 4mm;
+      color: var(--navy);
+      font-size: 25pt;
+      line-height: 1.12;
+      letter-spacing: -.03em;
+    }
+    h3 {
+      margin-bottom: 2mm;
+      color: var(--navy);
+      font-size: 12pt;
+    }
+    .eyebrow {
+      margin-bottom: 4mm;
+      color: var(--orange);
+      font-size: 8.5pt;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .cover {
+      display: flex;
+      flex-direction: column;
+    }
+    .cover .header { border-bottom: 0; }
+    .cover-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      max-width: 155mm;
+      padding-bottom: 18mm;
+    }
+    .cover-subtitle {
+      max-width: 135mm;
+      margin: 8mm 0 0;
+      color: var(--muted);
+      font-size: 12pt;
+      line-height: 1.55;
+    }
+    .cover-meta {
+      padding-top: 5mm;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 8pt;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .section-title { margin: 11mm 0 8mm; }
+    .lead {
+      max-width: 160mm;
+      color: var(--muted);
+      font-size: 11pt;
+      line-height: 1.55;
+    }
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5mm;
+      margin-top: 8mm;
+    }
+    .panel {
+      min-height: 49mm;
+      padding: 6mm;
+      border: 1px solid var(--line);
+      border-radius: 3mm;
+    }
+    .panel.accent { border-top: 2mm solid var(--orange); }
+    .panel p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 9.5pt;
+      line-height: 1.5;
+    }
+    .principle {
+      margin-top: 7mm;
+      padding: 6mm;
+      border-radius: 3mm;
+      background: var(--navy);
+      color: #fff;
+      font-size: 12pt;
+      line-height: 1.5;
+    }
+    .principle strong { color: #ff8a46; }
+    .steps {
+      margin-top: 7mm;
+      border-top: 1px solid var(--line);
+    }
+    .step {
+      display: grid;
+      grid-template-columns: 14mm 1fr;
+      gap: 5mm;
+      padding: 6mm 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .step-number {
+      width: 10mm;
+      height: 10mm;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--orange);
+      color: #fff;
+      font-size: 9pt;
+      font-weight: 800;
+    }
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 9.5pt;
+      line-height: 1.48;
+    }
+    .example {
+      margin-top: 4mm;
+      padding: 4mm 5mm;
+      border-left: 1.5mm solid var(--orange);
+      background: var(--soft);
+      color: var(--ink);
+      font-size: 10pt;
+      line-height: 1.5;
+    }
+    .criteria {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4mm;
+      margin-top: 7mm;
+    }
+    .criterion {
+      min-height: 46mm;
+      padding: 5mm;
+      border: 1px solid var(--line);
+      border-radius: 3mm;
+    }
+    .criterion b {
+      display: block;
+      margin-bottom: 3mm;
+      color: var(--orange);
+      font-size: 8pt;
+      text-transform: uppercase;
+    }
+    .criterion p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 9pt;
+      line-height: 1.45;
+    }
+    .copy-box {
+      margin-top: 8mm;
+      padding: 7mm;
+      border-radius: 3mm;
+      background: var(--navy);
+      color: #fff;
+    }
+    .copy-box .label {
+      margin-bottom: 4mm;
+      color: #ff8a46;
+      font-size: 8pt;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .copy-box p {
+      margin: 0;
+      font-size: 13pt;
+      font-weight: 600;
+      line-height: 1.55;
+    }
+    .warning {
+      margin-top: 7mm;
+      padding: 5mm 6mm;
+      border: 1px solid #f1c3a7;
+      border-radius: 3mm;
+      background: var(--warn);
+      color: #70432c;
+      font-size: 9pt;
+      line-height: 1.5;
+    }
+    .warning strong { color: var(--orange); }
+    .footer {
+      position: absolute;
+      left: 19mm;
+      right: 19mm;
+      bottom: 8mm;
+      display: flex;
+      justify-content: space-between;
+      padding-top: 3mm;
+      border-top: 1px solid var(--line);
+      color: #7b818b;
+      font-size: 7pt;
+    }
+    .compact .section-title { margin-top: 8mm; margin-bottom: 6mm; }
+    .compact .comparison { margin-top: 5mm; }
+    .compact .panel { min-height: 43mm; padding: 5mm; }
+    .compact .principle { margin-top: 5mm; padding: 5mm; font-size: 11pt; }
+    .compact .example { margin-top: 3mm; padding: 3.5mm 4mm; }
+    .compact .warning { margin-top: 4mm; padding: 4mm 5mm; }
+    .final-page .header { padding-bottom: 4mm; }
+    .final-page .header img { width: 16mm; height: 16mm; }
+    .final-page .section-title { margin-top: 5mm; margin-bottom: 4mm; }
+    .final-page .section-title h2 { font-size: 22pt; }
+    .final-page .section-title .lead { font-size: 10pt; line-height: 1.45; }
+    .final-page .criteria { margin-top: 5mm; }
+    .final-page .criterion { min-height: 33mm; padding: 3.5mm; }
+    .final-page .criterion p { font-size: 8.2pt; line-height: 1.38; }
+    .final-page .copy-box { margin-top: 4mm; padding: 4.5mm 5mm; }
+    .final-page .copy-box p { font-size: 10.5pt; line-height: 1.4; }
+    .final-page .warning { margin-top: 3mm; padding: 3.5mm 4mm; font-size: 8.2pt; }
+  </style>
+</head>
+<body>
+  <section class="page cover">
+    <header class="header">
+      <span>Estratégia de campanha</span>
+      <img src="../../hurtz-logo-transparente.png" alt="Hurtz">
+    </header>
+    <div class="cover-main">
+      <div class="eyebrow">Emagrecimento</div>
+      <h1>Campanha de<br><span>pacientes modelo</span></h1>
+      <p class="cover-subtitle">Direcionamento de comunicação, oferta, seleção de participantes e copy-base para divulgar um protocolo de emagrecimento com clareza.</p>
+    </div>
+    <div class="cover-meta">Material estratégico · Hurtz</div>
+  </section>
+
+  <section class="page compact">
+    <header class="header">
+      <span>Campanha de pacientes modelo</span>
+      <img src="../../hurtz-logo-transparente.png" alt="Hurtz">
+    </header>
+    <div class="section-title">
+      <div class="eyebrow">Ponto de partida</div>
+      <h2>O emagrecimento tem outro tempo de resultado</h2>
+      <p class="lead">Tratamentos de emagrecimento não seguem a mesma lógica de procedimentos com efeito mais imediato, como botox ou harmonização. A evolução acontece ao longo do acompanhamento, por isso a campanha precisa deixar esse processo claro desde o primeiro anúncio.</p>
+    </div>
+    <div class="comparison">
+      <div class="panel">
+        <h3>Procedimentos mais imediatos</h3>
+        <p>O conteúdo pode mostrar uma mudança percebida após uma sessão, respeitando as características e os limites de cada procedimento.</p>
+      </div>
+      <div class="panel accent">
+        <h3>Protocolos de emagrecimento</h3>
+        <p>O resultado é progressivo. A documentação de evolução precisa ser produzida em etapas, com retornos periódicos, e não como se tudo acontecesse em uma única sessão.</p>
+      </div>
+    </div>
+    <div class="principle"><strong>Direção da campanha:</strong> vender o acompanhamento e a oportunidade de participar do protocolo, sem criar expectativa de resultado imediato ou igual para todas as pessoas.</div>
+    <div class="section-title" style="margin-top:12mm">
+      <div class="eyebrow">Estrutura da campanha</div>
+      <h2>1. Nome e gancho do anúncio</h2>
+      <p class="lead">O gancho deve apresentar a seleção de pacientes modelo e informar qual protocolo está sendo divulgado.</p>
+    </div>
+    <div class="example">"Estamos selecionando [X] pacientes modelo para o novo protocolo de emagrecimento [NOME DO PROCEDIMENTO]."</div>
+    <div class="warning"><strong>Antes de publicar:</strong> use quantidade limitada somente quando houver um número real de vagas. A escassez precisa corresponder à operação da clínica.</div>
+    <footer class="footer"><span>Hurtz · Estratégia de campanha</span><span>02</span></footer>
+  </section>
+
+  <section class="page final-page">
+    <header class="header">
+      <span>Campanha de pacientes modelo</span>
+      <img src="../../hurtz-logo-transparente.png" alt="Hurtz">
+    </header>
+    <div class="section-title">
+      <div class="eyebrow">Estrutura da campanha</div>
+      <h2>2. Oferta</h2>
+      <p class="lead">Os criativos devem explicar que existe uma condição especial para pacientes modelo. Se o tratamento é pago, não use "grátis".</p>
+    </div>
+    <div class="example">"Condição exclusiva para pacientes modelo, com valor promocional em troca do acompanhamento e da documentação dos resultados."</div>
+    <div class="warning"><strong>Cuidado com a comunicação:</strong> chamar a oferta de gratuita quando existe cobrança pode gerar reclamações e comprometer a aprovação do anúncio. Informe a condição de forma objetiva.</div>
+
+    <div class="section-title" style="margin-top:11mm">
+      <div class="eyebrow">Seleção</div>
+      <h2>3. Critérios de participação</h2>
+      <p class="lead">Critérios claros ajudam a filtrar o público e aumentam o valor percebido da oportunidade.</p>
+    </div>
+    <div class="criteria">
+      <div class="criterion"><b>Perfil</b><p>Faixa de IMC ou objetivo de perda de peso compatível com o protocolo, sempre sujeito à avaliação profissional.</p></div>
+      <div class="criterion"><b>Disponibilidade</b><p>Compromisso com os retornos periódicos necessários para acompanhar e documentar a evolução.</p></div>
+      <div class="criterion"><b>Uso de imagem</b><p>Autorização formal para registrar e utilizar a evolução, com termo assinado antes da produção do conteúdo.</p></div>
+    </div>
+
+    <div class="section-title" style="margin-top:11mm">
+      <div class="eyebrow">Texto do anúncio</div>
+      <h2>4. Copy sugerida</h2>
+    </div>
+    <div class="copy-box">
+      <div class="label">Copy-base</div>
+      <p>"Estamos selecionando pacientes modelo para o protocolo de emagrecimento com [MÉTODO]. Você recebe acompanhamento completo em uma condição especial e, em troca, compartilha a sua evolução com a gente. As vagas são limitadas. Preencha o formulário para participar da seleção."</p>
+    </div>
+    <div class="warning"><strong>Validação final:</strong> confirme o método, a condição comercial, o número de vagas, os critérios clínicos e as regras de uso de imagem antes de colocar a campanha no ar.</div>
+    <footer class="footer"><span>Hurtz · Estratégia de campanha</span><span>03</span></footer>
+  </section>
+</body>
+</html>

@@ -1,0 +1,1 @@
+{"name":"maraiza-botox01-remotion","version":"1.0.0","private":true,"scripts":{"lint":"tsc --noEmit","render":"remotion render src/index.ts MaraizaBotox01"},"dependencies":{"@remotion/cli":"4.0.503","react":"19.2.3","react-dom":"19.2.3","remotion":"4.0.503"},"devDependencies":{"@types/react":"19.2.7","typescript":"5.9.3"}}

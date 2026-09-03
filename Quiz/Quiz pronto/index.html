@@ -1,0 +1,1423 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiz de Crédito | Simule seu próximo bem</title>
+  <meta name="description" content="Descubra em 1 minuto se você está pré-qualificado para simular crédito para imóvel, carro, caminhão ou maquinário." />
+  <meta property="og:title" content="Quiz de Crédito | Simule seu próximo bem" />
+  <meta property="og:description" content="Responda um quiz rápido e fale com um especialista pelo WhatsApp." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://dummyimage.com/1200x630/123c3a/f7c948&text=Quiz+de+Credito" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --cor-primaria: #123c3a;
+      --cor-secundaria: #1f8a70;
+      --cor-destaque: #f7c948;
+      --cor-acao: #ff7a59;
+      --cor-fundo: #f3faf7;
+      --cor-card: #ffffff;
+      --cor-texto: #14213d;
+      --cor-suave: #667085;
+      --cor-borda: #d8e7df;
+      --sombra-card: 0 24px 70px rgba(18, 60, 58, 0.18);
+      --raio: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--cor-texto);
+      background:
+        radial-gradient(circle at 10% 15%, rgba(247, 201, 72, 0.25), transparent 28%),
+        radial-gradient(circle at 90% 10%, rgba(31, 138, 112, 0.2), transparent 30%),
+        linear-gradient(135deg, #f7fff9 0%, #eaf7f0 48%, #fff8e2 100%);
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      overflow-x: hidden;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      width: min(100%, 760px);
+      min-height: min(720px, calc(100vh - 36px));
+      display: grid;
+      align-content: center;
+      gap: 14px;
+    }
+
+    .progress-wrap {
+      width: 100%;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      box-shadow: none;
+      backdrop-filter: none;
+      position: sticky;
+      top: 12px;
+      z-index: 5;
+    }
+
+    .progress-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 4px 7px;
+      color: var(--cor-primaria);
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .restart-btn {
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.62);
+      color: var(--cor-primaria);
+      font-size: 0.72rem;
+      font-weight: 800;
+      transition: background 0.16s ease, transform 0.16s ease;
+    }
+
+    .restart-btn:hover {
+      background: rgba(31, 138, 112, 0.18);
+      transform: translateY(-1px);
+    }
+
+    .progress-track {
+      height: 6px;
+      background: rgba(216, 235, 228, 0.82);
+      border-radius: 999px;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(18, 60, 58, 0.06);
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--cor-secundaria), var(--cor-destaque), var(--cor-acao));
+      transition: width 0.24s ease;
+    }
+
+    .quiz-card {
+      position: relative;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(216, 231, 223, 0.9);
+      border-radius: var(--raio);
+      box-shadow: var(--sombra-card);
+      min-height: 560px;
+    }
+
+    .quiz-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(120deg, rgba(247, 201, 72, 0.13), transparent 32%),
+        linear-gradient(300deg, rgba(31, 138, 112, 0.13), transparent 35%);
+      pointer-events: none;
+    }
+
+    .screen {
+      position: relative;
+      display: none;
+      min-height: 560px;
+      padding: clamp(24px, 5vw, 54px);
+      animation: enter 0.22s ease both;
+    }
+
+    .screen.active {
+      display: grid;
+      align-content: center;
+      gap: 22px;
+    }
+
+    @keyframes enter {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .kicker {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(31, 138, 112, 0.12);
+      color: var(--cor-primaria);
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      color: var(--cor-primaria);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: clamp(2.15rem, 7vw, 4.5rem);
+      max-width: 690px;
+    }
+
+    h2 {
+      font-size: clamp(1.7rem, 5vw, 3rem);
+      max-width: 650px;
+    }
+
+    .subtitle,
+    .helper,
+    .result-copy {
+      margin: 0;
+      color: var(--cor-suave);
+      line-height: 1.6;
+      font-size: clamp(1rem, 2.3vw, 1.12rem);
+    }
+
+    .hero-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .benefit-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .benefit {
+      border: 1px solid var(--cor-borda);
+      background: rgba(255, 255, 255, 0.78);
+      border-radius: var(--raio);
+      padding: 12px 10px;
+      text-align: center;
+      font-weight: 800;
+      color: var(--cor-primaria);
+      min-height: 74px;
+      display: grid;
+      place-items: center;
+      gap: 4px;
+    }
+
+    .benefit span {
+      font-size: 1.45rem;
+      line-height: 1;
+    }
+
+    .field-group {
+      display: grid;
+      gap: 10px;
+    }
+
+    .field-label {
+      color: var(--cor-primaria);
+      font-size: 0.92rem;
+      font-weight: 800;
+    }
+
+    .text-input {
+      width: 100%;
+      min-height: 62px;
+      border: 2px solid var(--cor-borda);
+      border-radius: var(--raio);
+      padding: 0 18px;
+      color: var(--cor-texto);
+      background: rgba(255, 255, 255, 0.9);
+      outline: none;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+    }
+
+    .text-input:focus {
+      border-color: var(--cor-secundaria);
+      box-shadow: 0 0 0 5px rgba(31, 138, 112, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 2px;
+    }
+
+    .btn {
+      min-height: 58px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border-radius: var(--raio);
+      padding: 15px 22px;
+      color: #0e2c2a;
+      background: var(--cor-destaque);
+      font-weight: 900;
+      box-shadow: 0 14px 26px rgba(247, 201, 72, 0.28);
+      transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 18px 34px rgba(247, 201, 72, 0.38);
+      filter: saturate(1.05);
+    }
+
+    .btn:active,
+    .option-card:active,
+    .choice-btn:active {
+      animation: bounce 0.22s ease;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: scale(1); }
+      45% { transform: scale(0.97); }
+      75% { transform: scale(1.02); }
+    }
+
+    .btn.secondary {
+      color: var(--cor-primaria);
+      background: #ecf7f2;
+      box-shadow: none;
+      border: 1px solid var(--cor-borda);
+    }
+
+    .btn.full {
+      width: 100%;
+    }
+
+    .pulse {
+      animation: pulse 1.7s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 14px 26px rgba(247, 201, 72, 0.28), 0 0 0 0 rgba(247, 201, 72, 0.28);
+      }
+      50% {
+        box-shadow: 0 18px 36px rgba(247, 201, 72, 0.38), 0 0 0 12px rgba(247, 201, 72, 0);
+      }
+    }
+
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .option-card,
+    .choice-btn {
+      width: 100%;
+      min-height: 112px;
+      border: 2px solid var(--cor-borda);
+      border-radius: var(--raio);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--cor-primaria);
+      padding: 18px;
+      display: grid;
+      gap: 8px;
+      align-content: center;
+      text-align: left;
+      transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .interest-card {
+      min-height: 202px;
+      align-content: start;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .interest-photo {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      display: block;
+      background: #eaf7f0;
+    }
+
+    .interest-body {
+      display: grid;
+      gap: 7px;
+      padding: 14px 16px 16px;
+    }
+
+    .choice-btn {
+      min-height: 92px;
+      text-align: center;
+      place-items: center;
+      font-weight: 900;
+      font-size: 1.2rem;
+    }
+
+    .option-card:hover,
+    .choice-btn:hover {
+      transform: translateY(-3px);
+      border-color: var(--cor-secundaria);
+      box-shadow: 0 18px 38px rgba(18, 60, 58, 0.12);
+    }
+
+    .option-card.selected,
+    .choice-btn.selected {
+      border-color: var(--cor-destaque);
+      background: linear-gradient(135deg, rgba(247, 201, 72, 0.24), rgba(31, 138, 112, 0.12));
+      box-shadow: 0 18px 40px rgba(247, 201, 72, 0.18);
+    }
+
+    .option-icon {
+      display: inline-block;
+      font-size: 2.1rem;
+      line-height: 1;
+    }
+
+    .option-card.icon-click .option-icon,
+    .choice-btn.icon-click .choice-icon {
+      animation: icon-pop 0.28s ease;
+    }
+
+    .choice-icon {
+      display: inline-block;
+    }
+
+    .choice-icon.x-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #fee4e2;
+      color: #b42318;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    @keyframes icon-pop {
+      0%, 100% { transform: scale(1) rotate(0); }
+      45% { transform: scale(1.22) rotate(-8deg); }
+      75% { transform: scale(0.96) rotate(5deg); }
+    }
+
+    .option-title {
+      font-size: 1.08rem;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
+    .option-sub {
+      color: var(--cor-suave);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .range-box {
+      border: 1px solid var(--cor-borda);
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: var(--raio);
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .range-value {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--cor-primaria);
+      font-weight: 900;
+      font-size: clamp(1.45rem, 5vw, 2.4rem);
+    }
+
+    .range-value small {
+      color: var(--cor-suave);
+      font-size: 0.84rem;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--cor-secundaria);
+    }
+
+    .error {
+      min-height: 22px;
+      color: #b42318;
+      font-weight: 800;
+      font-size: 0.9rem;
+    }
+
+    .toast {
+      min-height: 34px;
+      color: var(--cor-primaria);
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .final-badge {
+      width: 92px;
+      height: 92px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cor-destaque), #ffe9a3);
+      box-shadow: 0 18px 42px rgba(247, 201, 72, 0.34);
+      font-size: 3rem;
+      animation: trophy 1.1s ease infinite alternate;
+    }
+
+    .queue-box {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .queue-stat {
+      border: 1px solid var(--cor-borda);
+      border-radius: var(--raio);
+      background: #f8fffb;
+      padding: 18px;
+      color: var(--cor-primaria);
+      display: grid;
+      gap: 5px;
+    }
+
+    .queue-stat strong {
+      font-size: clamp(2rem, 7vw, 3.4rem);
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .queue-stat span {
+      color: var(--cor-suave);
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .analysis-panel {
+      display: grid;
+      gap: 20px;
+      justify-items: center;
+      text-align: center;
+      color: var(--cor-primaria);
+    }
+
+    .chart-loader {
+      width: min(100%, 360px);
+      height: 180px;
+      display: flex;
+      align-items: end;
+      justify-content: center;
+      gap: 12px;
+      padding: 24px;
+      border: 1px solid var(--cor-borda);
+      border-radius: var(--raio);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(241, 250, 246, 0.92));
+      box-shadow: 0 18px 42px rgba(18, 60, 58, 0.08);
+    }
+
+    .chart-loader span {
+      width: 34px;
+      border-radius: 8px 8px 0 0;
+      background: linear-gradient(180deg, var(--cor-destaque), var(--cor-secundaria));
+      animation: chart-rise 1s ease-in-out infinite alternate;
+    }
+
+    .chart-loader span:nth-child(1) { height: 42%; animation-delay: 0s; }
+    .chart-loader span:nth-child(2) { height: 68%; animation-delay: 0.12s; }
+    .chart-loader span:nth-child(3) { height: 52%; animation-delay: 0.24s; }
+    .chart-loader span:nth-child(4) { height: 82%; animation-delay: 0.36s; }
+    .chart-loader span:nth-child(5) { height: 60%; animation-delay: 0.48s; }
+
+    @keyframes chart-rise {
+      from { transform: scaleY(0.58); filter: saturate(0.9); }
+      to { transform: scaleY(1); filter: saturate(1.2); }
+    }
+
+    .status-note {
+      color: var(--cor-suave);
+      font-size: 0.98rem;
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    @keyframes trophy {
+      from { transform: rotate(-3deg) translateY(0); }
+      to { transform: rotate(3deg) translateY(-4px); }
+    }
+
+    .confetti {
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .confetti span {
+      position: absolute;
+      top: -20px;
+      width: 8px;
+      height: 14px;
+      border-radius: 2px;
+      background: var(--cor-destaque);
+      animation: fall 3.2s linear infinite;
+      opacity: 0.9;
+    }
+
+    @keyframes fall {
+      to {
+        transform: translateY(680px) rotate(540deg);
+      }
+    }
+
+    .lead-summary {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 16px;
+      border-radius: var(--raio);
+      background: #f1faf6;
+      border: 1px solid var(--cor-borda);
+      color: var(--cor-primaria);
+      font-weight: 700;
+    }
+
+    .lead-summary div {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid rgba(216, 231, 223, 0.8);
+      padding-bottom: 7px;
+    }
+
+    .lead-summary div:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .lead-summary span {
+      color: var(--cor-suave);
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .privacy {
+      margin: 0;
+      color: var(--cor-suave);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .social-proof {
+      position: fixed;
+      left: 18px;
+      top: 18px;
+      z-index: 20;
+      width: min(calc(100vw - 36px), 350px);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 14px;
+      border: 1px solid rgba(216, 231, 223, 0.9);
+      border-radius: var(--raio);
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 18px 44px rgba(18, 60, 58, 0.16);
+      color: var(--cor-primaria);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-18px) scale(0.98);
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    .social-proof.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .social-proof-icon {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: rgba(31, 138, 112, 0.12);
+      font-size: 1.15rem;
+    }
+
+    .social-proof strong,
+    .social-proof span {
+      display: block;
+      line-height: 1.35;
+    }
+
+    .social-proof strong {
+      font-size: 0.9rem;
+      font-weight: 900;
+    }
+
+    .social-proof span {
+      color: var(--cor-suave);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    @media (max-width: 620px) {
+      body {
+        padding: 10px;
+      }
+
+      .app {
+        min-height: calc(100vh - 20px);
+      }
+
+      .progress-wrap {
+        top: 6px;
+      }
+
+      .quiz-card,
+      .screen {
+        min-height: 610px;
+      }
+
+      .screen {
+        padding: 24px 18px;
+      }
+
+      .benefit-strip,
+      .option-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .benefit-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .actions,
+      .btn {
+        width: 100%;
+      }
+
+      .lead-summary div {
+        display: grid;
+      }
+
+      .lead-summary span {
+        text-align: left;
+      }
+
+      .social-proof {
+        left: 10px;
+        top: 10px;
+        width: calc(100vw - 20px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="progress-wrap" aria-label="Progresso do quiz">
+      <div class="progress-meta">
+        <span id="progressText">Pergunta 1 de 6</span>
+        <button class="restart-btn" type="button" data-restart>Recomeçar</button>
+        <span id="progressPercent">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </section>
+
+    <section class="quiz-card" aria-live="polite">
+      <div class="screen active" data-screen="1">
+        <span class="kicker">🎯 Objetivo</span>
+        <h2 id="interestTitle">Para qual bem você está buscando crédito?</h2>
+        <p class="helper">Escolha o bem que mais combina com seu plano.</p>
+        <div class="option-grid">
+          <button class="option-card interest-card" type="button" data-choice="interesse" data-value="Imóvel">
+            <img class="interest-photo" alt="Imóvel residencial" src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=900&q=80" />
+            <span class="interest-body">
+              <span class="option-title">Imóvel</span>
+              <span class="option-sub">Casa, apartamento, terreno ou construção.</span>
+            </span>
+          </button>
+          <button class="option-card interest-card" type="button" data-choice="interesse" data-value="Carro">
+            <img class="interest-photo" alt="Carro" src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=900&q=80" />
+            <span class="interest-body">
+              <span class="option-title">Carro</span>
+              <span class="option-sub">Novo, seminovo ou troca planejada.</span>
+            </span>
+          </button>
+          <button class="option-card interest-card" type="button" data-choice="interesse" data-value="Caminhão">
+            <img class="interest-photo" alt="Caminhão" src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=900&q=80" />
+            <span class="interest-body">
+              <span class="option-title">Caminhão</span>
+              <span class="option-sub">Para trabalho, frota ou expansão.</span>
+            </span>
+          </button>
+          <button class="option-card interest-card" type="button" data-choice="interesse" data-value="Maquinário">
+            <img class="interest-photo" alt="Retroescavadeira" src="https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=900&q=80" />
+            <span class="interest-body">
+              <span class="option-title">Maquinário</span>
+              <span class="option-sub">Equipamentos para produzir mais.</span>
+            </span>
+          </button>
+        </div>
+        <div class="toast" id="interestToast"></div>
+      </div>
+
+      <div class="screen" data-screen="2">
+        <span class="kicker">👋 Primeiro passo</span>
+        <h2>Agora me conta quem vai receber a análise</h2>
+        <p class="helper">Informe seu nome e WhatsApp para deixar a simulação de crédito personalizada.</p>
+        <div class="field-group">
+          <label class="field-label" for="nome">Nome</label>
+          <input class="text-input" id="nome" name="nome" type="text" autocomplete="name" placeholder="Ex: Ana Silva" />
+          <div class="error" id="nomeError"></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="telefone">WhatsApp</label>
+          <input class="text-input" id="telefone" name="telefone" type="tel" autocomplete="tel" placeholder="(11) 99999-9999" />
+          <div class="error" id="telefoneError"></div>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" data-next-name>Continuar ✨</button>
+          <button class="btn secondary" type="button" data-back>Voltar</button>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="3">
+        <span class="kicker">💰 Entrada</span>
+        <h2 id="entradaTitle">Você já tem algum valor para dar de entrada?</h2>
+        <p class="helper">Isso ajuda o especialista a sugerir um caminho mais compatível.</p>
+        <div class="option-grid">
+          <button class="choice-btn" type="button" data-choice="temEntrada" data-value="Sim"><span class="choice-icon">✅</span> Sim</button>
+          <button class="choice-btn" type="button" data-choice="temEntrada" data-value="Não"><span class="choice-icon x-icon">X</span> Ainda não</button>
+        </div>
+        <div class="toast" id="entradaToast"></div>
+      </div>
+
+      <div class="screen" data-screen="4">
+        <span class="kicker">📈 Potencial</span>
+        <h2 id="valorEntradaTitle">Quanto você tem disponível para dar de entrada?</h2>
+        <div class="range-box">
+          <div class="range-value">
+            <strong id="entradaValorLabel">R$ 50.000</strong>
+            <small>De R$ 5 mil a R$ 500 mil</small>
+          </div>
+          <input id="valorEntrada" type="range" min="5000" max="500000" step="5000" value="50000" />
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" data-next-range="valorEntrada">Continuar 💪</button>
+          <button class="btn secondary" type="button" data-back>Voltar</button>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="5">
+        <span class="kicker">📅 Planejamento</span>
+        <h2 id="parcelaTitle">Quanto você pretende pagar de parcela por mês?</h2>
+        <div class="range-box">
+          <div class="range-value">
+            <strong id="parcelaValorLabel">R$ 1.500</strong>
+            <small>De R$ 300 a R$ 15.000</small>
+          </div>
+          <input id="valorParcela" type="range" min="300" max="15000" step="100" value="1500" />
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" data-next-range="valorParcela">Continuar ⚡</button>
+          <button class="btn secondary" type="button" data-back>Voltar</button>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="6">
+        <span class="kicker">🗓️ Momento</span>
+        <h2 id="prazoTitle">Em quanto tempo você pretende adquirir esse bem?</h2>
+        <div class="option-grid">
+          <button class="option-card" type="button" data-choice="prazo" data-value="Imediato (até 30 dias)">
+            <span class="option-icon">⚡</span>
+            <span class="option-title">Imediato</span>
+            <span class="option-sub">Até 30 dias.</span>
+          </button>
+          <button class="option-card" type="button" data-choice="prazo" data-value="Em até 3 meses">
+            <span class="option-icon">📆</span>
+            <span class="option-title">Em até 3 meses</span>
+            <span class="option-sub">Já estou me organizando.</span>
+          </button>
+          <button class="option-card" type="button" data-choice="prazo" data-value="Em até 6 meses">
+            <span class="option-icon">🗓️</span>
+            <span class="option-title">Em até 6 meses</span>
+            <span class="option-sub">Quero simular com calma.</span>
+          </button>
+          <button class="option-card" type="button" data-choice="prazo" data-value="Mais de 6 meses">
+            <span class="option-icon">🔭</span>
+            <span class="option-title">Mais de 6 meses</span>
+            <span class="option-sub">Estou planejando o futuro.</span>
+          </button>
+        </div>
+        <div class="toast" id="prazoToast"></div>
+      </div>
+
+      <div class="screen" data-screen="7">
+        <div class="analysis-panel">
+          <span class="kicker">📊 Análise</span>
+          <div class="chart-loader" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <h2>O sistema está analisando seu perfil para liberação de crédito</h2>
+          <p class="status-note">Estamos cruzando objetivo, entrada, parcela e prazo para organizar sua posição de atendimento.</p>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="8">
+        <div class="confetti" aria-hidden="true" id="confetti"></div>
+        <div class="final-badge">🏆</div>
+        <span class="kicker">🎉 Resultado</span>
+        <h2 id="resultTitle">Parabéns! Você está pré-qualificado(a) para simular o crédito.</h2>
+        <p class="result-copy" id="resultCopy">Suas respostas já montaram um resumo para o especialista te atender com mais velocidade.</p>
+        <div class="queue-box">
+          <div class="queue-stat">
+            <strong>233</strong>
+            <span>clientes em espera para atendimento</span>
+          </div>
+        </div>
+        <p class="status-note">Com base no seu perfil, você está na posição 23 da fila.</p>
+        <div class="lead-summary" id="leadSummary"></div>
+        <button class="btn full" type="button" data-submit>Quero falar com um especialista agora</button>
+        <p class="privacy">Ao continuar, você será direcionado ao WhatsApp com suas respostas já organizadas.</p>
+      </div>
+
+      <div class="screen" data-screen="9">
+        <div class="final-badge">!</div>
+        <span class="kicker">Obrigado</span>
+        <h2 id="rejectedTitle">Obrigado.</h2>
+        <p class="result-copy">Infelizmente, você não se enquadra no perfil ideal para a linha de crédito solicitada neste momento.</p>
+        <button class="btn secondary full" type="button" data-restart>Recomeçar quiz</button>
+      </div>
+    </section>
+
+    <aside class="social-proof" id="socialProof" aria-live="polite">
+      <div class="social-proof-icon">✨</div>
+      <div>
+        <strong id="socialProofTitle">Nova simulação iniciada</strong>
+        <span id="socialProofText">Alguém acabou de buscar crédito.</span>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const WHATSAPP_NUMERO = "55XXXXXXXXXXX";
+    const STORAGE_KEY = "quiz-hurtz-lead-progress";
+    const SOCIAL_PROOF_INTERVALS = [5000, 15000, 10000];
+    const SOCIAL_PROOF_VISIBLE_MS = 10000;
+    const SOCIAL_PROOF_MESSAGES = [
+      { nome: "Mariana", local: "São Paulo", interesse: "Imóvel" },
+      { nome: "Carlos", local: "Curitiba", interesse: "Carro" },
+      { nome: "Fernanda", local: "Belo Horizonte", interesse: "Caminhão" },
+      { nome: "Rafael", local: "Goiânia", interesse: "Maquinário" },
+      { nome: "Juliana", local: "Campinas", interesse: "Imóvel" },
+      { nome: "André", local: "Recife", interesse: "Carro" }
+    ];
+
+    const totalQuestions = 6;
+    const state = {
+      screen: 1,
+      nome: "",
+      interesse: "",
+      temEntrada: "",
+      valorEntrada: 50000,
+      valorParcela: 1500,
+      prazo: "",
+      telefone: ""
+    };
+
+    const screens = Array.from(document.querySelectorAll(".screen"));
+    const progressText = document.getElementById("progressText");
+    const progressPercent = document.getElementById("progressPercent");
+    const progressBar = document.getElementById("progressBar");
+    const nomeInput = document.getElementById("nome");
+    const telefoneInput = document.getElementById("telefone");
+    const valorEntradaInput = document.getElementById("valorEntrada");
+    const valorParcelaInput = document.getElementById("valorParcela");
+    const entradaValorLabel = document.getElementById("entradaValorLabel");
+    const parcelaValorLabel = document.getElementById("parcelaValorLabel");
+    const socialProof = document.getElementById("socialProof");
+    const socialProofTitle = document.getElementById("socialProofTitle");
+    const socialProofText = document.getElementById("socialProofText");
+    let socialProofIndex = 0;
+    let socialProofIntervalIndex = 0;
+    let socialProofTimer;
+    let analysisTimer;
+    let audioReady = false;
+
+    function formatCurrency(value) {
+      return Number(value).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        maximumFractionDigits: 0
+      });
+    }
+
+    function firstName() {
+      return state.nome.trim().split(" ")[0] || "você";
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function resetQuiz() {
+      Object.assign(state, {
+        screen: 1,
+        nome: "",
+        interesse: "",
+        temEntrada: "",
+        valorEntrada: 50000,
+        valorParcela: 1500,
+        prazo: "",
+        telefone: ""
+      });
+
+      nomeInput.value = "";
+      telefoneInput.value = "";
+      valorEntradaInput.value = 50000;
+      valorParcelaInput.value = 1500;
+      document.querySelectorAll(".error").forEach((error) => {
+        error.textContent = "";
+      });
+      localStorage.removeItem(STORAGE_KEY);
+      showScreen(1);
+    }
+
+    function loadState() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+
+      try {
+        Object.assign(state, JSON.parse(saved));
+        if (state.screen < 1) state.screen = 1;
+        nomeInput.value = state.nome || "";
+        telefoneInput.value = state.telefone || "";
+        valorEntradaInput.value = state.valorEntrada || 50000;
+        valorParcelaInput.value = state.valorParcela || 1500;
+      } catch (error) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function currentQuestionNumber(screenIndex) {
+      if (screenIndex <= 1) return 1;
+      if (screenIndex >= 7) return totalQuestions;
+      return Math.min(screenIndex, totalQuestions);
+    }
+
+    function updateProgress() {
+      const question = currentQuestionNumber(state.screen);
+      const percent = Math.round((question / totalQuestions) * 100);
+
+      progressBar.style.width = `${percent}%`;
+      progressPercent.textContent = `${percent}%`;
+      progressText.textContent = state.screen === 7
+        ? "Analisando perfil"
+        : state.screen === 8
+          ? "Resultado liberado"
+          : state.screen === 9
+            ? "Obrigado"
+            : `Pergunta ${question} de ${totalQuestions}`;
+    }
+
+    function updatePersonalizedCopy() {
+      const nome = firstName();
+      document.getElementById("interestTitle").textContent = state.nome.trim()
+        ? `Show, ${nome}! Para qual bem você está buscando crédito?`
+        : "Para qual bem você está buscando crédito?";
+      document.getElementById("entradaTitle").textContent = `${nome}, você já tem algum valor para dar de entrada?`;
+      document.getElementById("valorEntradaTitle").textContent = `Boa, ${nome}! Quanto você tem disponível para entrada?`;
+      document.getElementById("parcelaTitle").textContent = `Agora me conta, ${nome}: quanto pretende pagar por mês?`;
+      document.getElementById("prazoTitle").textContent = `Última etapa, ${nome}: em quanto tempo quer adquirir esse bem?`;
+      document.getElementById("resultTitle").textContent = `Parabéns, ${nome}! Você está pré-qualificado(a) para simular o crédito para ${state.interesse || "seu bem"}`;
+      document.getElementById("resultCopy").textContent = "Suas respostas já montaram um resumo para o especialista te atender com mais velocidade.";
+      document.getElementById("rejectedTitle").textContent = `Obrigado, ${nome}.`;
+    }
+
+    function updateRangeLabels() {
+      entradaValorLabel.textContent = formatCurrency(state.valorEntrada);
+      parcelaValorLabel.textContent = formatCurrency(state.valorParcela);
+    }
+
+    function updateSelectedCards() {
+      document.querySelectorAll("[data-choice]").forEach((button) => {
+        const key = button.dataset.choice;
+        button.classList.toggle("selected", state[key] === button.dataset.value);
+      });
+    }
+
+    function updateSummary() {
+      const entrada = state.temEntrada === "Sim"
+        ? `${state.temEntrada} - ${formatCurrency(state.valorEntrada)}`
+        : "Ainda não possui entrada";
+      const parcela = state.temEntrada === "Sim"
+        ? formatCurrency(state.valorParcela)
+        : "Não informado";
+      const prazo = state.temEntrada === "Sim"
+        ? state.prazo || "-"
+        : "Não informado";
+
+      document.getElementById("leadSummary").innerHTML = `
+        <div>Interesse <span>${state.interesse || "-"}</span></div>
+        <div>Entrada <span>${entrada}</span></div>
+        <div>Parcela ideal <span>${parcela}</span></div>
+        <div>Prazo <span>${prazo}</span></div>
+      `;
+    }
+
+    function showScreen(index) {
+      window.clearTimeout(analysisTimer);
+      state.screen = index;
+      screens.forEach((screen) => {
+        screen.classList.toggle("active", Number(screen.dataset.screen) === index);
+      });
+      updateProgress();
+      updatePersonalizedCopy();
+      updateRangeLabels();
+      updateSelectedCards();
+      updateSummary();
+      if (index === 7) {
+        analysisTimer = window.setTimeout(() => showScreen(8), 2400);
+      }
+      if (index === 8) startConfetti();
+      saveState();
+    }
+
+    function showToast(id, message) {
+      const toast = document.getElementById(id);
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.setTimeout(() => toast.classList.remove("show"), 700);
+    }
+
+    function validateName() {
+      const value = nomeInput.value.trim();
+      const error = document.getElementById("nomeError");
+
+      if (!value) {
+        error.textContent = "Digite seu nome para continuar.";
+        nomeInput.focus();
+        return false;
+      }
+
+      state.nome = value;
+      error.textContent = "";
+      return true;
+    }
+
+    function onlyDigits(value) {
+      return value.replace(/\D/g, "");
+    }
+
+    function maskPhone(value) {
+      const digits = onlyDigits(value).slice(0, 11);
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+    }
+
+    function validatePhone() {
+      const digits = onlyDigits(telefoneInput.value);
+      const error = document.getElementById("telefoneError");
+
+      if (digits.length < 10) {
+        error.textContent = "Informe um WhatsApp válido com DDD.";
+        telefoneInput.focus();
+        return false;
+      }
+
+      state.telefone = telefoneInput.value;
+      error.textContent = "";
+      return true;
+    }
+
+    function nextAfterChoice(key, value) {
+      state[key] = value;
+      updateSelectedCards();
+
+      if (key === "interesse") {
+        showToast("interestToast", "Ótima escolha! Agora vamos personalizar sua análise 💪");
+        window.setTimeout(() => showScreen(2), 220);
+        return;
+      }
+
+      if (key === "temEntrada") {
+        const next = value === "Sim" ? 4 : 9;
+        if (value === "Não") {
+          state.valorEntrada = 0;
+          state.prazo = "";
+          state.valorParcela = 0;
+        }
+        showToast("entradaToast", value === "Sim" ? "Perfeito! Vamos calibrar a simulação ✨" : "Obrigado. Vamos finalizar sua análise.");
+        window.setTimeout(() => showScreen(next), 220);
+        return;
+      }
+
+      if (key === "prazo") {
+        showToast("prazoToast", "Analisando perfil 📊");
+        window.setTimeout(() => showScreen(7), 220);
+      }
+    }
+
+    function goBack() {
+      if (state.screen <= 1) return;
+      if (state.screen === 7 || state.screen === 8) {
+        showScreen(6);
+        return;
+      }
+      if (state.screen === 9) {
+        showScreen(3);
+        return;
+      }
+      showScreen(state.screen - 1);
+    }
+
+    function buildWhatsappMessage() {
+      const entrada = state.temEntrada === "Sim"
+        ? `${state.temEntrada}, ${formatCurrency(state.valorEntrada)}`
+        : "Não possui entrada no momento";
+      const parcela = state.temEntrada === "Sim"
+        ? formatCurrency(state.valorParcela)
+        : "Não informado";
+      const prazo = state.temEntrada === "Sim"
+        ? state.prazo
+        : "Não informado";
+
+      return [
+        "Olá! Acabei de responder o quiz de qualificação e quero falar com um especialista.",
+        "",
+        `Nome: ${state.nome}`,
+        `WhatsApp informado: ${state.telefone}`,
+        `Interesse: ${state.interesse}`,
+        `Tem entrada: ${entrada}`,
+        `Parcela desejada: ${parcela}`,
+        `Prazo para adquirir: ${prazo}`,
+        "",
+        "Pode me chamar para uma simulação?"
+      ].join("\n");
+    }
+
+    function submitToWhatsapp() {
+      if (!validatePhone()) return;
+
+      const message = encodeURIComponent(buildWhatsappMessage());
+      const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${message}`;
+      saveState();
+      window.location.href = url;
+    }
+
+    function startConfetti() {
+      const confetti = document.getElementById("confetti");
+      if (confetti.dataset.ready) return;
+
+      const colors = ["#f7c948", "#1f8a70", "#ff7a59", "#123c3a", "#68d391"];
+      const pieces = Array.from({ length: 26 }, (_, index) => {
+        const piece = document.createElement("span");
+        piece.style.left = `${Math.random() * 100}%`;
+        piece.style.animationDelay = `${Math.random() * 2.4}s`;
+        piece.style.animationDuration = `${2.3 + Math.random() * 1.8}s`;
+        piece.style.background = colors[index % colors.length];
+        return piece;
+      });
+
+      confetti.append(...pieces);
+      confetti.dataset.ready = "true";
+    }
+
+    function showSocialProof() {
+      const item = SOCIAL_PROOF_MESSAGES[socialProofIndex % SOCIAL_PROOF_MESSAGES.length];
+      socialProofTitle.textContent = `${item.nome} acabou de solicitar uma simulação`;
+      socialProofText.textContent = `${item.local} • Crédito para ${item.interesse}`;
+      socialProof.classList.add("show");
+      playSubtleNotice();
+
+      window.setTimeout(() => {
+        socialProof.classList.remove("show");
+      }, SOCIAL_PROOF_VISIBLE_MS);
+
+      socialProofIndex += 1;
+      socialProofIntervalIndex = (socialProofIntervalIndex + 1) % SOCIAL_PROOF_INTERVALS.length;
+      socialProofTimer = window.setTimeout(
+        showSocialProof,
+        SOCIAL_PROOF_VISIBLE_MS + SOCIAL_PROOF_INTERVALS[socialProofIntervalIndex]
+      );
+    }
+
+    function startSocialProof() {
+      window.clearTimeout(socialProofTimer);
+      socialProofTimer = window.setTimeout(showSocialProof, SOCIAL_PROOF_INTERVALS[0]);
+    }
+
+    function enableAudioNotice() {
+      audioReady = true;
+    }
+
+    function playSubtleNotice() {
+      if (!audioReady) return;
+
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+
+        const audio = new AudioContext();
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(740, audio.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(920, audio.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.0001, audio.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.018, audio.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.16);
+
+        osc.connect(gain);
+        gain.connect(audio.destination);
+        osc.start();
+        osc.stop(audio.currentTime + 0.18);
+        window.setTimeout(() => audio.close(), 260);
+      } catch (error) {
+        audioReady = false;
+      }
+    }
+
+    document.querySelectorAll("[data-restart]").forEach((button) => {
+      button.addEventListener("click", resetQuiz);
+    });
+    document.addEventListener("pointerdown", enableAudioNotice, { once: true });
+    document.addEventListener("keydown", enableAudioNotice, { once: true });
+
+    document.querySelector("[data-next-name]").addEventListener("click", () => {
+      if (validateName() && validatePhone()) showScreen(3);
+    });
+
+    document.querySelectorAll("[data-back]").forEach((button) => {
+      button.addEventListener("click", goBack);
+    });
+
+    document.querySelectorAll("[data-choice]").forEach((button) => {
+      button.addEventListener("click", () => {
+        button.classList.remove("icon-click");
+        void button.offsetWidth;
+        button.classList.add("icon-click");
+        nextAfterChoice(button.dataset.choice, button.dataset.value);
+      });
+    });
+
+    document.querySelectorAll("[data-next-range]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const next = button.dataset.nextRange === "valorEntrada" ? 5 : 6;
+        showScreen(next);
+      });
+    });
+
+    document.querySelector("[data-submit]").addEventListener("click", submitToWhatsapp);
+
+    nomeInput.addEventListener("input", () => {
+      state.nome = nomeInput.value;
+      document.getElementById("nomeError").textContent = "";
+      updatePersonalizedCopy();
+      saveState();
+    });
+
+    telefoneInput.addEventListener("input", () => {
+      telefoneInput.value = maskPhone(telefoneInput.value);
+      state.telefone = telefoneInput.value;
+      document.getElementById("telefoneError").textContent = "";
+      saveState();
+    });
+
+    valorEntradaInput.addEventListener("input", () => {
+      state.valorEntrada = Number(valorEntradaInput.value);
+      updateRangeLabels();
+      saveState();
+    });
+
+    valorParcelaInput.addEventListener("input", () => {
+      state.valorParcela = Number(valorParcelaInput.value);
+      updateRangeLabels();
+      saveState();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+
+      if (state.screen === 2) {
+        if (validateName() && validatePhone()) showScreen(3);
+      } else if (state.screen === 8) {
+        submitToWhatsapp();
+      }
+    });
+
+    /*
+      Som opcional via Web Audio API:
+      Para ativar depois, chame playClick() dentro dos eventos de clique.
+
+      function playClick() {
+        const audio = new AudioContext();
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.frequency.value = 660;
+        gain.gain.value = 0.03;
+        osc.connect(gain);
+        gain.connect(audio.destination);
+        osc.start();
+        osc.stop(audio.currentTime + 0.05);
+      }
+    */
+
+    loadState();
+    showScreen(state.screen || 1);
+    startSocialProof();
+  </script>
+</body>
+</html>

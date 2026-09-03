@@ -1,0 +1,1 @@
+ALTER TABLE contacts ADD COLUMN ai_activated INTEGER NOT NULL DEFAULT 0;

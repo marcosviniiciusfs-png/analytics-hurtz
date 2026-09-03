@@ -1,0 +1,170 @@
+{
+  "settings": {
+    "retentionDays": 30,
+    "apifyToken": "apify_api_SNpCifRPG7FjPOk2Ani46MNchNdHmc10Rg42",
+    "actors": {
+      "instagram": "",
+      "facebook": ""
+    },
+    "validationPrompt": "considere como lead apenas quem estiver relatando uma dificuldade própria para engravidar, estiver tentando há algum tempo, pedindo ajuda, buscando indicação ou demonstrando interesse em tratamento. Rejeite profissionais oferecendo serviços, comentários genéricos, elogios, emojis e pessoas apenas contando a história de terceiros",
+    "lastSearchTerms": [
+      "tentante",
+      "aumentar fertilidade naturalmente",
+      "não consigo engravidar",
+      "como engravidar rápido"
+    ]
+  },
+  "discoveries": [],
+  "jobs": [],
+  "leads": [],
+  "audit": [
+    {
+      "id": "5cdba28c-e34f-41bc-9cf1-9e45fd5ab025",
+      "action": "discovery.completed",
+      "details": {
+        "found": 0,
+        "rejected": 0,
+        "warnings": []
+      },
+      "at": "2026-08-04T18:42:05.445Z"
+    },
+    {
+      "id": "e973c6a7-66e2-4c5e-8f9a-a2773f7c86b0",
+      "action": "discovery.started",
+      "details": {
+        "terms": [
+          "tentante",
+          "aumentar fertilidade naturalmente",
+          "não consigo engravidar",
+          "como engravidar rápido"
+        ],
+        "networks": [
+          "instagram",
+          "facebook"
+        ],
+        "maxResults": 10
+      },
+      "at": "2026-08-04T18:41:41.943Z"
+    },
+    {
+      "id": "e956a186-a820-4d3e-b7a0-3e712c8acfc0",
+      "action": "discovery.completed",
+      "details": {
+        "found": 0,
+        "rejected": 10,
+        "warnings": []
+      },
+      "at": "2026-08-04T18:36:20.939Z"
+    },
+    {
+      "id": "cfc08ab3-d6f0-4451-b7ff-54e78e086e99",
+      "action": "discovery.started",
+      "details": {
+        "terms": [
+          "tentante",
+          "aumentar fertilidade naturalmente",
+          "não consigo engravidar",
+          "como engravidar rápido"
+        ],
+        "networks": [
+          "instagram",
+          "facebook"
+        ],
+        "maxResults": 10
+      },
+      "at": "2026-08-04T18:35:31.731Z"
+    },
+    {
+      "id": "605f5024-e653-4396-9fa0-8ea452768850",
+      "action": "discovery.completed",
+      "details": {
+        "found": 6,
+        "warnings": [
+          "Reddit: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+          "Reddit: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON"
+        ]
+      },
+      "at": "2026-08-04T17:06:59.255Z"
+    },
+    {
+      "id": "0f5a391b-cbe2-43d2-b2e0-e9205fb932f9",
+      "action": "discovery.started",
+      "details": {
+        "terms": [
+          "tentante",
+          "aumentar fertilidade naturalmente",
+          "não consigo engravidar",
+          "como engravidar rápido"
+        ],
+        "networks": [
+          "instagram",
+          "facebook",
+          "reddit"
+        ],
+        "maxResults": 10
+      },
+      "at": "2026-08-04T17:06:07.619Z"
+    },
+    {
+      "id": "093823e1-d42e-460a-906e-a477e19be2a3",
+      "action": "discovery.completed",
+      "details": {
+        "found": 10,
+        "warnings": []
+      },
+      "at": "2026-08-04T15:07:14.344Z"
+    },
+    {
+      "id": "ffae7246-54fc-4723-8ccd-b93d8ea651c1",
+      "action": "discovery.started",
+      "details": {
+        "terms": [
+          "tentante",
+          "aumentar fertilidade naturalmente",
+          "não consigo engravidar",
+          "como engravidar rápido"
+        ],
+        "networks": [
+          "instagram",
+          "facebook"
+        ],
+        "maxResults": 10
+      },
+      "at": "2026-08-04T15:06:32.621Z"
+    },
+    {
+      "id": "dcd52828-b25e-4bbb-9550-e9840f34f6ed",
+      "action": "discovery.failed",
+      "details": {
+        "error": "Input is not valid: Field input.languageCode must be equal to one of the allowed values: \"\", \"af\", \"sq\", \"sm\", \"ar\", \"az\", \"eu\", \"be\", \"bn\", \"bh\", \"bs\", \"bg\", \"ca\", \"zh-CN\", \"zh-TW\", \"hr\", \"cs\", \"da\", \"nl\", \"en\", \"eo\", \"et\", \"fo\", \"fi\", \"fr\", \"fy\", \"gl\", \"ka\", \"de\", \"el\", \"gu\", \"iw\", \"hi\", \"hu\", \"is\", \"id\", \"ia\", \"ga\", \"it\", \"ja\", \"jw\", \"kn\", \"ko\", \"la\", \"lv\", \"lt\", \"mk\", \"ms\", \"ml\", \"mt\", \"mr\", \"ne\", \"no\", \"nn\", \"oc\", \"fa\", \"pl\", \"pt-BR\", \"pt-PT\", \"pa\", \"ro\", \"ru\", \"gd\", \"sr\", \"si\", \"sk\", \"sl\", \"es\", \"su\", \"sw\", \"sv\", \"tl\", \"ta\", \"te\", \"th\", \"ti\", \"tr\", \"uk\", \"ur\", \"uz\", \"vi\", \"cy\", \"xh\", \"zu\""
+      },
+      "at": "2026-08-04T15:01:15.076Z"
+    },
+    {
+      "id": "4d022352-b8f5-4e3c-a2d7-9c9ffa581afc",
+      "action": "discovery.started",
+      "details": {
+        "terms": [
+          "tentante",
+          "aumentar fertilidade naturalmente",
+          "não consigo engravidar",
+          "como engravidar rápido"
+        ],
+        "networks": [
+          "instagram",
+          "facebook"
+        ],
+        "maxResults": 10
+      },
+      "at": "2026-08-04T15:01:14.064Z"
+    },
+    {
+      "id": "e8893ba5-bad5-49dd-a51b-426adadebfca",
+      "action": "settings.updated",
+      "details": {
+        "retentionDays": 30
+      },
+      "at": "2026-08-04T14:35:14.325Z"
+    }
+  ]
+}

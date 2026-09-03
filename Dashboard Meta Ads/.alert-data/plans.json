@@ -1,0 +1,59 @@
+{
+  "updated_at": "2026-07-21T17:17:47.985Z",
+  "plans": {
+    "act_478905369997301": {
+      "paymentType": "prepaid",
+      "deposit": 5000,
+      "depositDate": "2026-07-12",
+      "depositTime": "00:00",
+      "plannedDays": 20,
+      "dailyLimit": 300,
+      "weeklyLimit": 0
+    },
+    "act_767057339654401": {
+      "paymentType": "prepaid",
+      "deposit": 2200,
+      "depositDate": "2026-07-13",
+      "depositTime": "00:00",
+      "plannedDays": 12,
+      "dailyLimit": 230,
+      "weeklyLimit": 0
+    },
+    "act_1467904571001656": {
+      "paymentType": "prepaid",
+      "deposit": 1500,
+      "depositDate": "2026-07-10",
+      "depositTime": "00:00",
+      "plannedDays": 10,
+      "dailyLimit": 180,
+      "weeklyLimit": 0
+    },
+    "act_36589456883979012": {
+      "paymentType": "prepaid",
+      "deposit": 10000,
+      "depositDate": "2026-07-09",
+      "depositTime": "00:00",
+      "plannedDays": 30,
+      "dailyLimit": 420,
+      "weeklyLimit": 0
+    },
+    "act_2797573667298980": {
+      "paymentType": "prepaid",
+      "deposit": 2800,
+      "depositDate": "2026-07-11",
+      "depositTime": "00:00",
+      "plannedDays": 14,
+      "dailyLimit": 250,
+      "weeklyLimit": 0
+    },
+    "act_1505271587761873": {
+      "paymentType": "prepaid",
+      "deposit": 6000,
+      "depositDate": "2026-07-15",
+      "depositTime": "00:00",
+      "plannedDays": 25,
+      "dailyLimit": 280,
+      "weeklyLimit": 0
+    }
+  }
+}

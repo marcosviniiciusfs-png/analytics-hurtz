@@ -1,0 +1,41 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: #071723;
+}
+
+.hook-star .inner-content {
+  padding: 13px 25px;
+  border-radius: 999px;
+  background: rgba(7, 28, 43, 0.9);
+  border-color: rgba(33, 179, 91, 0.55);
+  color: #21b35b;
+  font-size: 25px;
+  font-weight: 950;
+  letter-spacing: 4px;
+}
+
+.hook-star,
+.hook-star .inner-content {
+  border-radius: 999px;
+}
+
+.stop-star .inner-content {
+  padding: 15px 38px;
+  border-radius: 999px;
+  background: rgba(7, 28, 43, 0.9);
+  border-color: rgba(244, 122, 24, 0.7);
+  color: #f47a18;
+  font-size: 34px;
+  font-weight: 950;
+  letter-spacing: 8px;
+}
+
+.stop-star,
+.stop-star .inner-content {
+  border-radius: 999px;
+}

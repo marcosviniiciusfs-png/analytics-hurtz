@@ -1,0 +1,41 @@
+<h2>Layout do Builder</h2>
+<p class="subtitle">Como o criador visual do quiz deve ser organizado?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Sidebar + Preview</h3>
+      <p><strong>Esquerda:</strong> Lista de blocos arrastáveis (perguntas, captura de e-mail, resultado).<br>
+      <strong>Centro:</strong> Preview ao vivo do quiz.<br>
+      <strong>Direita:</strong> Painel de edição do bloco selecionado.</p>
+      <p style="color:#94a3b8;font-size:0.9em">Estilo Calendly/Typeform editor. 3 colunas.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Lista + Preview (Inlead-style)</h3>
+      <p><strong>Esquerda (40%):</strong> Blocos empilhados verticalmente, clicar para editar inline.<br>
+      <strong>Direita (60%):</strong> Preview interativo do quiz que atualiza em tempo real.</p>
+      <p style="color:#94a3b8;font-size:0.9em">Estilo Inlead. Simples, 2 colunas. Edição inline sem painel extra.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Preview Fullscreen + Drawer</h3>
+      <p><strong>Tela cheia:</strong> Preview do quiz em tamanho real como o lead veria.<br>
+      <strong>Drawer lateral:</strong> Abre pela direita para editar o bloco atual.<br>
+      <strong>Steps:</strong> Navega entre perguntas por bolinhas ou setas.</p>
+      <p style="color:#94a3b8;font-size:0.9em">Máximo foco visual. Edição sob demanda.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:1.5rem;padding:1rem;background:#1e293b;border-radius:8px">
+  <h3 style="margin-top:0">Recomendação</h3>
+  <p>Para uma plataforma de quiz mobile-first, recomendo <strong>Opção B (Inlead-style)</strong>: é o modelo que o Inlead usa, funciona bem em telas menores, e a edição inline é mais intuitiva. O preview à direita garante que o criador sempre veja o resultado final.</p>
+</div>

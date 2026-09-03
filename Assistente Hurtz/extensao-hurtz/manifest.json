@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Assistente de Reunião Hurtz — Áudio Isolado",
+  "version": "1.0.0",
+  "description": "Conecta somente o áudio da aba selecionada ao Assistente de Reunião.",
+  "permissions": ["activeTab", "tabCapture", "offscreen", "storage"],
+  "host_permissions": [
+    "https://meet.google.com/*",
+    "https://*.zoom.us/*",
+    "https://teams.microsoft.com/*",
+    "https://teams.live.com/*",
+    "https://*.webex.com/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Conectar reunião ao Hurtz",
+    "default_popup": "popup.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src ws://127.0.0.1:8766"
+  }
+}

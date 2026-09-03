@@ -1,0 +1,436 @@
+[
+  {
+    "text": "Você",
+    "startMs": 90,
+    "endMs": 540,
+    "timestampMs": 220,
+    "confidence": 0.0654967
+  },
+  {
+    "text": " é",
+    "startMs": 540,
+    "endMs": 720,
+    "timestampMs": 620,
+    "confidence": 0.992085
+  },
+  {
+    "text": " médico,",
+    "startMs": 720,
+    "endMs": 1540,
+    "timestampMs": 1020,
+    "confidence": 0.986645
+  },
+  {
+    "text": " dentista",
+    "startMs": 1540,
+    "endMs": 2290,
+    "timestampMs": 1420,
+    "confidence": 0.957929
+  },
+  {
+    "text": " ou",
+    "startMs": 2290,
+    "endMs": 2470,
+    "timestampMs": 2340,
+    "confidence": 0.928371
+  },
+  {
+    "text": " psicólogo,",
+    "startMs": 2470,
+    "endMs": 3590,
+    "timestampMs": 2640,
+    "confidence": 0.996528
+  },
+  {
+    "text": " você",
+    "startMs": 3590,
+    "endMs": 4000,
+    "timestampMs": 3680,
+    "confidence": 0.736694
+  },
+  {
+    "text": " cuida",
+    "startMs": 4000,
+    "endMs": 4320,
+    "timestampMs": 3940,
+    "confidence": 0.919968
+  },
+  {
+    "text": " da",
+    "startMs": 4320,
+    "endMs": 4390,
+    "timestampMs": 4200,
+    "confidence": 0.970343
+  },
+  {
+    "text": " saúde",
+    "startMs": 4390,
+    "endMs": 4760,
+    "timestampMs": 4620,
+    "confidence": 0.995034
+  },
+  {
+    "text": " do",
+    "startMs": 4760,
+    "endMs": 4910,
+    "timestampMs": 4820,
+    "confidence": 0.972457
+  },
+  {
+    "text": " seu",
+    "startMs": 4910,
+    "endMs": 5120,
+    "timestampMs": 4980,
+    "confidence": 0.990505
+  },
+  {
+    "text": " paciente,",
+    "startMs": 5120,
+    "endMs": 5800,
+    "timestampMs": 5280,
+    "confidence": 0.978553
+  },
+  {
+    "text": " mas",
+    "startMs": 5800,
+    "endMs": 6020,
+    "timestampMs": 6140,
+    "confidence": 0.536935
+  },
+  {
+    "text": " cuidamos",
+    "startMs": 6020,
+    "endMs": 6620,
+    "timestampMs": 6340,
+    "confidence": 0.986679
+  },
+  {
+    "text": " da",
+    "startMs": 6620,
+    "endMs": 6760,
+    "timestampMs": 6780,
+    "confidence": 0.998155
+  },
+  {
+    "text": " saúde",
+    "startMs": 6760,
+    "endMs": 7200,
+    "timestampMs": 7220,
+    "confidence": 0.998955
+  },
+  {
+    "text": " do",
+    "startMs": 7200,
+    "endMs": 7350,
+    "timestampMs": 7440,
+    "confidence": 0.995011
+  },
+  {
+    "text": " seu",
+    "startMs": 7350,
+    "endMs": 7570,
+    "timestampMs": 7580,
+    "confidence": 0.99827
+  },
+  {
+    "text": " negócio.",
+    "startMs": 7570,
+    "endMs": 8500,
+    "timestampMs": 7980,
+    "confidence": 0.991495
+  },
+  {
+    "text": " Nossa",
+    "startMs": 8500,
+    "endMs": 8940,
+    "timestampMs": 9020,
+    "confidence": 0.722859
+  },
+  {
+    "text": " equipe",
+    "startMs": 8940,
+    "endMs": 9460,
+    "timestampMs": 9300,
+    "confidence": 0.997544
+  },
+  {
+    "text": " oferece",
+    "startMs": 9460,
+    "endMs": 10070,
+    "timestampMs": 9900,
+    "confidence": 0.986572
+  },
+  {
+    "text": " uma",
+    "startMs": 10070,
+    "endMs": 10320,
+    "timestampMs": 10440,
+    "confidence": 0.86062
+  },
+  {
+    "text": " assessoria",
+    "startMs": 10320,
+    "endMs": 11380,
+    "timestampMs": 10680,
+    "confidence": 0.942866
+  },
+  {
+    "text": " especializada",
+    "startMs": 11380,
+    "endMs": 12610,
+    "timestampMs": 11700,
+    "confidence": 0.874866
+  },
+  {
+    "text": " em",
+    "startMs": 12610,
+    "endMs": 12670,
+    "timestampMs": 12740,
+    "confidence": 0.908363
+  },
+  {
+    "text": " reduzir",
+    "startMs": 12670,
+    "endMs": 13280,
+    "timestampMs": 13040,
+    "confidence": 0.963738
+  },
+  {
+    "text": " a",
+    "startMs": 13280,
+    "endMs": 13380,
+    "timestampMs": 13460,
+    "confidence": 0.745553
+  },
+  {
+    "text": " sua",
+    "startMs": 13380,
+    "endMs": 13520,
+    "timestampMs": 13460,
+    "confidence": 0.997489
+  },
+  {
+    "text": " carga",
+    "startMs": 13520,
+    "endMs": 13800,
+    "timestampMs": 13700,
+    "confidence": 0.994108
+  },
+  {
+    "text": " tributária,",
+    "startMs": 13800,
+    "endMs": 14500,
+    "timestampMs": 13920,
+    "confidence": 0.979053
+  },
+  {
+    "text": " melhorar",
+    "startMs": 14500,
+    "endMs": 15040,
+    "timestampMs": 14960,
+    "confidence": 0.988012
+  },
+  {
+    "text": " a",
+    "startMs": 15040,
+    "endMs": 15090,
+    "timestampMs": 15340,
+    "confidence": 0.637053
+  },
+  {
+    "text": " sua",
+    "startMs": 15090,
+    "endMs": 15320,
+    "timestampMs": 15340,
+    "confidence": 0.9875
+  },
+  {
+    "text": " gestão",
+    "startMs": 15320,
+    "endMs": 15760,
+    "timestampMs": 15640,
+    "confidence": 0.997309
+  },
+  {
+    "text": " e",
+    "startMs": 15760,
+    "endMs": 15820,
+    "timestampMs": 16100,
+    "confidence": 0.980924
+  },
+  {
+    "text": " trazer",
+    "startMs": 15820,
+    "endMs": 16220,
+    "timestampMs": 16400,
+    "confidence": 0.998513
+  },
+  {
+    "text": " tranquilidade",
+    "startMs": 16220,
+    "endMs": 17090,
+    "timestampMs": 16740,
+    "confidence": 0.991068
+  },
+  {
+    "text": " para",
+    "startMs": 17090,
+    "endMs": 17360,
+    "timestampMs": 17460,
+    "confidence": 0.983142
+  },
+  {
+    "text": " o",
+    "startMs": 17360,
+    "endMs": 17420,
+    "timestampMs": 17580,
+    "confidence": 0.929269
+  },
+  {
+    "text": " seu",
+    "startMs": 17420,
+    "endMs": 17620,
+    "timestampMs": 17680,
+    "confidence": 0.995552
+  },
+  {
+    "text": " dia",
+    "startMs": 17620,
+    "endMs": 17830,
+    "timestampMs": 17900,
+    "confidence": 0.995332
+  },
+  {
+    "text": " a",
+    "startMs": 17830,
+    "endMs": 17880,
+    "timestampMs": 18100,
+    "confidence": 0.818868
+  },
+  {
+    "text": " dia,",
+    "startMs": 17880,
+    "endMs": 18300,
+    "timestampMs": 18180,
+    "confidence": 0.99915
+  },
+  {
+    "text": " entre",
+    "startMs": 18300,
+    "endMs": 18700,
+    "timestampMs": 18760,
+    "confidence": 0.982635
+  },
+  {
+    "text": " contato",
+    "startMs": 18700,
+    "endMs": 19290,
+    "timestampMs": 19020,
+    "confidence": 0.929307
+  },
+  {
+    "text": " com",
+    "startMs": 19290,
+    "endMs": 19500,
+    "timestampMs": 19380,
+    "confidence": 0.997893
+  },
+  {
+    "text": " a",
+    "startMs": 19500,
+    "endMs": 19580,
+    "timestampMs": 19460,
+    "confidence": 0.984949
+  },
+  {
+    "text": " gente",
+    "startMs": 19580,
+    "endMs": 20070,
+    "timestampMs": 19720,
+    "confidence": 0.995087
+  },
+  {
+    "text": " e",
+    "startMs": 20070,
+    "endMs": 20120,
+    "timestampMs": 20200,
+    "confidence": 0.877025
+  },
+  {
+    "text": " descubra",
+    "startMs": 20120,
+    "endMs": 20630,
+    "timestampMs": 20500,
+    "confidence": 0.438618
+  },
+  {
+    "text": " como",
+    "startMs": 20630,
+    "endMs": 20910,
+    "timestampMs": 20840,
+    "confidence": 0.958674
+  },
+  {
+    "text": " sua",
+    "startMs": 20910,
+    "endMs": 21120,
+    "timestampMs": 21100,
+    "confidence": 0.966429
+  },
+  {
+    "text": " clínica",
+    "startMs": 21120,
+    "endMs": 21700,
+    "timestampMs": 21380,
+    "confidence": 0.96854
+  },
+  {
+    "text": " ou",
+    "startMs": 21700,
+    "endMs": 21850,
+    "timestampMs": 21980,
+    "confidence": 0.941691
+  },
+  {
+    "text": " consultório",
+    "startMs": 21850,
+    "endMs": 23050,
+    "timestampMs": 22300,
+    "confidence": 0.985975
+  },
+  {
+    "text": " pode",
+    "startMs": 23050,
+    "endMs": 23080,
+    "timestampMs": 23200,
+    "confidence": 0.800291
+  },
+  {
+    "text": " crescer",
+    "startMs": 23080,
+    "endMs": 23590,
+    "timestampMs": 23440,
+    "confidence": 0.985067
+  },
+  {
+    "text": " com",
+    "startMs": 23590,
+    "endMs": 23780,
+    "timestampMs": 23880,
+    "confidence": 0.984196
+  },
+  {
+    "text": " mais",
+    "startMs": 23780,
+    "endMs": 24060,
+    "timestampMs": 24080,
+    "confidence": 0.987741
+  },
+  {
+    "text": " segurança.",
+    "startMs": 24060,
+    "endMs": 25000,
+    "timestampMs": 24520,
+    "confidence": 0.994173
+  }
+]

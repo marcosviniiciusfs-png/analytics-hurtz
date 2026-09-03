@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Relatorio-primeira-semana-julho</title>
+  <style>
+    @page { size: A4 landscape; margin: 14mm; }
+    body { color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 1.35; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .subtitle { color: #4b5563; margin: 0 0 16px; }
+    .note { background: #f3f4f6; border-left: 4px solid #6b7280; margin: 0 0 16px; padding: 10px 12px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #d1d5db; padding: 7px 8px; text-align: left; vertical-align: top; }
+    th { background: #e5e7eb; font-weight: 700; }
+    td.num, th.num { text-align: right; white-space: nowrap; }
+    .small { color: #6b7280; font-size: 10px; margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Relatorio Meta Ads - primeira semana de julho</h1>
+  <p class="subtitle">Periodo: 29/06/2026 a 05/07/2026</p>
+
+  <div class="note">
+    Dados extraidos da API da Meta em nivel de conta. O relatorio usa somente campos retornados pela API: <strong>spend</strong>, <strong>actions.lead</strong>, <strong>cost_per_action_type.lead</strong>, <strong>actions.onsite_conversion.messaging_conversation_started_7d</strong> e <strong>cost_per_action_type.onsite_conversion.messaging_conversation_started_7d</strong>. Nenhuma metrica foi estimada.
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Conta</th>
+        <th class="num">Valor gasto</th>
+        <th class="num">Leads</th>
+        <th class="num">Custo por lead</th>
+        <th class="num">Conversas WhatsApp</th>
+        <th class="num">Custo por conversa</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>CA - Consorcio Certicon</td><td class="num">R$ 396,39</td><td class="num">31</td><td class="num">R$ 12,786774</td><td class="num">76</td><td class="num">R$ 5,215658</td></tr>
+      <tr><td>CA - Investbens</td><td class="num">R$ 597,26</td><td class="num">197</td><td class="num">R$ 3,031777</td><td class="num">56</td><td class="num">R$ 10,665357</td></tr>
+      <tr><td>CA - Ramos solucoes</td><td class="num">R$ 310,17</td><td class="num">123</td><td class="num">R$ 2,521707</td><td class="num">11</td><td class="num">R$ 28,197273</td></tr>
+      <tr><td>CA - Progresso</td><td class="num">R$ 370,58</td><td class="num">86</td><td class="num">R$ 4,309070</td><td class="num">6</td><td class="num">R$ 61,763333</td></tr>
+      <tr><td>Gomes Invest</td><td class="num">R$ 273,59</td><td class="num">120</td><td class="num">R$ 2,279917</td><td class="num">-</td><td class="num">-</td></tr>
+      <tr><td>Ribeiro 02</td><td class="num">R$ 736,56</td><td class="num">145</td><td class="num">R$ 5,079724</td><td class="num">4</td><td class="num">R$ 184,140000</td></tr>
+      <tr><td>CA - Topazio - 3356</td><td class="num">R$ 533,70</td><td class="num">15</td><td class="num">R$ 35,580000</td><td class="num">164</td><td class="num">R$ 3,254268</td></tr>
+      <tr><td>CA - Topazio 03 - 7219</td><td class="num">R$ 180,45</td><td class="num">6</td><td class="num">R$ 30,075000</td><td class="num">123</td><td class="num">R$ 1,467073</td></tr>
+      <tr><td>CA - Malta Investimento</td><td class="num">R$ 449,25</td><td class="num">207</td><td class="num">R$ 2,170290</td><td class="num">13</td><td class="num">R$ 34,557692</td></tr>
+      <tr><td>B2 Investimento</td><td class="num">R$ 660,98</td><td class="num">2</td><td class="num">R$ 330,490000</td><td class="num">240</td><td class="num">R$ 2,754083</td></tr>
+      <tr><td>LD</td><td class="num">R$ 266,31</td><td class="num">102</td><td class="num">R$ 2,610882</td><td class="num">23</td><td class="num">R$ 11,578696</td></tr>
+      <tr><td>Ideal Credito</td><td class="num">R$ 290,20</td><td class="num">59</td><td class="num">R$ 4,918644</td><td class="num">6</td><td class="num">R$ 48,366667</td></tr>
+      <tr><td>Talisma</td><td class="num">R$ 162,66</td><td class="num">63</td><td class="num">R$ 2,581905</td><td class="num">4</td><td class="num">R$ 40,665000</td></tr>
+      <tr><td>Grupo Uniao</td><td class="num">R$ 682,72</td><td class="num">21</td><td class="num">R$ 32,510476</td><td class="num">52</td><td class="num">R$ 13,129231</td></tr>
+    </tbody>
+  </table>
+
+  <p class="small">Observacao: quando um campo nao apareceu no retorno da API para uma conta, foi marcado como "-".</p>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080">
+  <rect width="1600" height="1080" fill="#eceae6"/>
+  <style>
+    .panel{fill:#f8f7f4;stroke:#aaa69f;stroke-width:2}.ink{fill:#292d30}.line{fill:none;stroke:#292d30;stroke-width:10;stroke-linecap:round}.label{font:600 22px Arial;fill:#292d30}.note{font:17px Arial;fill:#696a68}.ghost{fill:#292d30;opacity:.16}
+  </style>
+  <text x="70" y="58" class="label" font-size="30">STORYBOARD V4 — CRESCIMENTO, MATCH ZOOM E GLITCH ESTRUTURAL</text>
+  <g transform="translate(70 100)">
+    <rect class="panel" width="460" height="390" rx="8"/><text x="22" y="34" class="label">01 — FUNDAÇÃO · F12–30</text>
+    <path class="line" stroke-width="5" d="M65 290H240"/><rect class="ink" x="85" y="235" width="34" height="55"/><rect class="ink" x="138" y="205" width="34" height="85"/><rect class="ink" x="191" y="165" width="34" height="125"/>
+    <text x="22" y="355" class="note">Uma baseline organiza e gera as três barras.</text>
+  </g>
+  <g transform="translate(570 100)">
+    <rect class="panel" width="460" height="390" rx="8"/><text x="22" y="34" class="label">02 — PUSH-IN · F28–58</text>
+    <rect x="52" y="70" width="320" height="245" fill="none" stroke="#777" stroke-width="2" stroke-dasharray="8 8"/>
+    <rect class="ghost" x="85" y="235" width="34" height="55"/><rect class="ghost" x="138" y="205" width="34" height="85"/><rect class="ghost" x="191" y="165" width="34" height="125"/>
+    <path class="line" d="M62 260 C135 245 185 190 245 105"/><path class="ink" d="M236 90h47v47l-16-11-26 28-20-18 26-28z"/>
+    <text x="22" y="355" class="note">Câmera 100%→112%; ponta da seta é o foco.</text>
+  </g>
+  <g transform="translate(1070 100)">
+    <rect class="panel" width="460" height="390" rx="8"/><text x="22" y="34" class="label">03 — MATCH ZOOM · F54–72</text>
+    <path class="line" stroke-width="5" d="M55 200H405"/><path class="ink" d="M382 183l28 17-28 17z"/>
+    <text x="74" y="182" class="ghost" font-family="Arial" font-size="72" font-weight="700">INTEGRA</text>
+    <text x="22" y="355" class="note">Diagonal da seta encaixa na haste do I.</text>
+  </g>
+  <g transform="translate(70 540)">
+    <rect class="panel" width="460" height="390" rx="8"/><text x="22" y="34" class="label">04 — GLITCH · F68–82</text>
+    <text x="46" y="217" class="ghost" font-family="Arial" font-size="92" font-weight="700">INTEGRA</text>
+    <text x="58" y="228" class="ink" font-family="Arial" font-size="92" font-weight="700">INTEGRA</text>
+    <rect x="45" y="176" width="350" height="11" fill="#f8f7f4"/><rect x="62" y="176" width="330" height="6" class="ink" opacity=".45"/>
+    <path class="line" stroke-width="5" d="M48 250H400"/>
+    <text x="22" y="355" class="note">2 pulsos de 2 frames; deslocamento máximo 8 px.</text>
+  </g>
+  <g transform="translate(570 540)">
+    <rect class="panel" width="460" height="390" rx="8"/><text x="22" y="34" class="label">05 — SCAN + SUBTÍTULO · F76–126</text>
+    <text x="45" y="175" class="ink" font-family="Arial" font-size="72" font-weight="700">INTEGRA</text>
+    <text x="48" y="230" class="ink" font-family="Arial" font-size="25" letter-spacing="5">ASSESSORIA CONTÁBIL</text>
+    <path class="line" stroke-width="4" d="M48 250H410"/>
+    <text x="22" y="355" class="note">A linha encontra a baseline do subtítulo.</text>
+  </g>
+  <g transform="translate(1070 540)">
+    <rect class="panel" width="460" height="390" rx="8"/><text x="22" y="34" class="label">06 — ZOOM-OUT · F122–154</text>
+    <g transform="translate(-30 -120) scale(.48)">
+      <image href="public/logo-integra-profissional.svg" width="1080" height="1080"/>
+    </g>
+    <text x="22" y="355" class="note">112%→100%; assinatura exata e hold de 24 frames.</text>
+  </g>
+  <text x="70" y="1010" class="note">GATE 1: aprovar a lógica estática antes de produzir o animatic monocromático e mudo.</text>
+</svg>
