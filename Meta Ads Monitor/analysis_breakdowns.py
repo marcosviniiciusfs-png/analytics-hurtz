@@ -7,6 +7,7 @@ import sys
 import urllib.parse
 import urllib.request
 from decimal import Decimal
+from account_credentials import account_token
 
 
 VERSION = os.environ.get("META_API_VERSION", "v25.0")
@@ -16,7 +17,7 @@ FORM_TYPES = ("onsite_conversion.lead_grouped", "offsite_complete_registration_a
 
 
 def get(path: str, params: dict) -> list[dict]:
-    query = urllib.parse.urlencode({**params, "access_token": TOKEN})
+    query = urllib.parse.urlencode({**params, "access_token": account_token(path, TOKEN)})
     url = f"https://graph.facebook.com/{VERSION}/{path}?{query}"
     rows: list[dict] = []
     while url:
@@ -95,6 +96,7 @@ def money_equal(left: Decimal, right: Decimal) -> bool:
 
 
 def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
+    token = account_token(account_id, TOKEN)
     base_fields = "spend,impressions,reach,clicks,ctr,cpm,cpc,actions"
     if report_only:
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
@@ -126,7 +128,7 @@ def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
         batch = ",".join(ad_ids[start:start + 50])
         if not batch:
             continue
-        query = urllib.parse.urlencode({"ids": batch, "fields": "id,status,effective_status,creative{id,name,object_type,video_id,image_hash,image_url,thumbnail_url,object_story_spec,asset_feed_spec}", "access_token": TOKEN})
+        query = urllib.parse.urlencode({"ids": batch, "fields": "id,status,effective_status,creative{id,name,object_type,video_id,image_hash,image_url,thumbnail_url,object_story_spec,asset_feed_spec}", "access_token": token})
         with urllib.request.urlopen(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50) as response:
             payload = json.load(response)
         for ad_id, item in payload.items():
@@ -155,7 +157,7 @@ def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
         batch = ",".join(campaign_ids[start:start + 50])
         if not batch:
             continue
-        query = urllib.parse.urlencode({"ids": batch, "fields": "id,objective", "access_token": TOKEN})
+        query = urllib.parse.urlencode({"ids": batch, "fields": "id,objective", "access_token": token})
         with urllib.request.urlopen(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50) as response:
             payload = json.load(response)
         for campaign_id, item in payload.items():

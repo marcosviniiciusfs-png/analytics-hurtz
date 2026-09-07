@@ -5,6 +5,9 @@ const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { Readable } = require('stream');
 
+const { createPersonalMeta } = require('./personal-meta');
+const personalMeta = createPersonalMeta(process.platform === 'win32' ? {directory: path.join(__dirname, '..', '.codex-tmp', 'personal-secrets')} : {});
+
 const root = __dirname;
 const port = Number(process.env.PORT || 8091);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.svg':'image/svg+xml'};
@@ -120,13 +123,13 @@ http.createServer((req,res)=>{
     const action=requestUrl.pathname.slice('/api/auth/'.length),email=String(payload?.email||'').trim().toLowerCase(),password=String(payload?.password||''),config=authConfig();
     if(action==='login'){
       if(!email||!password)return jsonResponse(res,400,{error:'Informe e-mail e senha.'});
-      return supabaseAuthRequest('token?grant_type=password',{body:{email,password}}).then(result=>jsonResponse(res,200,{ok:true,token:config.API_SESSION_TOKEN,user:{email:result.user?.email||email}})).catch(authError=>jsonResponse(res,authError.status===400?401:authError.status||502,{error:authError.message}));
+      return supabaseAuthRequest('token?grant_type=password',{body:{email,password}}).then(result=>jsonResponse(res,200,{ok:true,token:personalMeta.issueSession(result.user),user:{id:result.user.id,email:result.user.email||email}})).catch(authError=>jsonResponse(res,authError.status===400?401:authError.status||502,{error:authError.message}));
     }
     if(action==='signup'){
       if(!/^\S+@\S+\.\S+$/.test(email))return jsonResponse(res,400,{error:'Informe um e-mail válido.'});
       if(password.length<8)return jsonResponse(res,400,{error:'A senha deve ter pelo menos 8 caracteres.'});
       const redirectTo=`${authPublicUrl()}/?auth=confirmed`;
-      return supabaseAuthRequest(`signup?redirect_to=${encodeURIComponent(redirectTo)}`,{body:{email,password}}).then(result=>jsonResponse(res,201,{ok:true,confirmed:Boolean(result.access_token),message:result.access_token?'Conta criada e conectada.':'Conta criada. Confirme o e-mail antes de entrar.',token:result.access_token?config.API_SESSION_TOKEN:undefined})).catch(authError=>jsonResponse(res,authError.status||502,{error:authError.message}));
+      return supabaseAuthRequest(`signup?redirect_to=${encodeURIComponent(redirectTo)}`,{body:{email,password}}).then(result=>jsonResponse(res,201,{ok:true,confirmed:Boolean(result.access_token),message:result.access_token?'Conta criada e conectada.':'Conta criada. Confirme o e-mail antes de entrar.',token:result.access_token?personalMeta.issueSession(result.user):undefined,user:result.user?{id:result.user.id,email:result.user.email}:undefined})).catch(authError=>jsonResponse(res,authError.status||502,{error:authError.message}));
     }
     if(action==='recover'){
       if(!/^\S+@\S+\.\S+$/.test(email))return jsonResponse(res,400,{error:'Informe um e-mail válido.'});
@@ -141,10 +144,17 @@ http.createServer((req,res)=>{
     }
     if(action==='exchange'){
       const accessToken=String(payload?.access_token||'');if(!accessToken)return jsonResponse(res,401,{error:'Confirmação inválida ou expirada.'});
-      return supabaseAuthRequest('user',{method:'GET',accessToken}).then(user=>jsonResponse(res,200,{ok:true,token:config.API_SESSION_TOKEN,user:{email:user.email}})).catch(authError=>jsonResponse(res,authError.status||502,{error:authError.message}));
+      return supabaseAuthRequest('user',{method:'GET',accessToken}).then(user=>jsonResponse(res,200,{ok:true,token:personalMeta.issueSession(user),user:{id:user.id,email:user.email}})).catch(authError=>jsonResponse(res,authError.status||502,{error:authError.message}));
     }
     return jsonResponse(res,404,{error:'Operação de autenticação não encontrada.'});
   });
+  if(!isCreativeAgentRoute&&requestUrl.pathname.startsWith('/api/')){
+    const bearer=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
+    let personalSession;
+    try{personalSession=personalMeta.session(bearer)}catch{return jsonResponse(res,401,{error:'Sessão inválida. Entre novamente.'})}
+    if(personalSession)return personalMeta.handle(req,res,personalSession,requestUrl,jsonResponse).catch(error=>{if(!res.headersSent)jsonResponse(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir a solicitação.'})});
+    if(bearer.startsWith('pa_'))return jsonResponse(res,401,{error:'Sua sessão expirou. Entre novamente.'});
+  }
   if(!isCreativeAgentRoute&&process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){
     if(requestUrl.pathname==='/api/session'&&req.method==='POST')return readBody(req,(error,payload)=>{
       const ip=clientIp(req),now=Date.now(),attempt=(loginAttempts.get(ip)||{count:0,until:0});
@@ -447,6 +457,7 @@ http.createServer((req,res)=>{
     });
   }
   const clean = decodeURIComponent(req.url.split('?')[0]);
+  if(['/personal-meta.js','/preview-server.js'].includes(clean)){res.writeHead(404);return res.end('Not found')}
   const target = path.resolve(root, clean === '/' ? 'index.html' : `.${clean}`);
   if (!target.startsWith(root)) { res.writeHead(403); return res.end('Forbidden'); }
   fs.readFile(target,(err,data)=>{

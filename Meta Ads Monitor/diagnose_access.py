@@ -10,6 +10,7 @@ from typing import Any
 import requests
 
 from env_utils import load_env
+from account_credentials import account_token, connections
 
 
 DEFAULT_ENV = Path("/opt/meta-ads-cli/secrets/.env")
@@ -22,7 +23,7 @@ class MetaApiError(RuntimeError):
 
 def graph_get(version: str, path: str, token: str, params: dict[str, Any]) -> dict:
     safe_params = dict(params)
-    safe_params["access_token"] = token
+    safe_params["access_token"] = account_token(path, token)
     try:
         response = requests.get(
             f"https://graph.facebook.com/{version}/{path.lstrip('/')}",
@@ -92,6 +93,11 @@ def main() -> int:
             token,
             {"fields": ACCOUNT_FIELDS, "limit": 100},
         )
+        by_id = {account["id"]: account for account in accounts}
+        for connection in connections():
+            for account_id in connection["account_ids"]:
+                by_id[account_id] = graph_get(version, account_id, connection["access_token"], {"fields": ACCOUNT_FIELDS})
+        accounts = list(by_id.values())
         businesses = Counter(
             (account.get("business") or {}).get("name", "Sem business informado")
             for account in accounts

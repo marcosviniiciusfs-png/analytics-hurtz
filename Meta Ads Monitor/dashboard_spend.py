@@ -6,6 +6,7 @@ import time
 import urllib.parse
 import urllib.request
 from decimal import Decimal
+from account_credentials import account_token
 
 VERSION = os.environ.get("META_API_VERSION", "v25.0")
 TOKEN = os.environ["META_ACCESS_TOKEN"]
@@ -55,7 +56,7 @@ def choose_result(actions, objective, campaign_name):
 
 
 def get(path, params):
-    query = urllib.parse.urlencode({**params, "access_token": TOKEN})
+    query = urllib.parse.urlencode({**params, "access_token": account_token(path, TOKEN)})
     url = f"https://graph.facebook.com/{VERSION}/{path}?{query}"
     rows = []
     while url:

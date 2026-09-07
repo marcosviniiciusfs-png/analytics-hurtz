@@ -1,6 +1,19 @@
+;(async()=>{
 const MONITOR_API_BASE=location.hostname==='analytics.hurtzcompany.com'?'https://analytics-api.161-97-148-99.sslip.io':'';
-const MONITOR_SESSION_KEY='hurtz-monitor-session';
+const MONITOR_SESSION_KEY='hurtz-monitor-session-v2';
 const browserFetch=window.fetch.bind(window);
+let personalIdentity=null;
+const originalStorage=window.localStorage;
+const savedSession=originalStorage.getItem(MONITOR_SESSION_KEY);
+if(savedSession){
+  try{const response=await browserFetch(`${MONITOR_API_BASE}/api/session`,{headers:{Authorization:`Bearer ${savedSession}`}});if(response.ok)personalIdentity=await response.json();else if(response.status===401)originalStorage.removeItem(MONITOR_SESSION_KEY)}catch{}
+}
+const userStorage={
+  key(name){return name===MONITOR_SESSION_KEY?name:`hurtz-user:${personalIdentity?.user?.id||'anonymous'}:${name}`},
+  getItem(name){return originalStorage.getItem(this.key(name))},
+  setItem(name,value){originalStorage.setItem(this.key(name),value)},
+  removeItem(name){originalStorage.removeItem(this.key(name))}
+};
 let monitorLoginWaiter=null;
 function waitForMonitorLogin(message='Sua sessão expirou. Entre novamente para continuar.'){
   if(!monitorLoginWaiter){
@@ -12,21 +25,21 @@ function waitForMonitorLogin(message='Sua sessão expirou. Entre novamente para 
   return monitorLoginWaiter.promise;
 }
 function completeMonitorLogin(token){
-  localStorage.setItem(MONITOR_SESSION_KEY,token);
-  const waiter=monitorLoginWaiter;monitorLoginWaiter=null;waiter?.resolve(token);
+  originalStorage.setItem(MONITOR_SESSION_KEY,token);
+  location.reload();
 }
 async function monitorApiFetch(input,options={}){
   const url=typeof input==='string'?input:input?.url||'',target=`${MONITOR_API_BASE}${url}`;
   const request=async token=>browserFetch(target,{...options,headers:{...(options.headers||{}),...(token?{Authorization:`Bearer ${token}`}:{})}});
-  let response=await request(localStorage.getItem(MONITOR_SESSION_KEY));
+  let response=await request(userStorage.getItem(MONITOR_SESSION_KEY));
   if(response.status!==401)return response;
-  localStorage.removeItem(MONITOR_SESSION_KEY);
+  userStorage.removeItem(MONITOR_SESSION_KEY);
   const renewedToken=await waitForMonitorLogin();
   response=await request(renewedToken);
-  if(response.status===401){localStorage.removeItem(MONITOR_SESSION_KEY);showAlertLogin('A nova sessão não foi aceita. Entre novamente.');}
+  if(response.status===401){userStorage.removeItem(MONITOR_SESSION_KEY);showAlertLogin('A nova sessão não foi aceita. Entre novamente.');}
   return response;
 }
-window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input?.url||'',isMonitorApi=url.startsWith('/api/');return isMonitorApi&&MONITOR_API_BASE?monitorApiFetch(input,options):browserFetch(input,options)};
+window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input?.url||'',isMonitorApi=url.startsWith('/api/');return isMonitorApi?monitorApiFetch(input,options):browserFetch(input,options)};
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 async function fetchJsonWithRetry(url,{attempts=3,delay=700,...options}={}){
   let lastError;
@@ -67,51 +80,9 @@ function setButtonLoading(button,loading,label){
   buttonLoadingState.set(button,state);
 }
 
-const accounts = [
-  {id:'act_478905369997301',name:'CA - Consórcio Certicon',initials:'CC',color:'#e87722',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]},
-  {id:'act_767057339654401',name:'CA - Malta Investimento',initials:'MI',color:'#6d4bc3',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]},
-  {id:'act_1467904571001656',name:'CA - Topázio 03 - 7219',initials:'T3',color:'#d36b2d',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]},
-  {id:'act_36589456883979012',name:'CA - Grupo União',initials:'GU',color:'#149374',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]},
-  {id:'act_2797573667298980',name:'CA - Ideal Créditos',initials:'IC',color:'#ca3f67',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]},
-  {id:'act_1505271587761873',name:'Gomes Invest',initials:'GI',color:'#2579b7',status:'unknown',objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:'2026-08-26',plannedDays:1,dailyLimit:0},campaigns:[]}
-];
+const accounts = [];
 
-const AUDITED_META_DATA={
-  'act_478905369997301':{'2026-07-18':{spend:.01,leads:null,source:'Conta R$ 0,01 = campanhas R$ 0,01',campaigns:[
-    {id:'120246879448220726',name:'02 - [TESTE] - IMÓVEL - FORMULÁRIO - 18/06 - ESCALANDO',objective:'Formulário',status:'Ativa',spend:.01,results:null}
-  ]}},
-  'act_767057339654401':{'2026-07-18':{spend:17.85,leads:null,source:'Conta R$ 17,85 = campanhas R$ 17,85',campaigns:[
-    {id:'120249766975150675',name:'03 - IMÓVEL - WHATSAPP - 11/07',objective:'Mensagens',status:'Ativa',spend:3.59,results:null},
-    {id:'120249766975160675',name:'02 - IMÓVEL - WHATSAPP - 11/07',objective:'Mensagens',status:'Ativa',spend:5.37,results:null},
-    {id:'120249830963020675',name:'02 - CARRO - WHATSAPP - 13/07',objective:'Mensagens',status:'Ativa',spend:1.34,results:null},
-    {id:'120249852229310675',name:'01 - MOTO - WHATSAPP - 13/07',objective:'Mensagens',status:'Ativa',spend:3.48,results:null},
-    {id:'120249852334500675',name:'03 - MOTO - WHATSAPP - 13/07',objective:'Mensagens',status:'Ativa',spend:3.08,results:null},
-    {id:'120249852334560675',name:'02 - MOTO - WHATSAPP - 13/07',objective:'Mensagens',status:'Ativa',spend:.99,results:null}
-  ]}},
-  'act_1467904571001656':{'2026-07-18':{spend:0,leads:null,source:'Conta R$ 0,00 = campanhas R$ 0,00',campaigns:[]}},
-  'act_36589456883979012':{
-    '2026-07-18':{
-      spend:7.28,
-      leads:null,
-      source:'Conta R$ 7,28 = campanhas R$ 7,28',
-      campaigns:[
-        {id:'120248979583450382',name:'01 - IMÓVEL - 08/07',objective:'Não auditado',status:'Ativa',spend:1.15,results:null},
-        {id:'120249009072310382',name:'02 - IMÓVEL - 08/07',objective:'Não auditado',status:'Ativa',spend:2.92,results:null},
-        {id:'120249186662200382',name:'04 - IMÓVEL - MENSAGEM - [1986] - 15/07',objective:'Mensagens',status:'Ativa',spend:.90,results:null},
-        {id:'120249186662210382',name:'05 - IMÓVEL - MENSAGEM - [1986] - 15/07',objective:'Mensagens',status:'Ativa',spend:.42,results:null},
-        {id:'120249186662220382',name:'03 - IMÓVEL - MENSAGEM - [1986] - 15/07',objective:'Mensagens',status:'Ativa',spend:.46,results:null},
-        {id:'120249186662230382',name:'01 - IMÓVEL - MENSAGEM - [1986] - 15/07',objective:'Mensagens',status:'Ativa',spend:1.43,results:null}
-      ]
-    }
-  },
-  'act_2797573667298980':{'2026-07-18':{spend:0,leads:null,source:'Conta R$ 0,00 = campanhas R$ 0,00',campaigns:[]}},
-  'act_1505271587761873':{'2026-07-18':{spend:24.46,leads:null,source:'Conta R$ 24,46 = campanhas R$ 24,46',campaigns:[
-    {id:'120247363984160162',name:'06 - CAMINHÃO - 17/06',objective:'Não auditado',status:'Ativa',spend:7.37,results:null},
-    {id:'120247435481040162',name:'1/3 - IMÓVEL - 18/06',objective:'Não auditado',status:'Ativa',spend:2.69,results:null},
-    {id:'120247768762310162',name:'06 - CARRO - 24/06',objective:'Não auditado',status:'Ativa',spend:6.43,results:null},
-    {id:'120248167287480162',name:'01 - IMÓVEL - 19/06 - ESCALANDO',objective:'Não auditado',status:'Ativa',spend:7.97,results:null}
-  ]}}
-};
+const AUDITED_META_DATA={};
 const LIVE_PERIOD_DATA={};
 
 const NOW = new Date();
@@ -146,7 +117,7 @@ function loadPlans(){
 }
 async function savePlans(){
   const plans=Object.fromEntries(accounts.map(a=>[a.id,a.plan]));
-  localStorage.setItem('hurtz-balance-plans',JSON.stringify(plans));
+  userStorage.setItem('hurtz-balance-plans',JSON.stringify(plans));
   const response=await fetch('/api/alert-plans',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({plans})});
   const payload=await response.json().catch(()=>null);
   if(!response.ok||!payload?.ok)throw new Error(payload?.error||'A VPS não confirmou o salvamento dos limites.');
@@ -210,14 +181,14 @@ const escapeHtml=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<'
 
 function readPresets(){
   try{
-    const stored=JSON.parse(localStorage.getItem(PRESET_KEY)||'null');
+    const stored=JSON.parse(userStorage.getItem(PRESET_KEY)||'null');
     if(!stored||typeof stored!=='object')return {items:{},defaultName:null};
     const items=stored.items&&typeof stored.items==='object'?stored.items:{};
     return {items,defaultName:typeof stored.defaultName==='string'?stored.defaultName:null};
   }catch{return {items:{},defaultName:null}}
 }
-function writePresets(value){localStorage.setItem(PRESET_KEY,JSON.stringify(value))}
-function readCampaignGoals(){try{return JSON.parse(localStorage.getItem(CAMPAIGN_GOALS_KEY)||'{}')}catch{return {}}}
+function writePresets(value){userStorage.setItem(PRESET_KEY,JSON.stringify(value))}
+function readCampaignGoals(){try{return JSON.parse(userStorage.getItem(CAMPAIGN_GOALS_KEY)||'{}')}catch{return {}}}
 function campaignGoals(accountId){return readCampaignGoals()[accountId]||{}}
 function metricGoalState(metric,campaign,days,goals){
   const configured=goals&&Object.values(goals).some(value=>Number.isFinite(Number(value))&&String(value)!=='');
@@ -246,19 +217,9 @@ function metricGoalState(metric,campaign,days,goals){
 }
 function saveAccountCatalog(){
   const catalog=accounts.map(({id,name,initials,color,status,businessName,businessPicture,objectives})=>({id,name,initials,color,status,businessName,businessPicture,objectives}));
-  localStorage.setItem(ACCOUNT_CATALOG_KEY,JSON.stringify(catalog));
+  userStorage.setItem(ACCOUNT_CATALOG_KEY,JSON.stringify(catalog));
 }
-function loadAccountCatalog(){
-  try{
-    const catalog=JSON.parse(localStorage.getItem(ACCOUNT_CATALOG_KEY)||'[]');
-    catalog.forEach(item=>{
-      const existing=accounts.find(account=>account.id===item.id);
-      if(existing){
-        ['name','initials','color','status','businessName','businessPicture','objectives'].forEach(field=>{if(item[field]!=null)existing[field]=item[field]});
-      }else accounts.push({...item,spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:iso(NOW),depositTime:'00:00',plannedDays:1,dailyLimit:0}});
-    });
-  }catch{}
-}
+function loadAccountCatalog(){}
 function renderAccountFilterOptions(){document.querySelector('#accountFilterOptions').innerHTML=accounts.map(account=>`<label><input type="checkbox" value="${account.id}" ${selectedAccountIds.has(account.id)?'checked':''}><span><b>${account.name}</b>${account.businessName?`<small>${account.businessName}</small>`:''}</span></label>`).join('')}
 async function findMetaAccounts(showProgress=true){
   const button=document.querySelector('#findMetaAccounts'),status=document.querySelector('#accountSearchStatus');
@@ -267,6 +228,11 @@ async function findMetaAccounts(showProgress=true){
     const response=await fetch('/api/meta-accounts');
     const payload=await response.json();
     if(!response.ok)throw new Error(payload.error||'Falha na consulta');
+    const allowedIds=new Set((payload.accounts||[]).map(item=>item.id));
+    const previousIds=new Set(selectedAccountIds);
+    for(let index=accounts.length-1;index>=0;index--)if(!allowedIds.has(accounts[index].id))accounts.splice(index,1);
+    selectedAccountIds=new Set([...previousIds].filter(id=>allowedIds.has(id)));
+    if(!selectedAccountIds.size)selectedAccountIds=new Set(allowedIds);
     (payload.accounts||[]).forEach((item,index)=>{
       const existing=accounts.find(account=>account.id===item.id);
       if(existing){
@@ -575,8 +541,8 @@ function openCampaignGoal(metric){
 function closeCampaignGoal(){document.querySelector('#campaignGoalPanel').hidden=true;selectedCampaignGoal=null}
 document.querySelectorAll('[data-campaign-goal]').forEach(button=>button.onclick=()=>openCampaignGoal(button.dataset.campaignGoal));
 document.querySelector('#closeCampaignGoal').onclick=closeCampaignGoal;
-document.querySelector('#campaignGoalPanel').onsubmit=event=>{event.preventDefault();if(!selectedAccount||!selectedCampaignGoal)return;const all=readCampaignGoals(),values={};new FormData(event.currentTarget).forEach((value,key)=>values[key]=value);const number=name=>values[name]===''?null:Number(values[name]);if(number('min')!=null&&number('ideal')!=null&&number('min')>number('ideal')){alert('O valor mínimo não pode ser maior que o ideal.');return}if(number('ideal')!=null&&number('max')!=null&&number('ideal')>number('max')){alert('O valor ideal não pode ser maior que o máximo.');return}all[selectedAccount.id]??={};all[selectedAccount.id][selectedCampaignGoal]=values;localStorage.setItem(CAMPAIGN_GOALS_KEY,JSON.stringify(all));closeCampaignGoal();renderModal()};
-document.querySelector('#clearCampaignGoal').onclick=()=>{if(!selectedAccount||!selectedCampaignGoal)return;const all=readCampaignGoals();if(all[selectedAccount.id])delete all[selectedAccount.id][selectedCampaignGoal];localStorage.setItem(CAMPAIGN_GOALS_KEY,JSON.stringify(all));closeCampaignGoal();renderModal()};
+document.querySelector('#campaignGoalPanel').onsubmit=event=>{event.preventDefault();if(!selectedAccount||!selectedCampaignGoal)return;const all=readCampaignGoals(),values={};new FormData(event.currentTarget).forEach((value,key)=>values[key]=value);const number=name=>values[name]===''?null:Number(values[name]);if(number('min')!=null&&number('ideal')!=null&&number('min')>number('ideal')){alert('O valor mínimo não pode ser maior que o ideal.');return}if(number('ideal')!=null&&number('max')!=null&&number('ideal')>number('max')){alert('O valor ideal não pode ser maior que o máximo.');return}all[selectedAccount.id]??={};all[selectedAccount.id][selectedCampaignGoal]=values;userStorage.setItem(CAMPAIGN_GOALS_KEY,JSON.stringify(all));closeCampaignGoal();renderModal()};
+document.querySelector('#clearCampaignGoal').onclick=()=>{if(!selectedAccount||!selectedCampaignGoal)return;const all=readCampaignGoals();if(all[selectedAccount.id])delete all[selectedAccount.id][selectedCampaignGoal];userStorage.setItem(CAMPAIGN_GOALS_KEY,JSON.stringify(all));closeCampaignGoal();renderModal()};
 function openAccount(id,showPlan=false){closeCampaignGoal();selectedAccount=accounts.find(a=>a.id===id);document.querySelector('#modalTitle').textContent=selectedAccount.name;document.querySelector('#modalSubtitle').textContent=`${selectedAccount.id} • ${isCreditAccount(selectedAccount)?'controle de gastos no cartão':'planejamento conciliado da conta'}`;fillPlan();syncModalDates();renderModal();togglePlan(showPlan);modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';loadSelectedAccountAudit()}
 function fillPlan(){const p=selectedAccount.plan;document.querySelector('#paymentType').value=p.paymentType||'prepaid';document.querySelector('#depositAmount').value=p.deposit;document.querySelector('#depositDate').value=p.depositDate;document.querySelector('#depositTime').value=p.depositTime||'00:00';document.querySelector('#plannedDays').value=p.plannedDays;document.querySelector('#dailyLimit').value=p.dailyLimit;document.querySelector('#weeklyLimit').value=p.weeklyLimit||'';document.querySelector('#weekStartDay').value=String(p.weekStartDay??1);syncPaymentTypeFields();renderNetBudgetPreview()}
 function syncPaymentTypeFields(){const credit=document.querySelector('#paymentType').value==='credit';document.querySelectorAll('[data-prepaid-field]').forEach(field=>{field.hidden=credit;field.querySelector('input,select').required=!credit});document.querySelectorAll('[data-credit-field]').forEach(field=>{field.hidden=!credit;field.querySelector('input,select').required=credit});document.querySelector('#planFormTitle').textContent=credit?'Controle de gastos no cartão':'Planejamento do depósito';document.querySelector('#planFormDescription').textContent=credit?'Informe a verba semanal, o limite diário e o horário semanal de reset. O histórico é preservado; o ciclo exibido volta a zero.':'O ciclo considera somente gastos posteriores à data e ao horário do depósito.';document.querySelector('#savePaymentPlan').textContent=credit?'Salvar limites':'Salvar planejamento'}
@@ -637,7 +603,7 @@ planForm.addEventListener('submit',async e=>{
     renderSummary();renderAccounts(document.querySelector('#searchInput').value);renderModal();togglePlan(false);
     if(paymentType==='credit')await loadCreditAccountPeriods(selectedAccount.id);
   }catch(error){
-    selectedAccount.plan=previous;localStorage.setItem('hurtz-balance-plans',JSON.stringify(Object.fromEntries(accounts.map(a=>[a.id,a.plan]))));
+    selectedAccount.plan=previous;userStorage.setItem('hurtz-balance-plans',JSON.stringify(Object.fromEntries(accounts.map(a=>[a.id,a.plan]))));
     document.querySelector('#netBudgetPreview').innerHTML=`<strong>Não foi possível salvar: ${escapeHtml(error.message)}</strong>`;
   }finally{
     button.disabled=false;syncPaymentTypeFields();
@@ -671,7 +637,7 @@ document.querySelector('#searchInput').addEventListener('input',e=>renderAccount
 document.querySelectorAll('#quickDates button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));b.classList.add('active');setDates(b.dataset.range);if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
 document.querySelectorAll('.custom-date input').forEach(i=>i.onchange=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
 document.querySelector('#refreshButton').onclick=async event=>{delete LIVE_PERIOD_DATA[`${iso(globalPeriod.from)}|${iso(globalPeriod.to)}`];delete LIVE_PERIOD_DATA[lastThreeDays().key];if(realControlAuditKey)delete LIVE_PERIOD_DATA[realControlAuditKey];await Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to,event.currentTarget,true),loadRealControlData(globalPeriod.to,true),loadLastThreeDays(true)])};
-loadAccountCatalog();selectedAccountIds=new Set(accounts.map(account=>account.id));loadPlans();renderAccountFilterOptions();refreshPresetSelect();const defaultPreset=readPresets().items[readPresets().defaultName];if(defaultPreset)applyPreset(defaultPreset,false);setGlobalRange('yesterday');document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;loadLastThreeDays();renderSummary();renderAccounts();setTimeout(()=>{if(accounts.some(account=>!account.businessPicture))findMetaAccounts(false)},250);
+loadAccountCatalog();selectedAccountIds=new Set(accounts.map(account=>account.id));loadPlans();renderAccountFilterOptions();refreshPresetSelect();const defaultPreset=readPresets().items[readPresets().defaultName];if(defaultPreset)applyPreset(defaultPreset,false);setGlobalRange('yesterday');document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;loadLastThreeDays();renderSummary();renderAccounts();setTimeout(()=>{if(false)findMetaAccounts(false)},250);
 
 /* Analise interativa: somente dados reconciliados pela API Meta. */
 const HISTORICAL_90_DATA={};
@@ -715,10 +681,10 @@ const baseRenderGeneralAnalysis=renderGeneralAnalysis;renderGeneralAnalysis=func
 const ANALYSIS_BREAKDOWN_CACHE={};
 let monitoredAnalysisAccounts=[],analysisSelectedAccount='',analysisFrom=null,analysisTo=null,analysisLoading=false,analysisComparedAccountIds=new Set();
 const ANALYSIS_PRESET_KEY='hurtz-analysis-comparison-presets-v1',ANALYSIS_SELECTION_KEY='hurtz-analysis-comparison-selection-v1';
-function readAnalysisPresets(){try{return JSON.parse(localStorage.getItem(ANALYSIS_PRESET_KEY)||'{}')}catch{return {}}}
+function readAnalysisPresets(){try{return JSON.parse(userStorage.getItem(ANALYSIS_PRESET_KEY)||'{}')}catch{return {}}}
 function renderAnalysisAccountOptions(){const target=document.querySelector('#analysisAccountOptions');target.innerHTML=monitoredAnalysisAccounts.map(account=>`<label><input type="checkbox" value="${account.id}" ${analysisComparedAccountIds.has(account.id)?'checked':''}><span>${escapeHtml(account.name)}</span></label>`).join('');document.querySelector('#analysisAccountsButton').textContent=`Contas comparadas (${analysisComparedAccountIds.size})`}
 function refreshAnalysisPresets(){const select=document.querySelector('#analysisSavedPreset'),presets=readAnalysisPresets();select.innerHTML='<option value="">Filtros salvos</option>'+Object.keys(presets).map(name=>`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}
-function applyAnalysisAccountChecks(){const checked=[...document.querySelectorAll('#analysisAccountOptions input:checked')].map(input=>input.value);if(checked.length<2){alert('Selecione pelo menos duas contas para comparar.');return false}analysisComparedAccountIds=new Set(checked);localStorage.setItem(ANALYSIS_SELECTION_KEY,JSON.stringify(checked));renderAnalysisAccountOptions();return true}
+function applyAnalysisAccountChecks(){const checked=[...document.querySelectorAll('#analysisAccountOptions input:checked')].map(input=>input.value);if(checked.length<2){alert('Selecione pelo menos duas contas para comparar.');return false}analysisComparedAccountIds=new Set(checked);userStorage.setItem(ANALYSIS_SELECTION_KEY,JSON.stringify(checked));renderAnalysisAccountOptions();return true}
 function analysisClosedRange(days=7){const to=new Date(NOW);to.setDate(to.getDate()-1);const from=new Date(to);from.setDate(from.getDate()-(days-1));return {from,to}}
 function setAnalysisRange(days,load=true,trigger=null){const range=analysisClosedRange(Number(days));analysisFrom=range.from;analysisTo=range.to;document.querySelector('#analysisDateFrom').value=iso(analysisFrom);document.querySelector('#analysisDateTo').value=iso(analysisTo);document.querySelectorAll('[data-analysis-range]').forEach(button=>button.classList.toggle('active',button.dataset.analysisRange===String(days)));if(load)return loadDetailedAnalysis(trigger)}
 function analysisKpiMarkup(items){return items.map(item=>`<div class="analysis-kpi">${metricLabel(item.label,item.help)}<strong>${item.value}</strong><small>${escapeHtml(item.note)}</small></div>`).join('')}
@@ -749,7 +715,7 @@ function renderDetailedAnalysis(data){clearAnalysisLoaders();const chip=document
   ]);renderObjectiveComparison(data);document.querySelector('#analysisAgeChart').innerHTML=data.age.reconciled?donutChart(data.age.rows,data.age.rows.some(row=>row.results>0)?'results':'impressions','age'):emptyChart('Idade ainda não reconciliou com o gasto da conta.');document.querySelector('#analysisFormatChart').innerHTML=data.format.reconciled?donutChart(data.format.rows,'impressions','format'):emptyChart('Formato ainda não reconciliou com o gasto da conta.');const geoRows=[...(data.geography?.rows||[])].sort((a,b)=>(b.results-a.results)||(b.spend-a.spend)),geoHasResults=geoRows.some(row=>row.results>0),geoTop=geoRows[0],geoLevel=data.geography?.level==='city'?'Cidade':'Região';document.querySelector('#analysisGeographyHighlight').innerHTML=data.geography?.reconciled&&geoTop?`<span>${geoLevel} em destaque</span><strong>${escapeHtml(geoTop.region)}</strong><small>${geoHasResults?`${num(geoTop.results)} resultados • ${geoTop.cost_per_result==null?'Custo indisponível':brl(geoTop.cost_per_result)+' por resultado'}`:`${brl(geoTop.spend)} usados • sem resultado atribuído`}</small>`:'';document.querySelector('#analysisGeographyChart').innerHTML=data.geography?.reconciled?barChart(geoRows.slice(0,15).map(row=>({id:row.region,label:row.region,value:geoHasResults?row.results:row.spend,fullLabel:`${row.region} • ${num(row.results)} resultados • ${brl(row.spend)} usados • CTR ${Number(row.ctr).toLocaleString('pt-BR',{maximumFractionDigits:2})}%`})),geoHasResults?num:brl):emptyChart('Localização ainda não reconciliou com o gasto da conta.');const placements=data.placement.rows.map(row=>({...row,label:`${placementName(row.publisher_platform)} • ${placementName(row.platform_position)}`})).sort((a,b)=>b.spend-a.spend);document.querySelector('#analysisPlacementChart').innerHTML=data.placement.reconciled?barChart(placements.map(row=>({id:row.label,label:row.label,value:row.spend,fullLabel:`${row.label} • ${num(row.results)} resultados • CTR ${row.ctr.toFixed(2)}%`})),brl):emptyChart('Posicionamentos ainda não reconciliaram com o gasto da conta.');document.querySelector('#analysisCtrChart').innerHTML=data.format.reconciled?barChart(data.format.rows.map(row=>({id:row.format,label:row.format,value:row.ctr})).sort((a,b)=>b.value-a.value),value=>`${Number(value).toLocaleString('pt-BR',{maximumFractionDigits:2})}%`):emptyChart('CTR por formato aguardando auditoria.');document.querySelector('#analysisCplChart').innerHTML=data.age.reconciled?barChart(data.age.rows.filter(row=>row.cost_per_result!=null).map(row=>({id:row.age,label:row.age,value:row.cost_per_result})).sort((a,b)=>a.value-b.value),brl):emptyChart('CPL por idade aguardando auditoria.');const ads=[...data.ads].filter(ad=>ad.spend>0).sort((a,b)=>(b.results-a.results)||(a.cost_per_result??Infinity)-(b.cost_per_result??Infinity)).slice(0,30);document.querySelector('#analysisAdsRanking').innerHTML=ads.length?`<div class="analysis-table-scroll"><table class="analysis-ranking-table"><thead><tr><th>Anúncio</th><th>Formato</th><th class="number">Valor usado</th><th class="number">Resultados</th><th class="number">CPL</th><th class="number">CTR</th><th class="number">CPM</th></tr></thead><tbody>${ads.map(ad=>{const accountName=monitoredAnalysisAccounts.find(item=>item.id===ad.account_id)?.name||ad.account_id;return `<tr><td><span class="ranking-account-name">${escapeHtml(accountName)}</span><strong>${escapeHtml(ad.ad_name||'Sem nome')}</strong><small>ID ${escapeHtml(ad.ad_id)}</small></td><td>${escapeHtml(ad.format)}</td><td class="number">${brl(ad.spend)}</td><td class="number">${num(ad.results)}</td><td class="number">${ad.cost_per_result==null?'—':brl(ad.cost_per_result)}</td><td class="number">${Number(ad.ctr).toLocaleString('pt-BR',{maximumFractionDigits:2})}%</td><td class="number">${brl(ad.cpm)}</td></tr>`}).join('')}</tbody></table></div>`:emptyChart('Nenhum anúncio teve entrega no período.');document.querySelector('#analysisNotice span').textContent=data.reconciled&&data.age.reconciled&&data.geography?.reconciled&&data.placement.reconciled&&data.format.reconciled?'Conta, anúncios, idade, localização, posicionamento e formato reconciliaram com o valor usado da Meta.':'Algum breakdown ainda não reconciliou; o gráfico correspondente foi bloqueado.'}
 const analysisCacheKey=id=>`${iso(analysisFrom)}|${iso(analysisTo)}|${id}`;
 async function loadDetailedAnalysis(trigger=null,showGlobal=true){if(!analysisSelectedAccount||!analysisFrom||!analysisTo)return;const ids=analysisSelectedAccount==='all'?[...analysisComparedAccountIds]:[analysisSelectedAccount];if(!ids.length)return;const cachedPayload={accounts:{}},missing=[];ids.forEach(id=>{const cached=ANALYSIS_BREAKDOWN_CACHE[analysisCacheKey(id)];if(cached)cachedPayload.accounts[id]=cached;else missing.push(id)});if(!missing.length)return renderDetailedAnalysis(mergeAnalysisAccounts(cachedPayload));const progressButton=trigger||document.querySelector('#applyAnalysisFilter');if(showGlobal)setButtonLoading(progressButton,true,'Analisando...');analysisLoading=true;renderDetailedAnalysis(null);try{const response=await fetch(`/api/meta-analysis?from=${iso(analysisFrom)}&to=${iso(analysisTo)}&accounts=${encodeURIComponent(missing.join(','))}`);if(!response.ok)throw new Error('Falha ao consultar os breakdowns da Meta');const payload=await response.json();Object.entries(payload.accounts||{}).forEach(([id,row])=>ANALYSIS_BREAKDOWN_CACHE[analysisCacheKey(id)]=row);ids.forEach(id=>{const cached=ANALYSIS_BREAKDOWN_CACHE[analysisCacheKey(id)];if(cached)cachedPayload.accounts[id]=cached});analysisLoading=false;renderDetailedAnalysis(mergeAnalysisAccounts(cachedPayload))}catch(error){analysisLoading=false;renderDetailedAnalysis(null)}finally{if(showGlobal)setButtonLoading(progressButton,false)}}
-async function initializeDetailedAnalysis(){if(monitoredAnalysisAccounts.length)return;try{const response=await fetch('/api/meta-monitor-config');const payload=await response.json();monitoredAnalysisAccounts=payload.accounts||[];const select=document.querySelector('#analysisAccountSelect');select.innerHTML='<option value="all">Comparar todas as contas</option>'+monitoredAnalysisAccounts.map(item=>`<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('');let saved=[];try{saved=JSON.parse(localStorage.getItem(ANALYSIS_SELECTION_KEY)||'[]')}catch{}const allowed=new Set(monitoredAnalysisAccounts.map(item=>item.id));analysisComparedAccountIds=new Set(saved.filter(id=>allowed.has(id)));if(analysisComparedAccountIds.size<2)analysisComparedAccountIds=new Set(allowed);analysisSelectedAccount='all';select.value=analysisSelectedAccount;renderAnalysisAccountOptions();refreshAnalysisPresets();setAnalysisRange(7,false);loadDetailedAnalysis(null,false)}catch(error){renderDetailedAnalysis(null)}}
+async function initializeDetailedAnalysis(){if(monitoredAnalysisAccounts.length)return;try{const response=await fetch('/api/meta-monitor-config');const payload=await response.json();monitoredAnalysisAccounts=payload.accounts||[];const select=document.querySelector('#analysisAccountSelect');select.innerHTML='<option value="all">Comparar todas as contas</option>'+monitoredAnalysisAccounts.map(item=>`<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('');let saved=[];try{saved=JSON.parse(userStorage.getItem(ANALYSIS_SELECTION_KEY)||'[]')}catch{}const allowed=new Set(monitoredAnalysisAccounts.map(item=>item.id));analysisComparedAccountIds=new Set(saved.filter(id=>allowed.has(id)));if(analysisComparedAccountIds.size<2)analysisComparedAccountIds=new Set(allowed);analysisSelectedAccount='all';select.value=analysisSelectedAccount;renderAnalysisAccountOptions();refreshAnalysisPresets();setAnalysisRange(7,false);loadDetailedAnalysis(null,false)}catch(error){renderDetailedAnalysis(null)}}
 renderGeneralAnalysis=function(){if(!document.querySelector('#analysis').hidden)initializeDetailedAnalysis()};
 showDashboardView=function(view){const analysis=document.querySelector('#analysis'),reports=document.querySelector('#reports'),mainSections=[document.querySelector('#summaryCards'),document.querySelector('#accounts')],special=view==='analysis'||view==='reports';document.querySelector('main>header').hidden=special;analysis.hidden=view!=='analysis';reports.hidden=view!=='reports';mainSections.forEach(section=>section.hidden=special);document.querySelectorAll('.sidebar nav a').forEach(link=>link.classList.toggle('active',(view==='analysis'&&link.id==='analysisNav')||(view==='reports'&&link.id==='reportsNav')||(view==='accounts'&&link.getAttribute('href')==='#accounts')||(view==='overview'&&link.getAttribute('href')==='#')));if(view==='analysis')initializeDetailedAnalysis();if(view==='reports')initializeReports()};
 let reportInitialized=false,reportLottieAnimation=null;
@@ -958,7 +924,7 @@ function closePngReport(){document.querySelector('#pngReportModal').classList.re
 function renderReport(payload,from,to,selectedIds){const rows=selectedIds.map(id=>payload.accounts?.[id]).filter(Boolean),failures=[];rows.forEach(row=>{const campaigns=row.campaigns||[],sum=campaigns.reduce((total,campaign)=>total+Number(campaign.spend||0),0);if(!row.reconciled||Math.abs(Number(row.spend||0)-sum)>=.01)failures.push(row.name||row.id)});if(rows.length!==selectedIds.length)failures.push('Conta sem retorno da API');if(failures.length)throw new Error(`Relatório bloqueado: auditoria incompleta em ${failures.join(', ')}.`);const accountHtml=rows.map(row=>{const groups=reportGroupsForRow(row);return `<section class="report-account" data-report-account="${escapeHtml(row.id)}"><div class="report-account-head"><div><span>CONTA DE ANÚNCIO</span><h3>${escapeHtml(row.name||row.id)}</h3></div><div class="report-account-head-actions"><b>Auditada com a Meta</b><button class="report-view-ads-button" type="button" data-view-report-ads="${escapeHtml(row.id)}">Visualizar anúncios</button><button type="button" data-create-png="${row.id}">Criar relatório em PNG</button></div></div><div class="report-groups">${groups.map(group=>`<article><strong>${escapeHtml(group.name)}</strong><div><span>LEADS</span><b>${group.complete?num(group.results):'Sem dados de lead'}</b></div><div><span>Custo por lead</span><b>${group.complete&&group.results?brl(group.spend/group.results):'—'}</b></div>${!group.complete?'<small>Coleta de resultado incompleta; nenhum valor foi estimado.</small>':''}</article>`).join('')||'<p>Nenhuma campanha teve gasto no período.</p>'}</div><footer><span>Valor gasto</span><strong>${brl(row.spend)}</strong></footer></section>`}).join('');return `<div class="report-document"><header><div><p>HURTZ • PERFORMANCE</p><h1>Relatório Meta Ads</h1><span>Período: ${from.toLocaleDateString('pt-BR')} até ${to.toLocaleDateString('pt-BR')}</span></div><button type="button" id="printReportButton">Baixar / imprimir PDF</button></header>${accountHtml}<div class="report-audit-footer">Dados da API Meta • ${rows.length} conta(s) reconciliada(s) • valores não estimados</div></div>`}
 async function createReport(event){const selectedIds=[...document.querySelectorAll('#reportAccountOptions input:checked')].map(input=>input.value),from=parseDate(document.querySelector('#reportDateFrom').value),to=parseDate(document.querySelector('#reportDateTo').value),status=document.querySelector('#reportStatus'),output=document.querySelector('#reportOutput');if(!selectedIds.length)return alert('Selecione pelo menos uma conta.');if(from>to)return alert('A data inicial deve ser anterior à data final.');showReportLoader(true);event.currentTarget.disabled=true;status.textContent='Consultando e auditando campanhas...';try{const query=`from=${iso(from)}&to=${iso(to)}&accounts=${encodeURIComponent(selectedIds.join(','))}`,[spendResponse,analysisResponse]=await Promise.all([fetch(`/api/meta-spend?${query}`),fetch(`/api/meta-analysis?${query}`)]),payload=await spendResponse.json(),analysis=await analysisResponse.json();if(!spendResponse.ok)throw new Error(payload.error||'Falha ao consultar a Meta.');if(!analysisResponse.ok)throw new Error(analysis.error||'Falha ao consultar métricas para o relatório PNG.');const analysisFailures=selectedIds.filter(id=>!analysis.accounts?.[id]?.reconciled);if(analysisFailures.length)throw new Error('Relatório PNG bloqueado: métricas analíticas ainda não reconciliadas.');currentReportContext={payload,analysis,from,to,selectedIds};output.innerHTML=renderReport(payload,from,to,selectedIds);output.hidden=false;status.textContent=`Relatório pronto: ${selectedIds.length} conta(s), período ${from.toLocaleDateString('pt-BR')} a ${to.toLocaleDateString('pt-BR')}.`;document.querySelector('#printReportButton').onclick=()=>window.print();output.querySelectorAll('[data-create-png]').forEach(button=>button.onclick=()=>openPngReport(button.dataset.createPng))}catch(error){output.hidden=true;status.textContent=error.message}finally{showReportLoader(false);event.currentTarget.disabled=false}}
 document.querySelector('#analysisAccountSelect').onchange=event=>{analysisSelectedAccount=event.target.value;document.querySelector('#analysisAccountsButton').hidden=analysisSelectedAccount!=='all';document.querySelector('#analysisAccountPanel').hidden=true;loadDetailedAnalysis()};document.querySelectorAll('[data-analysis-range]').forEach(button=>button.onclick=event=>setAnalysisRange(button.dataset.analysisRange,true,event.currentTarget));document.querySelector('#applyAnalysisFilter').onclick=event=>{const from=parseDate(document.querySelector('#analysisDateFrom').value),to=parseDate(document.querySelector('#analysisDateTo').value);if(from>to)return alert('A data inicial não pode ser posterior à data final.');analysisFrom=from;analysisTo=to;document.querySelectorAll('[data-analysis-range]').forEach(button=>button.classList.remove('active'));return loadDetailedAnalysis(event.currentTarget)};
-document.querySelector('#analysisAccountsButton').onclick=()=>{const panel=document.querySelector('#analysisAccountPanel');panel.hidden=!panel.hidden;renderAnalysisAccountOptions()};document.querySelector('#closeAnalysisAccounts').onclick=()=>document.querySelector('#analysisAccountPanel').hidden=true;document.querySelector('#analysisToggleAll').onclick=()=>{const boxes=[...document.querySelectorAll('#analysisAccountOptions input')],all=boxes.every(box=>box.checked);boxes.forEach(box=>box.checked=!all)};document.querySelector('#applyAnalysisAccounts').onclick=event=>{if(!applyAnalysisAccountChecks())return;document.querySelector('#analysisAccountPanel').hidden=true;loadDetailedAnalysis(event.currentTarget)};document.querySelector('#saveAnalysisPreset').onclick=()=>{const name=document.querySelector('#analysisPresetName').value.trim();if(!name)return alert('Digite um nome para o filtro.');const checked=[...document.querySelectorAll('#analysisAccountOptions input:checked')].map(input=>input.value);if(checked.length<2)return alert('Selecione pelo menos duas contas.');const presets=readAnalysisPresets();presets[name]=checked;localStorage.setItem(ANALYSIS_PRESET_KEY,JSON.stringify(presets));refreshAnalysisPresets();document.querySelector('#analysisSavedPreset').value=name};document.querySelector('#analysisSavedPreset').onchange=event=>{const ids=readAnalysisPresets()[event.target.value];if(!ids)return;document.querySelectorAll('#analysisAccountOptions input').forEach(input=>input.checked=ids.includes(input.value));document.querySelector('#analysisPresetName').value=event.target.value};document.querySelector('#deleteAnalysisPreset').onclick=()=>{const name=document.querySelector('#analysisSavedPreset').value;if(!name)return;const presets=readAnalysisPresets();delete presets[name];localStorage.setItem(ANALYSIS_PRESET_KEY,JSON.stringify(presets));document.querySelector('#analysisPresetName').value='';refreshAnalysisPresets()};
+document.querySelector('#analysisAccountsButton').onclick=()=>{const panel=document.querySelector('#analysisAccountPanel');panel.hidden=!panel.hidden;renderAnalysisAccountOptions()};document.querySelector('#closeAnalysisAccounts').onclick=()=>document.querySelector('#analysisAccountPanel').hidden=true;document.querySelector('#analysisToggleAll').onclick=()=>{const boxes=[...document.querySelectorAll('#analysisAccountOptions input')],all=boxes.every(box=>box.checked);boxes.forEach(box=>box.checked=!all)};document.querySelector('#applyAnalysisAccounts').onclick=event=>{if(!applyAnalysisAccountChecks())return;document.querySelector('#analysisAccountPanel').hidden=true;loadDetailedAnalysis(event.currentTarget)};document.querySelector('#saveAnalysisPreset').onclick=()=>{const name=document.querySelector('#analysisPresetName').value.trim();if(!name)return alert('Digite um nome para o filtro.');const checked=[...document.querySelectorAll('#analysisAccountOptions input:checked')].map(input=>input.value);if(checked.length<2)return alert('Selecione pelo menos duas contas.');const presets=readAnalysisPresets();presets[name]=checked;userStorage.setItem(ANALYSIS_PRESET_KEY,JSON.stringify(presets));refreshAnalysisPresets();document.querySelector('#analysisSavedPreset').value=name};document.querySelector('#analysisSavedPreset').onchange=event=>{const ids=readAnalysisPresets()[event.target.value];if(!ids)return;document.querySelectorAll('#analysisAccountOptions input').forEach(input=>input.checked=ids.includes(input.value));document.querySelector('#analysisPresetName').value=event.target.value};document.querySelector('#deleteAnalysisPreset').onclick=()=>{const name=document.querySelector('#analysisSavedPreset').value;if(!name)return;const presets=readAnalysisPresets();delete presets[name];userStorage.setItem(ANALYSIS_PRESET_KEY,JSON.stringify(presets));document.querySelector('#analysisPresetName').value='';refreshAnalysisPresets()};
 document.querySelector('#closeComparisonModal').onclick=closeComparisonModal;document.querySelector('#comparisonModal').onclick=event=>{if(event.target.id==='comparisonModal')closeComparisonModal()};
 document.querySelector('#reportsNav').onclick=event=>{event.preventDefault();history.replaceState(null,'','#reports');showDashboardView('reports')};document.querySelector('#createReportButton').onclick=createReport;document.querySelector('#reportToggleAccounts').onclick=()=>{const boxes=[...document.querySelectorAll('#reportAccountOptions input')],all=boxes.length&&boxes.every(box=>box.checked);boxes.forEach(box=>box.checked=!all);document.querySelector('#reportToggleAccounts').textContent=all?'Selecionar todas':'Limpar seleção'};
 document.querySelector('#closePngReport').onclick=closePngReport;document.querySelector('#pngReportModal').onclick=event=>{if(event.target.id==='pngReportModal')closePngReport()};document.querySelector('#updatePngReport').onclick=()=>drawPngReport(currentPngAccountId,document.querySelector('#pngReportName').value.trim()||'Conta de anúncio');document.querySelector('#downloadPngReport').onclick=async()=>{const name=document.querySelector('#pngReportName').value.trim()||'Conta de anúncio';await drawPngReport(currentPngAccountId,name);const canvas=document.querySelector('#pngReportCanvas'),slug=name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase()||'conta';canvas.toBlob(blob=>{const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`relatorio-performance-${slug}-${iso(currentReportContext.from)}-a-${iso(currentReportContext.to)}.png`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)},'image/png')};
@@ -1181,7 +1147,7 @@ function setAlertAuthMode(mode,message='',success=false){
 function showAlertLogin(message=''){document.querySelector('#alertLoginModal').hidden=false;if(alertAuthMode!=='reset')setAlertAuthMode('login',message);else if(message)setAlertAuthStatus(message)}
 function hideAlertLogin(){document.querySelector('#alertLoginModal').hidden=true;['alertLoginPassword','alertSignupPassword','alertSignupPasswordConfirm','alertResetPassword','alertResetPasswordConfirm'].forEach(id=>{const input=document.querySelector(`#${id}`);if(input)input.value=''});setAlertAuthMode('login')}
 async function alertAuthPost(action,body){let response;try{response=await browserFetch(`${ALERT_API_BASE}/api/auth/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch{throw new Error('A API de acesso não respondeu.')}const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'Não foi possível concluir esta operação.');return payload}
-async function alertFetchJson(url,options={}){const token=localStorage.getItem(ALERT_SESSION_KEY);if(ALERT_API_BASE&&!token){showAlertLogin();throw new Error('Faça login para acessar o monitoramento.')}let response;try{response=await fetch(`${ALERT_API_BASE}${url}`,{...options,headers:{...(options.headers||{}),...(token?{Authorization:`Bearer ${token}`}:{})}})}catch{throw new Error('A API segura da VPS não respondeu.')}const type=response.headers.get('content-type')||'';if(response.status===401){localStorage.removeItem(ALERT_SESSION_KEY);showAlertLogin('Sua sessão expirou. Entre novamente.');throw new Error('Sessão expirada.')}if(!type.includes('application/json'))throw new Error('A API de monitoramento respondeu em formato inválido.');const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Falha na consulta.');return payload}
+async function alertFetchJson(url,options={}){const token=userStorage.getItem(ALERT_SESSION_KEY);if(ALERT_API_BASE&&!token){showAlertLogin();throw new Error('Faça login para acessar o monitoramento.')}let response;try{response=await fetch(`${ALERT_API_BASE}${url}`,{...options,headers:{...(options.headers||{}),...(token?{Authorization:`Bearer ${token}`}:{})}})}catch{throw new Error('A API segura da VPS não respondeu.')}const type=response.headers.get('content-type')||'';if(response.status===401){userStorage.removeItem(ALERT_SESSION_KEY);showAlertLogin('Sua sessão expirou. Entre novamente.');throw new Error('Sessão expirada.')}if(!type.includes('application/json'))throw new Error('A API de monitoramento respondeu em formato inválido.');const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Falha na consulta.');return payload}
 function alertKindLabel(kind){return ({daily_limit:'Limite diário',spend_velocity:'Ritmo de gasto',opportunity:'Oportunidade',balance_report:'Relatório geral',performance_report:'Resumo de 3 dias',test:'Teste',technical:'Monitoramento técnico'})[kind]||'Notificação'}
 function alertTone(kind,severity){if(severity==='critical')return'critical';if(severity==='recommendation')return'recommendation';if(kind==='technical')return'technical';return'warning'}
 function renderAlertHistory(payload){
@@ -1207,13 +1173,13 @@ async function loadAlerts(trigger=null){
   if(trigger)setButtonLoading(trigger,true,'Atualizando alertas...');
   try{renderAlertHistory(await alertFetchJson('/api/alerts'))}catch(error){document.querySelector('#alertConnection').textContent='API de monitoramento indisponível';document.querySelector('#alertHistory').innerHTML=`<div class="alert-empty">${escapeHtml(error.message)}</div>`}finally{if(trigger)setButtonLoading(trigger,false)}
 }
-function initializeAlerts(){if(ALERT_API_BASE&&!localStorage.getItem(ALERT_SESSION_KEY))return showAlertLogin();if(alertsInitialized)return loadAlerts();alertsInitialized=true;loadAlerts()}
+function initializeAlerts(){if(ALERT_API_BASE&&!userStorage.getItem(ALERT_SESSION_KEY))return showAlertLogin();if(alertsInitialized)return loadAlerts();alertsInitialized=true;loadAlerts()}
 document.querySelectorAll('[data-auth-mode]').forEach(button=>button.addEventListener('click',()=>setAlertAuthMode(button.dataset.authMode)));
 document.querySelector('#alertLoginForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter||event.currentTarget.querySelector('[type="submit"]'),email=document.querySelector('#alertLoginUser').value.trim(),password=document.querySelector('#alertLoginPassword').value;button.disabled=true;setAlertAuthStatus('Entrando...');try{const payload=await alertAuthPost('login',{email,password});completeMonitorLogin(payload.token);hideAlertLogin();if(!document.querySelector('#alerts').hidden)initializeAlerts()}catch(error){setAlertAuthStatus(error.message||'Falha no login.')}finally{button.disabled=false}});
 document.querySelector('#alertSignupForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter||event.currentTarget.querySelector('[type="submit"]'),email=document.querySelector('#alertSignupEmail').value.trim(),password=document.querySelector('#alertSignupPassword').value,confirmation=document.querySelector('#alertSignupPasswordConfirm').value;if(password!==confirmation)return setAlertAuthStatus('As senhas não coincidem.');button.disabled=true;setAlertAuthStatus('Criando conta...');try{const payload=await alertAuthPost('signup',{email,password});if(payload.token){completeMonitorLogin(payload.token);hideAlertLogin()}else setAlertAuthMode('login',payload.message||'Conta criada. Confirme o e-mail antes de entrar.',true)}catch(error){setAlertAuthStatus(error.message)}finally{button.disabled=false}});
 document.querySelector('#alertRecoverForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter||event.currentTarget.querySelector('[type="submit"]'),email=document.querySelector('#alertRecoverEmail').value.trim();button.disabled=true;setAlertAuthStatus('Enviando link...');try{const payload=await alertAuthPost('recover',{email});setAlertAuthStatus(payload.message,true)}catch(error){setAlertAuthStatus(error.message)}finally{button.disabled=false}});
 document.querySelector('#alertResetForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter||event.currentTarget.querySelector('[type="submit"]'),password=document.querySelector('#alertResetPassword').value,confirmation=document.querySelector('#alertResetPasswordConfirm').value;if(password!==confirmation)return setAlertAuthStatus('As senhas não coincidem.');button.disabled=true;setAlertAuthStatus('Atualizando senha...');try{const payload=await alertAuthPost('update-password',{password,access_token:recoveryAccessToken});recoveryAccessToken='';history.replaceState(null,'',location.pathname);setAlertAuthMode('login',payload.message,true)}catch(error){setAlertAuthStatus(error.message)}finally{button.disabled=false}});
-document.querySelector('#alertLogout').onclick=()=>{localStorage.removeItem(ALERT_SESSION_KEY);alertsInitialized=false;showAlertLogin('Acesso desconectado deste navegador.')};
+document.querySelector('#alertLogout').onclick=()=>{userStorage.removeItem(ALERT_SESSION_KEY);alertsInitialized=false;showAlertLogin('Acesso desconectado deste navegador.')};
 document.querySelector('#alertSettings').addEventListener('submit',async event=>{
   event.preventDefault();const button=event.submitter,status=document.querySelector('#alertFormStatus'),thresholds=document.querySelector('#alertThresholds').value.split(',').map(value=>Number(value.trim())).filter(Number.isFinite);
   if(!thresholds.length)return status.textContent='Informe pelo menos um percentual válido.';
@@ -1340,7 +1306,7 @@ function renderTaskAlternativeView(tasks){
 }
 async function loadNativeTasks(){
   const board=document.querySelector('#tasksBoard');if(!nativeTasks.columns.length)board.innerHTML='<div class="task-error">Carregando quadro...</div>';
-  try{nativeTasks=await taskApi('/api/tasks');nativeTasks.tasks=(nativeTasks.tasks||[]).filter(task=>!task.expires_at||new Date(task.expires_at)>new Date());localStorage.setItem(TASK_LOCAL_CACHE_KEY,JSON.stringify({savedAt:Date.now(),data:nativeTasks}));const select=document.querySelector('#taskAssigneeFilter'),selected=select.value,assignees=[...new Set(nativeTasks.tasks.map(task=>task.assignee).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));select.innerHTML='<option value="">Todos os responsáveis</option>'+assignees.map(name=>`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');if(assignees.includes(selected))select.value=selected;
+  try{nativeTasks=await taskApi('/api/tasks');nativeTasks.tasks=(nativeTasks.tasks||[]).filter(task=>!task.expires_at||new Date(task.expires_at)>new Date());userStorage.setItem(TASK_LOCAL_CACHE_KEY,JSON.stringify({savedAt:Date.now(),data:nativeTasks}));const select=document.querySelector('#taskAssigneeFilter'),selected=select.value,assignees=[...new Set(nativeTasks.tasks.map(task=>task.assignee).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));select.innerHTML='<option value="">Todos os responsáveis</option>'+assignees.map(name=>`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');if(assignees.includes(selected))select.value=selected;
     const fill=(selector,label,items)=>{const element=document.querySelector(selector),value=element.value;element.innerHTML=`<option value="">${label}</option>`+items.map(item=>`<option value="${item.id}">${escapeHtml(item.title)}</option>`).join('');if(items.some(item=>item.id===value))element.value=value};
     fill('#taskProjectFilter','Todos os projetos',nativeTasks.projects||[]);fill('#taskModuleFilter','Todos os módulos',nativeTasks.modules||[]);fill('#taskCycleFilter','Todos os ciclos',nativeTasks.cycles||[]);renderTaskNotificationCount();renderNativeTasks()
   }catch(error){board.innerHTML=`<div class="task-error">${escapeHtml(error.message)}</div>`}
@@ -1373,7 +1339,7 @@ function renderTaskNotificationCount(){const target=document.querySelector('#tas
 function openTaskNotifications(){const modal=document.querySelector('#taskNotificationsModal'),list=document.querySelector('#taskNotificationList'),items=nativeTasks.notifications||[];list.innerHTML=items.map(item=>{const task=nativeTasks.tasks.find(task=>task.id===item.task_id);return `<button type="button" data-notification-task="${item.task_id}"><span>@${escapeHtml(item.recipient_name)}</span><b>${escapeHtml(task?.title||'Tarefa removida')}</b><small>${new Date(item.created_at).toLocaleString('pt-BR')}</small></button>`}).join('')||'<div class="task-detail-empty">Nenhuma menção registrada.</div>';list.querySelectorAll('[data-notification-task]').forEach(button=>button.onclick=()=>{const task=nativeTasks.tasks.find(item=>item.id===button.dataset.notificationTask);if(task){modal.hidden=true;openTaskModal(task)}});modal.hidden=false}
 async function initializeNativeTasks(){
   if(tasksInitialized)return;tasksInitialized=true;
-  try{const cached=JSON.parse(localStorage.getItem(TASK_LOCAL_CACHE_KEY)||'null');if(cached?.data&&Date.now()-cached.savedAt<10*60*1000){nativeTasks=cached.data;nativeTasks.tasks=(nativeTasks.tasks||[]).filter(task=>!task.expires_at||new Date(task.expires_at)>new Date());renderNativeTasks()}}catch{}
+  try{const cached=JSON.parse(userStorage.getItem(TASK_LOCAL_CACHE_KEY)||'null');if(cached?.data&&Date.now()-cached.savedAt<10*60*1000){nativeTasks=cached.data;nativeTasks.tasks=(nativeTasks.tasks||[]).filter(task=>!task.expires_at||new Date(task.expires_at)>new Date());renderNativeTasks()}}catch{}
   document.querySelector('#newTaskButton').onclick=()=>{taskView='board';document.querySelectorAll('[data-task-view]').forEach(button=>button.classList.toggle('active',button.dataset.taskView==='board'));inlineEditingTaskId=null;inlineNewColumnId=nativeTasks.columns[0]?.id||null;openTaskCardMenuId=null;renderNativeTasks();document.querySelector('[data-inline-task-form=""] input[name="title"]')?.select()};
   document.querySelector('#taskNotificationsButton').onclick=openTaskNotifications;document.querySelector('#closeTaskNotifications').onclick=()=>document.querySelector('#taskNotificationsModal').hidden=true;document.querySelector('#taskNotificationsModal').onclick=event=>{if(event.target.id==='taskNotificationsModal')event.currentTarget.hidden=true};
   document.querySelector('#refreshTasks').onclick=loadNativeTasks;
@@ -1423,7 +1389,7 @@ showDashboardView=function(view){
 };
 document.querySelector('#tasksNav').onclick=event=>{event.preventDefault();history.replaceState(null,'','?view=tasks');showDashboardView('tasks')};
 if(requestedView==='analysis')showDashboardView('analysis');else if(requestedView==='reports')showDashboardView('reports');else if(requestedView==='alerts')showDashboardView('alerts');else if(requestedView==='tasks')showDashboardView('tasks');
-if(MONITOR_API_BASE&&!localStorage.getItem(MONITOR_SESSION_KEY))showAlertLogin();
+if(!personalIdentity)showAlertLogin();
 async function initializeEmailAuthCallback(){
   const hash=new URLSearchParams(location.hash.replace(/^#/,'')),query=new URLSearchParams(location.search),type=hash.get('type'),accessToken=hash.get('access_token');
   if((type==='recovery'||query.get('auth')==='recovery')&&accessToken){recoveryAccessToken=accessToken;document.querySelector('#alertLoginModal').hidden=false;setAlertAuthMode('reset');return}
@@ -1442,7 +1408,7 @@ function renderCreativeLibrary(){
   root.innerHTML=rows.map(video=>`<article class="creative-video-card" data-creative-id="${video.id}"><a class="creative-thumb" href="${escapeHtml(video.video_url)}" target="_blank" rel="noopener noreferrer">${video.thumbnail_url?`<img src="${escapeHtml(video.thumbnail_url)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:'<span>▶</span>'}<b>Abrir no TikTok</b></a><div class="creative-video-body"><div class="creative-video-tags"><span>${escapeHtml(video.product||'Sem produto')}</span><span>${escapeHtml(video.search_term||'Pesquisa manual')}</span></div><h4>${escapeHtml(video.title||'Vídeo do TikTok')}</h4><a href="${escapeHtml(video.creator_url||video.video_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(video.creator_name||'Criador não identificado')}</a><div class="creative-video-metrics"><span>Visualizações <b>${compactMetric(video.view_count)}</b></span><span>Curtidas <b>${compactMetric(video.like_count)}</b></span><span>Comentários <b>${compactMetric(video.comment_count)}</b></span></div><div class="creative-video-actions"><button type="button" data-edit-creative="${video.id}">Editar</button><button type="button" data-delete-creative="${video.id}">Excluir</button></div></div></article>`).join('')||'<div class="creative-library-empty"><strong>Nenhum vídeo encontrado</strong><span>Faça uma pesquisa e use a extensão Hurtz no TikTok para salvar os resultados visíveis.</span></div>';
 }
 async function loadCreativeLibrary(){const status=document.querySelector('#creativeLibraryStatus');status.textContent='Atualizando biblioteca...';try{const response=await fetch('/api/creative-videos'),payload=await response.json();if(!response.ok)throw new Error(payload.error||'Falha ao carregar vídeos.');creativeVideos=payload.videos||[];document.querySelector('#creativeExtensionStatus').textContent='Biblioteca conectada';document.querySelector('#creativeExtensionStatus').classList.add('connected');renderCreativeLibrary()}catch(error){status.textContent=error.message;document.querySelector('#creativeLibrary').innerHTML='<div class="creative-library-empty"><strong>Biblioteca indisponível</strong><span>Verifique a conexão do Analytics com o banco.</span></div>'}}
-function initializeCreativeLibrary(){if(creativeLibraryInitialized)return;creativeLibraryInitialized=true;document.querySelector('#creativeSearchForm').onsubmit=event=>{event.preventDefault();const term=document.querySelector('#creativeSearchTerm').value.trim();if(!term)return;localStorage.setItem('hurtz-creative-last-search',JSON.stringify({search_term:term,product:document.querySelector('#creativeProduct').value}));window.open(`https://www.tiktok.com/search?q=${encodeURIComponent(term)}`,'_blank','noopener')};document.querySelector('#refreshCreativeLibrary').onclick=loadCreativeLibrary;document.querySelector('#creativeSort').onchange=renderCreativeLibrary;document.querySelector('#creativeLibrarySearch').oninput=renderCreativeLibrary;document.querySelector('#copyCreativeConnection').onclick=async event=>{const token=localStorage.getItem(MONITOR_SESSION_KEY);if(!token)return alert('Entre novamente no Analytics para gerar a conexão da extensão.');const config=JSON.stringify({api_url:MONITOR_API_BASE||location.origin,token},null,2);await navigator.clipboard.writeText(config);event.currentTarget.textContent='Conexão copiada';setTimeout(()=>event.currentTarget.textContent='Copiar conexão da extensão',1800)};document.querySelector('#creativeLibrary').onclick=async event=>{const edit=event.target.closest('[data-edit-creative]'),remove=event.target.closest('[data-delete-creative]');if(edit){const video=creativeVideos.find(item=>item.id===edit.dataset.editCreative),title=prompt('Título do vídeo:',video?.title||'');if(title===null)return;const product=prompt('Produto:',video?.product||'');if(product===null)return;await fetch('/api/creative-videos',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:video.id,title,product})});await loadCreativeLibrary()}if(remove&&confirm('Excluir esta referência da biblioteca?')){await fetch(`/api/creative-videos?id=${encodeURIComponent(remove.dataset.deleteCreative)}`,{method:'DELETE'});await loadCreativeLibrary()}};loadCreativeLibrary()}
+function initializeCreativeLibrary(){if(creativeLibraryInitialized)return;creativeLibraryInitialized=true;document.querySelector('#creativeSearchForm').onsubmit=event=>{event.preventDefault();const term=document.querySelector('#creativeSearchTerm').value.trim();if(!term)return;userStorage.setItem('hurtz-creative-last-search',JSON.stringify({search_term:term,product:document.querySelector('#creativeProduct').value}));window.open(`https://www.tiktok.com/search?q=${encodeURIComponent(term)}`,'_blank','noopener')};document.querySelector('#refreshCreativeLibrary').onclick=loadCreativeLibrary;document.querySelector('#creativeSort').onchange=renderCreativeLibrary;document.querySelector('#creativeLibrarySearch').oninput=renderCreativeLibrary;document.querySelector('#copyCreativeConnection').onclick=async event=>{const token=userStorage.getItem(MONITOR_SESSION_KEY);if(!token)return alert('Entre novamente no Analytics para gerar a conexão da extensão.');const config=JSON.stringify({api_url:MONITOR_API_BASE||location.origin,token},null,2);await navigator.clipboard.writeText(config);event.currentTarget.textContent='Conexão copiada';setTimeout(()=>event.currentTarget.textContent='Copiar conexão da extensão',1800)};document.querySelector('#creativeLibrary').onclick=async event=>{const edit=event.target.closest('[data-edit-creative]'),remove=event.target.closest('[data-delete-creative]');if(edit){const video=creativeVideos.find(item=>item.id===edit.dataset.editCreative),title=prompt('Título do vídeo:',video?.title||'');if(title===null)return;const product=prompt('Produto:',video?.product||'');if(product===null)return;await fetch('/api/creative-videos',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:video.id,title,product})});await loadCreativeLibrary()}if(remove&&confirm('Excluir esta referência da biblioteca?')){await fetch(`/api/creative-videos?id=${encodeURIComponent(remove.dataset.deleteCreative)}`,{method:'DELETE'});await loadCreativeLibrary()}};loadCreativeLibrary()}
 const showDashboardViewBeforeCreativeSearch=showDashboardView;
 showDashboardView=function(view){
   const creative=document.querySelector('#creativeSearch');
@@ -1553,8 +1519,8 @@ function normalizeAccountProfiles(value){
   const items=Array.isArray(value?.items)?value.items.filter(item=>item&&item.id&&item.name).map(item=>({id:String(item.id),name:String(item.name),accountIds:[...new Set(Array.isArray(item.accountIds)?item.accountIds:[])]})):[];
   return {items,activeId:items.some(item=>item.id===value?.activeId)?value.activeId:(items[0]?.id||null)};
 }
-function readAccountProfiles(){try{return normalizeAccountProfiles(JSON.parse(localStorage.getItem(ACCOUNT_PROFILES_KEY)||'null'))}catch{return normalizeAccountProfiles(null)}}
-function cacheAccountProfiles(){localStorage.setItem(ACCOUNT_PROFILES_KEY,JSON.stringify(accountProfiles))}
+function readAccountProfiles(){try{return normalizeAccountProfiles(JSON.parse(userStorage.getItem(ACCOUNT_PROFILES_KEY)||'null'))}catch{return normalizeAccountProfiles(null)}}
+function cacheAccountProfiles(){userStorage.setItem(ACCOUNT_PROFILES_KEY,JSON.stringify(accountProfiles))}
 async function persistAccountProfiles(){
   cacheAccountProfiles();
   try{const response=await fetch('/api/account-profiles',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(accountProfiles)});if(!response.ok&&response.status!==404)throw new Error('Nao foi possivel sincronizar os perfis.')}catch(error){if(!/Failed to fetch|404|sincronizar/.test(error.message||''))throw error}
@@ -1615,3 +1581,81 @@ function installAccountProfilesUI(){
   renderProfileSelector();loadAccountProfiles();
 }
 installAccountProfilesUI();
+
+
+// Personal Facebook connection, backed by the authenticated Analytics user.
+const facebookBar=document.createElement('section');
+facebookBar.className='facebook-connection-bar';
+facebookBar.setAttribute('aria-label','Sua conexão com o Facebook');
+facebookBar.innerHTML='<div><strong id="facebookConnectionTitle">Conecte seu Facebook</strong><p id="facebookConnectionStatus" role="status">Entre no Analytics para conectar suas contas de anúncio.</p></div><div class="facebook-connection-actions"><button type="button" id="connectPersonalFacebook" class="facebook-connect-primary" disabled>Conectar Facebook</button><button type="button" id="disconnectPersonalFacebook" class="facebook-disconnect" hidden>Desconectar</button><button type="button" id="logoutPersonalAnalytics" class="facebook-logout" hidden>Sair</button></div>';
+document.querySelector('main').prepend(facebookBar);
+const facebookStatus=document.querySelector('#facebookConnectionStatus'),facebookConnect=document.querySelector('#connectPersonalFacebook'),facebookDisconnect=document.querySelector('#disconnectPersonalFacebook'),analyticsLogout=document.querySelector('#logoutPersonalAnalytics');
+const connectionStyles=document.createElement('style');
+connectionStyles.textContent='main{min-width:0}.facebook-connection-bar>div:first-child{min-width:0;flex:1}.facebook-connection-actions button{min-height:38px;border:1px solid #dedee5;border-radius:8px;padding:8px 12px;background:#fff;color:#29231d;font-size:12px;font-weight:600;cursor:pointer}.facebook-connection-actions #connectPersonalFacebook{background:#e87722;border-color:#e87722;color:#fff}.facebook-connection-actions [hidden]{display:none!important}.facebook-connection-bar{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 22px;margin-bottom:24px;border:1px solid #dedee5;border-radius:14px;background:#fff}.facebook-connection-bar strong{font-size:16px}.facebook-connection-bar p{margin:6px 0 0;color:#61616e;font-size:13px}.facebook-connection-actions{display:flex;gap:8px;flex-wrap:wrap}.facebook-connection-actions button:disabled{opacity:.6;cursor:wait}.facebook-connection-bar button:focus-visible{outline:3px solid #3659d9;outline-offset:3px}@media(max-width:700px){.facebook-connection-bar{align-items:stretch;flex-direction:column}.facebook-connection-actions{width:100%}}';
+document.head.append(connectionStyles);
+async function personalRequest(route,options={}){
+  const response=await fetch(route,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}}),payload=await response.json();
+  if(!response.ok)throw new Error(payload.error||'Não foi possível concluir a conexão.');
+  return payload;
+}
+function forgetPersonalCache(){
+  if(!personalIdentity?.user?.id)return;
+  const prefix=`hurtz-user:${personalIdentity.user.id}:`;
+  Object.keys(window.localStorage).filter(key=>key.startsWith(prefix)).forEach(key=>window.localStorage.removeItem(key));
+}
+let facebookNonce='',facebookSettings=null;
+async function prepareFacebookLogin(){
+  facebookConnect.disabled=true;
+  const result=await personalRequest('/api/meta/challenge',{method:'POST'});
+  facebookNonce=result.nonce;
+  facebookConnect.disabled=false;
+}
+function loadFacebookSdk(settings){
+  return new Promise((resolve,reject)=>{
+    if(window.FB){resolve();return}
+    const timeout=setTimeout(()=>reject(new Error('O login do Facebook não carregou. Verifique sua conexão e atualize a página.')),20000);
+    window.fbAsyncInit=()=>{clearTimeout(timeout);window.FB.init({appId:settings.appId,version:settings.version,cookie:false,xfbml:false});resolve()};
+    const script=document.createElement('script');script.async=true;script.defer=true;script.src='https://connect.facebook.net/pt_BR/sdk.js';
+    script.onerror=()=>{clearTimeout(timeout);reject(new Error('Não foi possível carregar o login do Facebook.'))};
+    document.head.append(script);
+  });
+}
+facebookConnect.onclick=()=>{
+  if(!window.FB||!facebookNonce)return;
+  facebookConnect.disabled=true;facebookStatus.textContent='Autorize o acesso na janela do Facebook.';
+  try{window.FB.login(response=>{void(async()=>{
+    if(!response.authResponse?.accessToken){facebookStatus.textContent='Conexão cancelada. Você pode tentar novamente.';try{await prepareFacebookLogin()}catch(error){facebookStatus.textContent=error.message}return}
+    facebookStatus.textContent='Conectando suas contas de anúncio...';
+    try{
+      await personalRequest('/api/meta/connection',{method:'POST',body:JSON.stringify({nonce:facebookNonce,accessToken:response.authResponse.accessToken})});
+      forgetPersonalCache();location.reload();
+    }catch(error){facebookStatus.textContent=error.message;try{await prepareFacebookLogin()}catch{}}
+  })().catch(error=>{facebookStatus.textContent=error.message;facebookConnect.disabled=false})},{scope:'ads_read,business_management',auth_type:'rerequest',return_scopes:true})}catch{facebookStatus.textContent='Não foi possível abrir o Facebook. Permita a janela de login e tente novamente.';facebookConnect.disabled=false}
+};
+facebookDisconnect.onclick=async()=>{
+  facebookDisconnect.disabled=true;
+  try{await personalRequest('/api/meta/connection',{method:'DELETE'});forgetPersonalCache();location.reload()}
+  catch(error){facebookStatus.textContent=error.message;facebookDisconnect.disabled=false}
+};
+analyticsLogout.onclick=async()=>{
+  analyticsLogout.disabled=true;
+  try{await personalRequest('/api/session',{method:'DELETE'})}catch{}
+  forgetPersonalCache();window.localStorage.removeItem(MONITOR_SESSION_KEY);location.reload();
+};
+if(personalIdentity?.personal){
+  analyticsLogout.hidden=false;
+  const avatar=document.querySelector('.avatar');if(avatar)avatar.textContent=(personalIdentity.user.email||'U').slice(0,2).toUpperCase();
+  ['alertsNav','tasksNav','creativeNav','creativeLibraryNav','creativeSearchNav','commentsNav','settingsNav'].forEach(id=>{const element=document.getElementById(id);if(element)element.hidden=true});
+  document.querySelector('#facebookConnectionTitle').textContent='Seu Facebook no Analytics';
+  try{
+    facebookSettings=await personalRequest('/api/meta/connection');
+    facebookStatus.textContent=facebookSettings.connected?`Conectado como ${facebookSettings.name}. Apenas suas contas autorizadas aparecem no painel.`:facebookSettings.expired?'Sua autorização expirou. Conecte o Facebook novamente.':'Conecte seu Facebook e autorize a leitura das contas que deseja acompanhar.';
+    facebookConnect.textContent=facebookSettings.connected?'Reconectar Facebook':'Conectar Facebook';
+    facebookDisconnect.hidden=!facebookSettings.connected&&!facebookSettings.expired;
+    if(facebookSettings.connected){await findMetaAccounts(false);document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;loadPlans();await hydrateAlertPlans();if(selectedAccountIds.size)loadLastThreeDays()}
+    await loadFacebookSdk(facebookSettings);await prepareFacebookLogin();
+  }catch(error){facebookStatus.textContent=error.message}
+}
+window.addEventListener('storage',event=>{if(event.key===MONITOR_SESSION_KEY)location.reload()});
+
+})().catch(error=>{console.error("Falha ao iniciar o Analytics");const status=document.querySelector("#accountSearchStatus");if(status)status.textContent="Não foi possível iniciar. Atualize a página."});
