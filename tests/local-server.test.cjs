@@ -58,7 +58,8 @@ test('local workflows persist and stay isolated across users',async t=>{
  assert.equal((await request(a,'/api/alerts/run','POST',{})).body.enabled,false);
  const connect=async(token,fb)=>{const nonce=(await request(token,'/api/meta/challenge','POST',{})).body.nonce;const r=await request(token,'/api/meta/connection','POST',{nonce,accessToken:fb});assert.equal(r.status,200,JSON.stringify(r.body))};
  await connect(a,'facebook-a-token-0000000000');await connect(b,'facebook-b-token-0000000000');
- const pages=await request(a,'/api/meta-comment-pages');assert.equal(pages.body.pages[0].id,'100');assert.equal(JSON.stringify(pages.body).includes('access_token'),false);
+ await connect(a,'facebook-a-limited-0000000000');assert.ok((await request(a,'/api/meta-comment-pages')).body.missingPermissions.includes('pages_manage_engagement'));assert.equal((await request(a,'/api/meta-comments?page=100&status=active&days=30')).status,403);await connect(a,'facebook-a-token-0000000000');
+ const pages=await request(a,'/api/meta-comment-pages');assert.deepEqual(new Set(pages.body.pages.map(p=>p.id)),new Set(['100','300','500']));assert.deepEqual(pages.body.missingPermissions,[]);assert.equal(JSON.stringify(pages.body).includes('access_token'),false);
  assert.equal((await request(b,'/api/meta-comments?page=100&status=active&days=30')).status,403);
  assert.equal((await request(a,'/api/meta-comments?page=300&status=active&days=30')).body.comments,0);
  assert.equal((await request(a,'/api/meta-comments?page=100&status=active&days=30')).body.comments,1);

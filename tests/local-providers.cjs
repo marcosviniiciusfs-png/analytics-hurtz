@@ -8,8 +8,12 @@ global.fetch=async(input,options={})=>{
   const route=url.pathname.replace('/v25.0/','');
   if(route==='app')return response({id:'2093320124537661',name:'Tryv CRM'});
   if(route==='me')return response({id:who,name:'Facebook '+who});
+  if(route==='me/businesses')return response({data:[{id:who==='a'?'900':'901'}]});
+  if(route.endsWith('/owned_pages'))return response({data:[{id:who==='a'?'100':'200',name:'Page '+who}]});
+  if(route.endsWith('/client_pages'))return response({data:[{id:who==='a'?'500':'600',name:'Partner page '+who}]});
   if(route==='me/accounts')return response({data:[{id:who==='a'?'100':'200',name:'Page '+who},{id:who==='a'?'300':'400',name:'Empty page '+who}]});
-  if(route==='me/permissions')return response({data:[{permission:'ads_read',status:'granted'},{permission:'pages_manage_engagement',status:'granted'}]});
+  if(route==='me/permissions'&&token.includes('limited'))return response({data:[{permission:'ads_read',status:'granted'},{permission:'pages_show_list',status:'granted'}]});
+  if(route==='me/permissions')return response({data:[{permission:'ads_read',status:'granted'},{permission:'business_management',status:'granted'},{permission:'pages_show_list',status:'granted'},{permission:'pages_read_engagement',status:'granted'},{permission:'pages_read_user_content',status:'granted'},{permission:'pages_manage_engagement',status:'granted'}]});
   if(route==='me/adaccounts')return response({data:[{id:who==='a'?'act_111':'act_222',name:'Account '+who,account_status:1}]});
   if(route.endsWith('/ads'))return response({data:[{id:who==='a'?'101':'202',name:'Ad '+who,effective_status:'ACTIVE',campaign:{name:'Campaign'},adset:{name:'Adset'},creative:{effective_object_story_id:who==='a'?'100_101':'200_202'}}]});
   if(route==='100'||route==='200')return response({access_token:route==='100'?'facebook-a-page-token':'facebook-b-page-token'});

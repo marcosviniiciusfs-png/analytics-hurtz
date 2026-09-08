@@ -38,9 +38,19 @@ function createServices({vault,store,folder,body,fetchImpl=fetch}){
    const result=await python('alert_engine.py',args,env);store.put('monitor-status',{ok:true,at:new Date().toISOString()});return result;
   }finally{running.delete(u.id)}
  }
- async function commentPages(){const u=store.user(),conn=vault.connection(u),pages=await vault.rows(conn.token,'me/accounts',{fields:'id,name'});if(vault.connection(u).revision!==conn.revision)throw fail(409,'A conexão mudou. Atualize a consulta.');return {pages:pages.map(p=>({id:p.id,name:p.name}))}}
+ const commentPermissions=['pages_show_list','pages_read_engagement','pages_read_user_content','pages_manage_engagement'];
+ async function commentPermissionStatus(conn){const rows=await vault.rows(conn.token,'me/permissions'),granted=new Set(rows.filter(p=>p.status==='granted').map(p=>p.permission));return {permissions:[...granted],missingPermissions:commentPermissions.filter(p=>!granted.has(p))}}
+ async function commentPages(){
+  const u=store.user(),conn=vault.connection(u),access=await commentPermissionStatus(conn),pages=new Map(),warnings=[];
+  const collect=async(route)=>{try{for(const p of await vault.rows(conn.token,route,{fields:'id,name'}))pages.set(p.id,{id:p.id,name:p.name})}catch(e){warnings.push({source:route,message:e.message})}};
+  await collect('me/accounts');
+  if(access.permissions.includes('business_management')){try{const businesses=await vault.rows(conn.token,'me/businesses',{fields:'id'});let next=0;const worker=async()=>{while(next<businesses.length){const b=businesses[next++];await Promise.all([collect(b.id+'/owned_pages'),collect(b.id+'/client_pages')])}};await Promise.all(Array.from({length:Math.min(3,businesses.length)},worker))}catch(e){warnings.push({source:'businesses',message:e.message})}}
+  if(vault.connection(u).revision!==conn.revision)throw fail(409,'A conexão mudou. Atualize a consulta.');return {pages:[...pages.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')),...access,warnings};
+ }
  async function comments(req,url){
-  const u=store.user();
+  const u=store.user(),permissionConnection=vault.connection(u),access=await commentPermissionStatus(permissionConnection);
+  const required=req.method==='GET'?['pages_read_engagement','pages_read_user_content']:['pages_manage_engagement'],missing=required.filter(p=>!access.permissions.includes(p));
+  if(missing.length)throw fail(403,'Autorize as permissões '+missing.join(', ')+' pelo botão Autorizar páginas. Se o Facebook não oferecer essas permissões, o administrador do Tryv CRM precisa habilitá-las no aplicativo.');
   if(req.method==='GET'){
    const ids=(url.searchParams.get('accounts')||'').split(',').filter(Boolean),status=url.searchParams.get('status')||'active',days=url.searchParams.get('days')||'30';
    if(!['active','inactive','all'].includes(status)||!['7','30','90','all'].includes(days))throw fail(400,'Filtros inválidos.');

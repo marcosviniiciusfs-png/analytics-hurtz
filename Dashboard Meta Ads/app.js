@@ -1698,7 +1698,7 @@ facebookConnect.onclick=()=>{
       await personalRequest('/api/meta/connection',{method:'POST',body:JSON.stringify({nonce:facebookNonce,accessToken:response.authResponse.accessToken,expiresIn:response.authResponse.expiresIn})});
       forgetPersonalCache();location.reload();
     }catch(error){facebookStatus.textContent=error.message;try{await prepareFacebookLogin()}catch{}}
-  })().catch(error=>{facebookStatus.textContent=error.message;facebookConnect.disabled=false})},{scope:requestCommentPermissions?'ads_read,business_management,pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_engagement':'ads_read,business_management',auth_type:'rerequest',return_scopes:true})}catch{facebookStatus.textContent='Não foi possível abrir o Facebook. Permita a janela de login e tente novamente.';facebookConnect.disabled=false}
+  })().catch(error=>{facebookStatus.textContent=error.message;facebookConnect.disabled=false})},{scope:'ads_read,business_management,pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_engagement',auth_type:'rerequest',return_scopes:true})}catch{facebookStatus.textContent='Não foi possível abrir o Facebook. Permita a janela de login e tente novamente.';facebookConnect.disabled=false}
 };
 facebookDisconnect.onclick=async()=>{
   facebookDisconnect.disabled=true;
