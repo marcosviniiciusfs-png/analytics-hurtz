@@ -6,9 +6,10 @@ const tables=['task_columns','tasks','task_projects','task_modules','task_cycles
 const parents={column_id:'task_columns',task_id:'tasks',project_id:'task_projects',module_id:'task_modules',cycle_id:'task_cycles'};
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 function createStore(vault){
+ const workspaceSnapshot=Symbol('workspaceSnapshot');
  function user(){const u=context.getStore();if(!u?.id)throw fail(401,'Entre no seu espaço local.');return u}
- function get(kind,fallback){return vault.read(kind,user().id)??fallback}
- function put(kind,value){vault.write(kind,user().id,value);return value}
+ function get(kind,fallback){const u=user();if(kind==='workspace'&&u[workspaceSnapshot])return structuredClone(u[workspaceSnapshot]);const value=vault.read(kind,u.id)??fallback;if(kind==='workspace'&&value)u[workspaceSnapshot]=structuredClone(value);return value}
+ function put(kind,value){const u=user();vault.write(kind,u.id,value);if(kind==='workspace')u[workspaceSnapshot]=structuredClone(value);return value}
  function state(){let s=get('workspace',null);if(!s){s=Object.fromEntries(tables.map(t=>[t,[]]));s.task_columns=['A fazer','Em andamento','Concluído'].map((title,position)=>({id:crypto.randomUUID(),title,position,role:['standard','in_progress','completed'][position]}));put('workspace',s)}return s}
  function matches(row,key,value){
   if(['select','order','limit','on_conflict'].includes(key))return true;
@@ -22,6 +23,7 @@ function createStore(vault){
  async function request(resource,options={}){
   const url=new URL(resource,'http://local/'),table=url.pathname.slice(1),method=(options.method||'GET').toUpperCase();
   if(!tables.includes(table))throw fail(403,'Recurso fora do espaço individual.');
+  if(method!=='GET')delete user()[workspaceSnapshot];
   const s=state(),rows=s[table],where=row=>[...url.searchParams].every(([k,v])=>matches(row,k,v));let result=rows.filter(where);
   if(method==='GET'){
    const order=(url.searchParams.get('order')||'').split(',').filter(Boolean);

@@ -18,7 +18,9 @@ const ANALYSIS_CACHE_TTL = 15 * 60 * 1000;
 const spendResponseCache = new Map();
 const spendRequestsInFlight = new Map();
 const SPEND_CACHE_TTL = 60 * 1000;
-const taskDataCache=new Proxy({payload:null,expiresAt:0},{get:(target,key)=>localRuntime?(key==='payload'?null:0):target[key],set:(target,key,value)=>{target[key]=value;return true}});
+const userTaskCaches=new Map(),sharedTaskCache={payload:null,expiresAt:0};
+function currentTaskCache(){if(!localRuntime)return sharedTaskCache;const id=localRuntime.store.user().id;let cache=userTaskCaches.get(id);if(!cache){if(userTaskCaches.size>=100)userTaskCaches.delete(userTaskCaches.keys().next().value);cache={payload:null,expiresAt:0};userTaskCaches.set(id,cache)}return cache}
+const taskDataCache=new Proxy({},{get:(_,key)=>currentTaskCache()[key],set:(_,key,value)=>{currentTaskCache()[key]=value;return true}});
 const TASK_CACHE_TTL=30*1000;
 const secretValue=(directName,fileName)=>{if(localRuntime)return localRuntime.secret(directName);const direct=process.env[directName];if(direct)return String(direct).trim();const file=process.env[fileName];if(file){try{return fs.readFileSync(file,'utf8').trim()}catch{}}return ''};
 const creativeExpectedType=(term,selected='auto')=>{if(['car','property','any'].includes(selected)&&selected!=='auto')return selected;const value=String(term||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();if(/\b(carro|carros|veiculo|veiculos|automovel|automoveis|moto|motos|caminhao|caminhoes|hb20|onix|corolla|polo|mobi|compass|strada|hilux|s10|toro|renegade|kwid|argo|tracker|creta)\b/.test(value))return'car';if(/\b(imovel|imoveis|casa|casas|apartamento|apartamentos|terreno|terrenos|lote|lotes|fazenda|fazendas|sitio|sitios|condominio|condominios)\b/.test(value))return'property';return'any'};
@@ -71,7 +73,7 @@ const runMonitorCommand = (command,options,callback) => {
   return execFile('/bin/bash',['-lc',command],options,callback);
 };
 const supabaseRequest = async (resource, options={}) => {
-  if(localRuntime)return localRuntime.store.request(resource,options);
+  if(localRuntime){const result=await localRuntime.store.request(resource,options);if((options.method||'GET').toUpperCase()!=='GET'&&/^(tasks|task_)/.test(resource)){taskDataCache.payload=null;taskDataCache.expiresAt=0}return result}
   const base=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
   const secretFile=process.env.SUPABASE_SECRET_KEY__FILE;
   let fileKey='';if(secretFile){try{fileKey=fs.readFileSync(secretFile,'utf8').trim()}catch{}}
