@@ -19,6 +19,22 @@ OLLAMA_URL = CONFIG.get("ollama_url", "http://127.0.0.1:11434").rstrip("/")
 POLL_SECONDS = max(2, int(CONFIG.get("poll_seconds", 5)))
 
 
+def executable(name):
+    found = shutil.which(name)
+    if found:
+        return found
+    local = Path(os.environ.get('LOCALAPPDATA', ''))
+    if name == 'ollama':
+        candidate = local / 'Programs/Ollama/ollama.exe'
+        if candidate.is_file():
+            return str(candidate)
+    if name == 'ffmpeg':
+        candidates = sorted((local / 'Microsoft/WinGet/Packages').glob('Gyan.FFmpeg_*/ffmpeg-*/bin/ffmpeg.exe'))
+        if candidates:
+            return str(candidates[-1])
+    raise RuntimeError(f'{name} não encontrado neste computador')
+
+
 def api(path, method="GET", payload=None, timeout=120):
     data = json.dumps(payload).encode() if payload is not None else None
     request = urllib.request.Request(
@@ -37,7 +53,7 @@ def ensure_ollama():
         return
     except Exception:
         flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-        subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags)
+        subprocess.Popen([executable("ollama"), "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags)
         for _ in range(30):
             try:
                 urllib.request.urlopen(OLLAMA_URL + "/api/version", timeout=2)
@@ -59,7 +75,7 @@ def download_video(job, destination):
 def extract_frames(video, directory):
     output = str(Path(directory) / "frame-%02d.jpg")
     command = [
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(video),
+        executable("ffmpeg"), "-hide_banner", "-loglevel", "error", "-y", "-i", str(video),
         "-vf", "fps=1/5,scale=640:-2", "-frames:v", "6", "-q:v", "3", output,
     ]
     flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
