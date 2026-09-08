@@ -1,0 +1,30 @@
+// Test process only. Reject all unmocked external traffic.
+const original=global.fetch,instances=[];
+const response=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
+global.fetch=async(input,options={})=>{
+ const url=new URL(input),headers=new Headers(options.headers),token=headers.get('Authorization')||'',who=token.includes('facebook-b-')?'b':'a';
+ if(['127.0.0.1','localhost'].includes(url.hostname))return original(input,options);
+ if(url.hostname==='graph.facebook.com'){
+  const route=url.pathname.replace('/v25.0/','');
+  if(route==='app')return response({id:'2093320124537661',name:'Tryv CRM'});
+  if(route==='me')return response({id:who,name:'Facebook '+who});
+  if(route==='me/permissions')return response({data:[{permission:'ads_read',status:'granted'},{permission:'pages_manage_engagement',status:'granted'}]});
+  if(route==='me/adaccounts')return response({data:[{id:who==='a'?'act_111':'act_222',name:'Account '+who,account_status:1}]});
+  if(route.endsWith('/ads'))return response({data:[{id:who==='a'?'101':'202',name:'Ad '+who,effective_status:'ACTIVE',campaign:{name:'Campaign'},adset:{name:'Adset'},creative:{effective_object_story_id:who==='a'?'100_101':'200_202'}}]});
+  if(route==='100'||route==='200')return response({access_token:route==='100'?'facebook-a-page-token':'facebook-b-page-token'});
+  if(route.endsWith('/comments'))return response({data:[{id:who==='a'?'100_1001':'200_2001',message:'Comment '+who,created_time:new Date().toISOString(),from:{name:'Author'},is_hidden:false}]});
+  if(['100_1001','200_2001'].includes(route))return response({success:true});
+  throw new Error('Unmocked Meta endpoint: '+route);
+ }
+ if(url.hostname==='api.apify.com')return response([{id:'10000001',webVideoUrl:'https://www.tiktok.com/@test/video/10000001',text:'HB20 seminovo',authorMeta:{name:'test'},videoMeta:{coverUrl:'https://media.local.test/cover.png',duration:10},mediaUrls:['https://media.local.test/video.mp4'],playCount:42}]);
+ if(url.hostname==='media.local.test')return new Response(Buffer.from('fake test media'),{headers:{'Content-Type':url.pathname.endsWith('.png')?'image/png':'video/mp4'}});
+ if(url.hostname==='evolution.local.test'){
+  if(url.pathname==='/instance/create'){const p=JSON.parse(options.body);instances.push({name:p.instanceName,ownerJid:'5511999999999@s.whatsapp.net',connectionStatus:'open'});return response({instance:{status:'open'},qrcode:{base64:'data:image/png;base64,aGVsbG8='}})}
+  if(url.pathname==='/instance/fetchInstances')return response(instances);
+  if(url.pathname.startsWith('/instance/connectionState/'))return response({instance:{state:'open'}});
+  if(url.pathname.startsWith('/group/fetchAllGroups/'))return response([{id:'123@g.us',subject:'Test group'}]);
+  if(url.pathname.startsWith('/instance/connect/'))return response({base64:'data:image/png;base64,aGVsbG8='});
+  throw new Error('Unexpected Evolution mutation in tests: '+url.pathname);
+ }
+ throw new Error('External network blocked by test provider: '+url.hostname);
+};

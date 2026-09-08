@@ -1,0 +1,10 @@
+const path=require('node:path'),fs=require('node:fs');
+process.env.ANALYTICS_LOCAL_ONLY='1';
+process.env.HOST='127.0.0.1';
+process.env.PORT=process.env.PORT||'8091';
+process.env.META_PERSONAL_DATA_DIR=process.env.LOCAL_DATA_DIR||path.resolve(__dirname,'../.codex-tmp/local-data');
+process.env.META_PERSONAL_RUNNER=path.resolve(__dirname,'../Meta Ads Monitor/personal_report.py');
+const localPython=path.resolve(__dirname,'../.codex-tmp/local-python',process.platform==='win32'?'Scripts/python.exe':'bin/python');
+process.env.META_PYTHON=process.env.LOCAL_PYTHON||(fs.existsSync(localPython)?localPython:'python');
+process.env.ANALYTICS_PUBLIC_URL='http://localhost:'+process.env.PORT;
+require('../Dashboard Meta Ads/preview-server');

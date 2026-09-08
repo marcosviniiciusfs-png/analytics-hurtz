@@ -7,6 +7,7 @@ import urllib.parse
 import urllib.request
 from decimal import Decimal
 from account_credentials import account_token
+from result_metrics import result_metrics, serializable_metrics
 
 VERSION = os.environ.get("META_API_VERSION", "v25.0")
 TOKEN = os.environ["META_ACCESS_TOKEN"]
@@ -29,30 +30,8 @@ FORM_RESULT_TYPES = [
 
 
 def choose_result(actions, objective, campaign_name):
-    """Map results from returned action types; use names only as an uncounted label."""
-    normalized_name = (campaign_name or "").upper()
-    families = {
-        "Formulário": [item for item in FORM_RESULT_TYPES if actions.get(item, Decimal("0")) > 0],
-        "Mensagem": [item for item in MESSAGE_RESULT_TYPES if actions.get(item, Decimal("0")) > 0],
-    }
-    observed = [label for label, items in families.items() if items]
-    if len(observed) == 1:
-        label = observed[0]
-        action_type = families[label][0]
-        return label, action_type, actions[action_type]
-    preferred = ("Mensagem", MESSAGE_RESULT_TYPES) if objective == "OUTCOME_ENGAGEMENT" else (("Formulário", FORM_RESULT_TYPES) if objective == "OUTCOME_LEADS" else (None, []))
-    if len(observed) > 1:
-        for action_type in preferred[1]:
-            if actions.get(action_type, Decimal("0")) > 0:
-                return preferred[0], action_type, actions[action_type]
-        return "Resultado ambíguo", None, None
-    if preferred[0]:
-        return preferred[0], preferred[1][0], Decimal("0")
-    if "MENSAGEM" in normalized_name or "WHATSAPP" in normalized_name:
-        return "Mensagem", None, None
-    if "FORMUL" in normalized_name or "LEAD" in normalized_name:
-        return "Formulário", None, None
-    return "Não informado", None, None
+    mapped = result_metrics(actions)
+    return mapped['label'], mapped['type'], mapped['results']
 
 
 def get(path, params):
@@ -71,17 +50,23 @@ def audit(account_id, period):
     attempts = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
         campaign_details_future = pool.submit(get, f"{account_id}/campaigns", {"fields": "id,name,objective,status,effective_status", "limit": 500})
-        campaign_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "campaign", "fields": "campaign_id,campaign_name,spend,actions,cost_per_action_type", "time_range": period, "time_increment": 1, "limit": 500})
+        campaign_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "campaign", "fields": "campaign_id,campaign_name,objective,spend,actions,cost_per_action_type", "time_range": period, "time_increment": 1, "limit": 500})
         account_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "account", "fields": "account_id,account_name,spend,actions", "time_range": period, "time_increment": 1, "limit": 500})
-        campaign_details = campaign_details_future.result()
+        metadata_available = True
+        try:
+            campaign_details = campaign_details_future.result()
+        except Exception:
+            # Optional current status must not discard historical Insights.
+            campaign_details = []
+            metadata_available = False
         campaign_daily = campaign_daily_future.result()
         account_daily = account_daily_future.result()
     campaign_meta = {row["id"]: row for row in campaign_details}
-    active_campaign_count = sum(1 for row in campaign_details if row.get("effective_status") == "ACTIVE")
+    active_campaign_count = sum(1 for row in campaign_details if row.get("effective_status") == "ACTIVE") if metadata_available else None
     for attempt_index in range(3):
         if attempt_index:
             with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-                campaign_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "campaign", "fields": "campaign_id,campaign_name,spend,actions,cost_per_action_type", "time_range": period, "time_increment": 1, "limit": 500})
+                campaign_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "campaign", "fields": "campaign_id,campaign_name,objective,spend,actions,cost_per_action_type", "time_range": period, "time_increment": 1, "limit": 500})
                 account_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "account", "fields": "account_id,account_name,spend,actions", "time_range": period, "time_increment": 1, "limit": 500})
                 campaign_daily = campaign_daily_future.result()
                 account_daily = account_daily_future.result()
@@ -98,7 +83,7 @@ def audit(account_id, period):
             spend = Decimal(row.get("spend", "0"))
             campaign_by_date[row["date_start"]] = campaign_by_date.get(row["date_start"], Decimal("0")) + spend
             meta = campaign_meta.get(row["campaign_id"], {})
-            current = campaign_totals.setdefault(row["campaign_id"], {"campaign_id": row["campaign_id"], "campaign_name": row["campaign_name"], "objective": meta.get("objective"), "status": meta.get("status"), "effective_status": meta.get("effective_status"), "first_delivery_date": row.get("date_start"), "last_delivery_date": row.get("date_start"), "spend": Decimal("0"), "actions": {}})
+            current = campaign_totals.setdefault(row["campaign_id"], {"campaign_id": row["campaign_id"], "campaign_name": row["campaign_name"], "objective": row.get("objective") or meta.get("objective"), "status": meta.get("status"), "effective_status": meta.get("effective_status"), "first_delivery_date": row.get("date_start"), "last_delivery_date": row.get("date_start"), "spend": Decimal("0"), "actions": {}})
             current["spend"] += spend
             current["first_delivery_date"] = min(current["first_delivery_date"], row.get("date_start"))
             current["last_delivery_date"] = max(current["last_delivery_date"], row.get("date_start"))
@@ -106,6 +91,17 @@ def audit(account_id, period):
                 action_type = action.get("action_type")
                 if action_type:
                     current["actions"][action_type] = current["actions"].get(action_type, Decimal("0")) + Decimal(action.get("value", "0"))
+        # The insights edge omits campaigns without delivery in the selected
+        # period. Retain accessible active campaigns, explicitly marked as such.
+        for meta in campaign_details:
+            if meta.get('effective_status') == 'ACTIVE' and meta['id'] not in campaign_totals:
+                campaign_totals[meta['id']] = {
+                    'campaign_id': meta['id'], 'campaign_name': meta.get('name', meta['id']),
+                    'objective': meta.get('objective'), 'status': meta.get('status'),
+                    'effective_status': meta.get('effective_status'), 'spend': Decimal('0'),
+                    'actions': {}, 'no_delivery_in_period': True,
+                    'first_delivery_date': None, 'last_delivery_date': None,
+                }
         account_spend = sum(account_by_date.values(), Decimal("0"))
         campaign_sum = sum(campaign_by_date.values(), Decimal("0"))
         campaign_actions = {}
@@ -128,10 +124,10 @@ def audit(account_id, period):
                     "spend": float(row["spend"]),
                     "objective_label": objective_label,
                     "result_type": result_type,
-                    "results": float(results) if results is not None else None,
+                    **serializable_metrics(row["actions"]),
                     "cost_per_result": float(cost_per_result) if cost_per_result is not None else None,
                 })
-            result_reconciled = all(campaign["objective_label"] != "Resultado ambíguo" for campaign in campaigns)
+            result_reconciled = all(account_actions.get(key, Decimal("0")) == campaign_actions.get(key, Decimal("0")) for key in set(account_actions) | set(campaign_actions) if "lead" in key or "messaging_conversation_started" in key)
             return {"id": account_id, "name": account_daily[0].get("account_name") if account_daily else None, "spend": float(account_spend), "campaign_sum": float(campaign_sum), "reconciled": True, "result_reconciled": result_reconciled, "account_action_totals_match": account_action_totals_match, "daily": daily, "campaigns": campaigns, "active_campaign_count": active_campaign_count, "attempts": attempts}
         time.sleep(1)
     return {

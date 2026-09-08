@@ -27,6 +27,7 @@
         <a href="?view=reports" id="reportsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5M9 12h7M9 16h7"/></svg></span><span class="nav-label">Relatórios</span></a>
         <a href="?view=tasks" id="tasksNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/></svg></span><span class="nav-label">Tarefas</span></a>
         <a href="?view=creative-search" id="creativeSearchNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5M8 11h6M11 8v6"/></svg></span><span class="nav-label">Pesquisa de criativos</span></a>
+        <a href="?view=comments" id="commentsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M20 15a4 4 0 0 1-4 4H9l-5 3v-3a4 4 0 0 1-2-4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M7 9h8M7 13h5"/></svg></span><span class="nav-label">Comentários</span></a>
         <a href="?view=alerts" id="alertsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg></span><span class="nav-label">Alertas</span><b class="pill" id="alertPill">0</b></a>
         <a href="#"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span><span class="nav-label">Configurações</span></a>
       </nav>
@@ -67,10 +68,9 @@
               <th>Conta de anúncio</th>
               <th><span class="metric-label">Status<button class="info-tooltip" type="button" aria-label="Sobre Status">i<span role="tooltip">Situação operacional da conta na Meta, separada do saldo estimado no planejamento.</span></button></span></th>
               <th><span class="metric-label">Objetivos<button class="info-tooltip" type="button" aria-label="Sobre Objetivos">i<span role="tooltip">Objetivos das campanhas presentes na conta.</span></button></span></th>
-              <th class="number"><span class="metric-label">CPL<button class="info-tooltip" type="button" aria-label="Sobre CPL">i<span role="tooltip">Valor gasto dividido pela quantidade de leads no período.</span></button></span></th>
               <th class="number"><span class="metric-label">Pagamento / depósito<button class="info-tooltip" type="button" aria-label="Sobre forma de pagamento">i<span role="tooltip">Mostra se a conta é pré-paga ou cartão e, no pré-pago, o depósito configurado.</span></button></span></th>
-              <th class="number"><span class="metric-label">Verba disponível<button class="info-tooltip" type="button" aria-label="Sobre Verba disponível">i<span role="tooltip">Verba configurada menos o gasto real reconciliado pela Meta no período selecionado.</span></button></span></th>
-              <th class="number"><span class="metric-label">Saldo usado (Meta)<button class="info-tooltip" type="button" aria-label="Sobre Saldo usado">i<span role="tooltip">Gasto real auditado na Meta para o período selecionado.</span></button></span></th>
+              <th class="number"><span class="metric-label">Verba disponível<button class="info-tooltip" type="button" aria-label="Sobre Verba disponível">i<span role="tooltip">Verba líquida configurada menos o saldo usado desde o início do ciclo.</span></button></span></th>
+              <th class="number"><span class="metric-label">Saldo usado (Meta)<button class="info-tooltip" type="button" aria-label="Sobre Saldo usado">i<span role="tooltip">Gasto real auditado na Meta desde o depósito ou desde o início do ciclo semanal.</span></button></span></th>
               <th></th>
             </tr></thead>
             <tbody id="accountsBody"></tbody><tfoot id="accountsFoot"></tfoot>
@@ -78,6 +78,34 @@
         </div>
         <div class="panel-footer"><span id="accountCount"></span><span>Gasto real somente após auditoria: conta = soma das campanhas</span></div>
       </section>
+
+      <section class="comments-view" id="comments" hidden>
+        <div class="comments-heading"><div><p class="eyebrow">MODERAÇÃO META ADS</p><h2>Comentários dos anúncios</h2><p>Encontre comentários publicados nos anúncios das contas selecionadas e modere tudo em um só lugar.</p></div><span class="comments-permission-chip">Ações protegidas pela Meta</span></div>
+        <form class="comments-filter-card" id="commentsFilterForm">
+          <fieldset class="comments-account-field"><legend>Contas de anúncio</legend><div class="comments-account-tools"><span id="commentsAccountSummary">Nenhuma conta selecionada</span><button type="button" id="commentsToggleAccounts">Selecionar todas</button></div><div class="comments-account-options" id="commentsAccountOptions"></div></fieldset>
+          <div class="comments-filter-grid">
+            <label><span>Status dos anúncios</span><select id="commentsAdStatus"><option value="active">Ativos</option><option value="inactive">Inativos</option><option value="all">Todos</option></select></label>
+            <label><span>Comentários publicados</span><select id="commentsPeriod"><option value="7">Nos últimos 7 dias</option><option value="30" selected>Nos últimos 30 dias</option><option value="90">Nos últimos 90 dias</option><option value="all">Todo o período disponível</option></select></label>
+            <label><span>Visibilidade</span><select id="commentsVisibility"><option value="all">Visíveis e ocultos</option><option value="visible">Somente visíveis</option><option value="hidden">Somente ocultos</option></select></label>
+            <label><span>Buscar</span><input id="commentsSearch" type="search" maxlength="120" placeholder="Anúncio, autor ou comentário"></label>
+          </div>
+          <div class="comments-filter-actions"><span id="commentsRequestStatus" role="status" aria-live="polite">Selecione as contas que deseja consultar.</span><button class="comments-load-button" type="submit">Buscar comentários</button></div>
+        </form>
+        <div class="comments-bulk-bar" id="commentsBulkBar" hidden><label><input type="checkbox" id="commentsSelectAll"><span>Selecionar todos os resultados visíveis</span></label><strong id="commentsSelectedCount">0 selecionados</strong><button type="button" data-comments-action="hide">Ocultar selecionados</button><button type="button" data-comments-action="unhide">Reexibir selecionados</button><button class="danger" type="button" data-comments-action="delete">Excluir selecionados</button></div>
+        <div class="comments-results-head"><div><h3>Anúncios com comentários</h3><p id="commentsResultsSummary">Faça uma busca para carregar os resultados.</p></div></div>
+        <div class="comments-results" id="commentsResults"><div class="comments-empty"><strong>Nenhum comentário carregado</strong><span>Escolha as contas e os filtros acima para iniciar.</span></div></div>
+        <section class="comments-history"><div class="comments-results-head"><div><h3>Histórico de moderação</h3><p>Registro das últimas ações executadas pelo dashboard.</p></div><button type="button" id="refreshCommentsHistory">Atualizar histórico</button></div><div id="commentsHistoryList"><div class="comments-history-empty">Nenhuma ação registrada.</div></div></section>
+      </section>
+
+      <div class="comments-confirm-backdrop" id="commentsConfirmModal" hidden>
+        <section class="comments-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="commentsConfirmTitle">
+          <button class="comments-confirm-close" id="commentsConfirmClose" type="button" aria-label="Fechar confirmação">×</button>
+          <p class="eyebrow">AÇÃO PERMANENTE</p><h2 id="commentsConfirmTitle">Excluir comentários?</h2>
+          <p id="commentsConfirmDescription">Esta ação não poderá ser desfeita pelo dashboard.</p>
+          <label>Digite <strong>EXCLUIR</strong> para confirmar<input id="commentsConfirmInput" autocomplete="off" /></label>
+          <div><button type="button" id="commentsConfirmCancel">Cancelar</button><button class="danger" type="button" id="commentsConfirmDelete" disabled>Excluir permanentemente</button></div>
+        </section>
+      </div>
 
       <section class="analysis-view" id="analysis" hidden>
         <div class="analysis-heading"><div><p class="eyebrow">INTELIGÊNCIA DE PERFORMANCE</p><h2>Visão geral das contas</h2><p id="analysisPeriod">Período padrão: últimos 7 dias fechados.</p></div><span class="audit-chip" id="analysisAuditChip">Auditoria Meta obrigatória</span></div>

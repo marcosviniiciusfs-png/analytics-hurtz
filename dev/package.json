@@ -1,0 +1,11 @@
+{
+  "name": "hurtz-local-development",
+  "private": true,
+  "scripts": {
+    "start": "node local-server.cjs",
+    "test:browser": "node ../tests/local-browser.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

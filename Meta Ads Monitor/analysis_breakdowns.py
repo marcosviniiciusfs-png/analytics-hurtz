@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 from decimal import Decimal
 from account_credentials import account_token
+from result_metrics import result_metrics
 
 
 VERSION = os.environ.get("META_API_VERSION", "v25.0")
@@ -33,23 +34,15 @@ def action_map(row: dict) -> dict[str, Decimal]:
 
 
 def result_count(row: dict) -> Decimal:
-    actions = action_map(row)
-    message = sum((actions.get(kind, Decimal("0")) for kind in MESSAGE_TYPES), Decimal("0"))
-    form = next((actions[kind] for kind in FORM_TYPES if kind in actions), Decimal("0"))
-    return message + form
+    if 'primary_result_type' in row:
+        return action_map(row).get(row['primary_result_type'], Decimal('0'))
+    return result_metrics(action_map(row))['results']
 
 
 def result_type(row: dict) -> str:
-    actions = action_map(row)
-    message = sum((actions.get(kind, Decimal("0")) for kind in MESSAGE_TYPES), Decimal("0"))
-    form = next((actions[kind] for kind in FORM_TYPES if kind in actions), Decimal("0"))
-    if message > 0 and form > 0:
-        return "Misto"
-    if message > 0:
-        return "Conversas iniciadas"
-    if form > 0:
-        return "Formulário instantâneo"
-    return "Sem resultado atribuído"
+    if 'primary_result_label' in row:
+        return row['primary_result_label']
+    return result_metrics(action_map(row))['label']
 
 
 def money(row: dict, field: str = "spend") -> Decimal:
@@ -65,6 +58,8 @@ def metrics(row: dict) -> dict:
     return {
         "spend": float(spend),
         "results": float(results),
+        "leads": float(result_metrics(action_map(row))["leads"]),
+        "conversations": float(result_metrics(action_map(row))["conversations"]),
         "impressions": impressions,
         "reach": reach,
         "clicks": clicks,
@@ -99,16 +94,32 @@ def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
     token = account_token(account_id, TOKEN)
     base_fields = "spend,impressions,reach,clicks,ctr,cpm,cpc,actions"
     if report_only:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+            campaign_future = pool.submit(get, f"{account_id}/insights", {"level": "campaign", "fields": f"campaign_id,campaign_name,objective,{base_fields}", "time_range": period, "limit": 500})
             account_future = pool.submit(get, f"{account_id}/insights", {"level": "account", "fields": base_fields, "time_range": period, "limit": 100})
-            ads_future = pool.submit(get, f"{account_id}/insights", {"level": "ad", "fields": f"ad_id,ad_name,campaign_id,campaign_name,{base_fields}", "time_range": period, "limit": 500})
+            ads_future = pool.submit(get, f"{account_id}/insights", {"level": "ad", "fields": f"ad_id,ad_name,campaign_id,campaign_name,objective,{base_fields}", "time_range": period, "limit": 500})
             account_rows = account_future.result()
             ad_rows = ads_future.result()
+            campaign_rows = campaign_future.result()
     else:
+        campaign_rows = get(f"{account_id}/insights", {"level": "campaign", "fields": f"campaign_id,campaign_name,objective,{base_fields}", "time_range": period, "limit": 500})
         account_rows = get(f"{account_id}/insights", {"level": "account", "fields": base_fields, "time_range": period, "limit": 100})
-        ad_rows = get(f"{account_id}/insights", {"level": "ad", "fields": f"ad_id,ad_name,campaign_id,campaign_name,{base_fields}", "time_range": period, "limit": 500})
+        ad_rows = get(f"{account_id}/insights", {"level": "ad", "fields": f"ad_id,ad_name,campaign_id,campaign_name,objective,{base_fields}", "time_range": period, "limit": 500})
     account_row = account_rows[0] if account_rows else {}
     account_metrics = metrics(account_row)
+    # Consolidate the same primary metric per campaign used by the audit.
+    # Choosing an account-wide metric silently drops messaging campaigns as
+    # soon as any other campaign produces a form/site lead.
+    campaign_metrics = {row['campaign_id']: result_metrics(action_map(row)) for row in campaign_rows if row.get('campaign_id')}
+    for row in ad_rows:
+        primary = campaign_metrics.get(row.get('campaign_id'))
+        if primary and primary['type'] != 'lead_sources':
+            row['primary_result_type'] = primary['type']
+            row['primary_result_label'] = primary['label']
+    primary_results = sum((item['results'] for item in campaign_metrics.values()), Decimal('0'))
+    account_metrics['results'] = float(primary_results)
+    account_metrics['cost_per_result'] = float(money(account_row) / primary_results) if primary_results > 0 else None
+    account_metrics['results_basis'] = 'Soma do resultado principal de cada campanha; leads e conversas não representam pessoas únicas.'
     account_spend = money(account_row)
 
     age_rows = [] if report_only else get(f"{account_id}/insights", {"level": "account", "fields": base_fields, "breakdowns": "age", "time_range": period, "limit": 100})
@@ -123,14 +134,19 @@ def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
             campaign_result_types.setdefault(row["campaign_id"], set()).add(family)
     ad_formats: dict[str, str] = {}
     ad_details: dict[str, dict] = {}
-    campaign_objectives: dict[str, str] = {}
+    campaign_objectives: dict[str, str] = {row["campaign_id"]: row["objective"] for row in ad_rows if row.get("campaign_id") and row.get("objective")}
+    metadata_warnings = []
     for start in range(0, len(ad_ids), 50):
         batch = ",".join(ad_ids[start:start + 50])
         if not batch:
             continue
         query = urllib.parse.urlencode({"ids": batch, "fields": "id,status,effective_status,creative{id,name,object_type,video_id,image_hash,image_url,thumbnail_url,object_story_spec,asset_feed_spec}", "access_token": token})
-        with urllib.request.urlopen(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50) as response:
-            payload = json.load(response)
+        try:
+            with urllib.request.urlopen(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50) as response:
+                payload = json.load(response)
+        except Exception:
+            payload = {}
+            metadata_warnings.append('A Meta não retornou parte dos nomes, status ou prévias. As métricas de Insights foram preservadas.')
         for ad_id, item in payload.items():
             creative = item.get("creative") or {}
             story = creative.get("object_story_spec") or {}
@@ -158,8 +174,12 @@ def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
         if not batch:
             continue
         query = urllib.parse.urlencode({"ids": batch, "fields": "id,objective", "access_token": token})
-        with urllib.request.urlopen(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50) as response:
-            payload = json.load(response)
+        try:
+            with urllib.request.urlopen(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50) as response:
+                payload = json.load(response)
+        except Exception:
+            payload = {}
+            metadata_warnings.append('A Meta não retornou parte dos nomes, status ou prévias. As métricas de Insights foram preservadas.')
         for campaign_id, item in payload.items():
             campaign_objectives[campaign_id] = item.get("objective") or "Objetivo não informado"
 
@@ -183,11 +203,12 @@ def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
         "id": account_id,
         "reconciled": money_equal(ad_spend, account_spend),
         "account": account_metrics,
+        "metadata_warnings": list(set(metadata_warnings)),
         "age": {"reconciled": False if report_only else money_equal(age_spend, account_spend), "rows": [{"age": row.get("age", "Não informado"), **metrics(row)} for row in age_rows]},
         "geography": {"level": "region", "reconciled": False if report_only else money_equal(region_spend, account_spend), "rows": [{"region": row.get("region", "Não informado"), **metrics(row)} for row in region_rows]},
         "placement": {"reconciled": False if report_only else money_equal(placement_spend, account_spend), "rows": [{"publisher_platform": row.get("publisher_platform", "unknown"), "platform_position": row.get("platform_position", "unknown"), **metrics(row)} for row in placement_rows]},
         "format": {"reconciled": money_equal(ad_spend, account_spend), "rows": list(formats.values())},
-        "ads": [{"account_id": account_id, "ad_id": row.get("ad_id"), "ad_name": row.get("ad_name"), "campaign_id": row.get("campaign_id"), "campaign_name": row.get("campaign_name"), "objective": campaign_objectives.get(row.get("campaign_id"), "Objetivo não informado"), "result_type": (next(iter(campaign_result_types.get(row.get("campaign_id"), set()))) if len(campaign_result_types.get(row.get("campaign_id"), set())) == 1 else result_type(row)), "format": ad_formats.get(row.get("ad_id"), "Não identificado"), **ad_details.get(row.get("ad_id"), {}), **metrics(row)} for row in ad_rows],
+        "ads": [{"account_id": account_id, "ad_id": row.get("ad_id"), "ad_name": row.get("ad_name"), "campaign_id": row.get("campaign_id"), "campaign_name": row.get("campaign_name"), "objective": campaign_objectives.get(row.get("campaign_id"), "Objetivo não informado"), "result_type": result_type(row), "format": ad_formats.get(row.get("ad_id"), "Não identificado"), **ad_details.get(row.get("ad_id"), {}), **metrics(row)} for row in ad_rows],
         "audit": {"account_spend": float(account_spend), "age_sum": float(age_spend), "region_sum": float(region_spend), "placement_sum": float(placement_spend), "ad_sum": float(ad_spend)},
     }
 

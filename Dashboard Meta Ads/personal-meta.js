@@ -200,6 +200,6 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     // Existing administrative routes use shared resources and are never delegated to personal sessions.
     throw fail(403, 'Esta função está disponível apenas no acesso administrativo.');
   }
-  return {issueSession, session, handle, read, write, catalog, authorizeAccounts, report};
+  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report};
 }
 module.exports = {createPersonalMeta};

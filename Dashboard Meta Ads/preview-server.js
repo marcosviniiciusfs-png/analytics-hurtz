@@ -4,9 +4,11 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { Readable } = require('stream');
-
 const { createPersonalMeta } = require('./personal-meta');
-const personalMeta = createPersonalMeta(process.platform === 'win32' ? {directory: path.join(__dirname, '..', '.codex-tmp', 'personal-secrets')} : {});
+const personalMeta = createPersonalMeta(process.env.META_PERSONAL_DATA_DIR?{directory:process.env.META_PERSONAL_DATA_DIR}:process.platform === 'win32' ? {directory: path.join(__dirname, '..', '.codex-tmp', 'personal-secrets')} : {});
+const localOnly=process.env.ANALYTICS_LOCAL_ONLY==='1';
+const personalTools=process.env.ANALYTICS_PERSONAL_TOOLS==='1';
+const localRuntime=(localOnly||personalTools)?require('./local-runtime').createRuntime(personalMeta,{production:!localOnly}):null;
 
 const root = __dirname;
 const port = Number(process.env.PORT || 8091);
@@ -16,21 +18,21 @@ const ANALYSIS_CACHE_TTL = 15 * 60 * 1000;
 const spendResponseCache = new Map();
 const spendRequestsInFlight = new Map();
 const SPEND_CACHE_TTL = 60 * 1000;
-const taskDataCache={payload:null,expiresAt:0};
+const taskDataCache=new Proxy({payload:null,expiresAt:0},{get:(target,key)=>localRuntime?(key==='payload'?null:0):target[key],set:(target,key,value)=>{target[key]=value;return true}});
 const TASK_CACHE_TTL=30*1000;
-const secretValue=(directName,fileName)=>{const direct=process.env[directName];if(direct)return String(direct).trim();const file=process.env[fileName];if(file){try{return fs.readFileSync(file,'utf8').trim()}catch{}}return ''};
+const secretValue=(directName,fileName)=>{if(localRuntime)return localRuntime.secret(directName);const direct=process.env[directName];if(direct)return String(direct).trim();const file=process.env[fileName];if(file){try{return fs.readFileSync(file,'utf8').trim()}catch{}}return ''};
 const creativeExpectedType=(term,selected='auto')=>{if(['car','property','any'].includes(selected)&&selected!=='auto')return selected;const value=String(term||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();if(/\b(carro|carros|veiculo|veiculos|automovel|automoveis|moto|motos|caminhao|caminhoes|hb20|onix|corolla|polo|mobi|compass|strada|hilux|s10|toro|renegade|kwid|argo|tracker|creta)\b/.test(value))return'car';if(/\b(imovel|imoveis|casa|casas|apartamento|apartamentos|terreno|terrenos|lote|lotes|fazenda|fazendas|sitio|sitios|condominio|condominios)\b/.test(value))return'property';return'any'};
-const creativeAuditSessions=new Map(),creativeAuditJobs=[];let creativeAgentLastSeen=0;
-const CREATIVE_VISUAL_AUDIT_ENABLED=process.env.CREATIVE_VISUAL_AUDIT_ENABLED==='1';
+const creativeAuditSessions=localRuntime?localRuntime.scopedMap():new Map(),creativeAuditJobs=[];let creativeAgentLastSeen=0;
+const creativeVisualAuditEnabled=()=>localRuntime?localRuntime.visualAudit():process.env.CREATIVE_VISUAL_AUDIT_ENABLED==='1';
 const CREATIVE_AUDIT_TTL=60*60*1000,CREATIVE_CLAIM_TTL=5*60*1000;
-const cleanCreativeAudits=()=>{const now=Date.now();for(const[id,session]of creativeAuditSessions)if(session.expires_at<now)creativeAuditSessions.delete(id);for(let index=creativeAuditJobs.length-1;index>=0;index--)if(!creativeAuditSessions.has(creativeAuditJobs[index].session_id))creativeAuditJobs.splice(index,1)};
+const cleanCreativeAudits=()=>{const now=Date.now();for(const[id,session]of creativeAuditSessions)if(session.expires_at<now)creativeAuditSessions.delete(id);for(let index=creativeAuditJobs.length-1;index>=0;index--)if(!(localRuntime?creativeAuditSessions.allHas(creativeAuditJobs[index].session_id):creativeAuditSessions.has(creativeAuditJobs[index].session_id)))creativeAuditJobs.splice(index,1)};
 setInterval(cleanCreativeAudits,5*60*1000).unref();
 const alertDataDir = process.env.META_ALERT_DATA_DIR || (process.platform === 'win32' ? path.join(root,'.alert-data') : '/opt/meta-ads-cli/data/alerts');
-const creativeSearchSettingsFile=path.join(alertDataDir,'creative-search.json');
+const getCreativeSearchSettingsFile=()=>path.join(localRuntime?localRuntime.folder():alertDataDir,'creative-search.json');
 const readJsonFile = (file,fallback={}) => { try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return fallback} };
 const writeJsonFile = (file,value) => { fs.mkdirSync(path.dirname(file),{recursive:true});const temporary=`${file}.tmp`;fs.writeFileSync(temporary,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',mode:0o600});fs.renameSync(temporary,file) };
-const readBody = (req,callback) => {let body='';req.on('data',chunk=>{body+=chunk;if(body.length>512*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
-const readLargeBody = (req,callback) => {let body='';req.on('data',chunk=>{body+=chunk;if(body.length>8*1024*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
+const readBody = (req,callback) => {if(localRuntime)callback=localRuntime.bind(callback);let body='';req.on('data',chunk=>{body+=chunk;if(body.length>512*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
+const readLargeBody = (req,callback) => {if(localRuntime)callback=localRuntime.bind(callback);let body='';req.on('data',chunk=>{body+=chunk;if(body.length>8*1024*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
 const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});res.end(JSON.stringify(payload))};
 const authFile=process.env.API_AUTH_FILE||'/opt/meta-ads-cli/secrets/analytics-api-basic.env';
 const authConfig=()=>{const values={};try{fs.readFileSync(authFile,'utf8').split(/\r?\n/).forEach(line=>{const index=line.indexOf('=');if(index>0)values[line.slice(0,index)]=line.slice(index+1)})}catch{}return values};
@@ -61,6 +63,7 @@ const safeEqual=(left,right)=>{const a=Buffer.from(String(left||'')),b=Buffer.fr
 const loginAttempts=new Map();
 const clientIp=req=>String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();
 const runMonitorCommand = (command,options,callback) => {
+  if(localRuntime){queueMicrotask(()=>callback(new Error('Operação remota bloqueada no localhost.'),'','Operação remota bloqueada.'));return;}
   if (process.platform === 'win32') {
     const key = path.join(process.env.USERPROFILE, '.ssh', 'id_ed25519_contabo_monitor');
     return execFile('ssh',['-i',key,'-o','IdentitiesOnly=yes','-o','BatchMode=yes','root@161.97.148.99',command],options,callback);
@@ -68,6 +71,7 @@ const runMonitorCommand = (command,options,callback) => {
   return execFile('/bin/bash',['-lc',command],options,callback);
 };
 const supabaseRequest = async (resource, options={}) => {
+  if(localRuntime)return localRuntime.store.request(resource,options);
   const base=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
   const secretFile=process.env.SUPABASE_SECRET_KEY__FILE;
   let fileKey='';if(secretFile){try{fileKey=fs.readFileSync(secretFile,'utf8').trim()}catch{}}
@@ -82,6 +86,7 @@ const supabaseRequest = async (resource, options={}) => {
 const taskActivity=(taskId,action,details={})=>supabaseRequest('task_activities',{method:'POST',body:JSON.stringify({task_id:taskId||null,action,details})}).catch(()=>null);
 const cleanUuid=value=>/^[0-9a-f-]{36}$/i.test(String(value||''))?String(value):null;
 const taskStorageRequest=async(pathname,options={})=>{
+  if(localRuntime)return localRuntime.store.attachment(pathname,options);
   const base=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
   const secretFile=process.env.SUPABASE_SECRET_KEY__FILE;let fileKey='';if(secretFile){try{fileKey=fs.readFileSync(secretFile,'utf8').trim()}catch{}}
   const key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY||fileKey;
@@ -101,11 +106,12 @@ const cleanupExpiredTasks=async()=>{
     return ids.length;
   }catch(error){console.error('Falha na limpeza de tarefas:',error.message);return 0}
 };
-setTimeout(cleanupExpiredTasks,1500).unref();
-setInterval(cleanupExpiredTasks,15*60*1000).unref();
+if(!localRuntime)setTimeout(cleanupExpiredTasks,1500).unref();
+if(!localRuntime)setInterval(cleanupExpiredTasks,15*60*1000).unref();
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+  if(localRuntime&&(localOnly||!requestUrl.pathname.startsWith('/api/auth/')))return localRuntime.dispatch(req,res,requestUrl,jsonResponse,()=>handleAuthorizedRequest(req,res,requestUrl));
   const isCreativeAgentRoute=requestUrl.pathname.startsWith('/api/creative-audit/agent');
   if(requestUrl.pathname.startsWith('/api/')){
     res.setHeader('Access-Control-Allow-Origin','*');
@@ -167,6 +173,10 @@ http.createServer((req,res)=>{
     if(!config.API_SESSION_TOKEN||!safeEqual(token,config.API_SESSION_TOKEN))return jsonResponse(res,401,{error:'Sessão não autorizada.'});
     if(requestUrl.pathname==='/api/session')return jsonResponse(res,200,{ok:true});
   }
+  return handleAuthorizedRequest(req,res,requestUrl);
+}).listen(port,process.env.HOST||'127.0.0.1',()=>console.log(`Dashboard Meta Ads: http://${process.env.HOST||'127.0.0.1'}:${port}`));
+
+function handleAuthorizedRequest(req,res,requestUrl){
   if (requestUrl.pathname === '/api/alert-plans') {
     const file=path.join(alertDataDir,'plans.json');
     if(req.method==='GET')return jsonResponse(res,200,readJsonFile(file,{plans:{}}));
@@ -224,37 +234,37 @@ http.createServer((req,res)=>{
     if(req.method==='POST')return readLargeBody(req,(error,payload)=>{
       const videos=Array.isArray(payload?.videos)?payload.videos.slice(0,50):[];
       if(error||!videos.length)return jsonResponse(res,400,{error:'Nenhum vídeo válido foi recebido.'});
-      const rows=videos.map(item=>({platform:'tiktok',video_url:String(item.video_url||'').slice(0,1000),creator_url:String(item.creator_url||'').slice(0,1000)||null,thumbnail_url:String(item.thumbnail_url||'').slice(0,1500)||null,title:String(item.title||'').slice(0,500)||null,creator_name:String(item.creator_name||'').slice(0,200)||null,search_term:String(payload.search_term||item.search_term||'').slice(0,150)||null,product:String(payload.product||item.product||'').slice(0,100)||null,view_count:Number.isFinite(Number(item.view_count))?Number(item.view_count):null,like_count:Number.isFinite(Number(item.like_count))?Number(item.like_count):null,comment_count:Number.isFinite(Number(item.comment_count))?Number(item.comment_count):null,metadata:{source:'hurtz-browser-extension',collected_at:new Date().toISOString()}})).filter(item=>/^https:\/\/(www\.)?tiktok\.com\/@[^/]+\/video\/\d+/i.test(item.video_url));
-      if(!rows.length)return jsonResponse(res,400,{error:'Os resultados não continham links públicos de vídeos do TikTok.'});
+      const rows=videos.map(item=>({platform:/^https:\/\/(www\.)?instagram\.com\//i.test(item.video_url||'')?'instagram':'tiktok',video_url:String(item.video_url||'').slice(0,1000),creator_url:String(item.creator_url||'').slice(0,1000)||null,thumbnail_url:String(item.thumbnail_url||'').slice(0,1500)||null,title:String(item.title||'').slice(0,500)||null,creator_name:String(item.creator_name||'').slice(0,200)||null,search_term:String(payload.search_term||item.search_term||'').slice(0,150)||null,product:String(payload.product||item.product||'').slice(0,100)||null,view_count:Number.isFinite(Number(item.view_count))?Number(item.view_count):null,like_count:Number.isFinite(Number(item.like_count))?Number(item.like_count):null,comment_count:Number.isFinite(Number(item.comment_count))?Number(item.comment_count):null,metadata:{source:'hurtz-browser-extension',collected_at:new Date().toISOString()}})).filter(item=>/^https:\/\/(www\.)?(?:tiktok\.com\/@[^/]+\/video\/\d+|instagram\.com\/(?:p|reel|reels)\/[A-Za-z0-9_-]+)\/?(?:[?#].*)?$/i.test(item.video_url));
+      if(!rows.length)return jsonResponse(res,400,{error:'Informe links públicos de vídeos do TikTok ou Instagram.'});
       supabaseRequest('creative_videos?on_conflict=video_url',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(rows)}).then(data=>jsonResponse(res,201,{saved:data?.length||rows.length,videos:data||rows})).catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
     });
     if(req.method==='PUT')return readBody(req,(error,payload)=>{const id=cleanUuid(payload?.id);if(error||!id)return jsonResponse(res,400,{error:'Vídeo inválido'});const row={};for(const field of ['title','product','notes','search_term'])if(Object.hasOwn(payload,field))row[field]=String(payload[field]||'').slice(0,field==='notes'?2000:500)||null;supabaseRequest(`creative_videos?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({...row,updated_at:new Date().toISOString()})}).then(data=>jsonResponse(res,200,data?.[0]||row)).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
     if(req.method==='DELETE'){const id=cleanUuid(requestUrl.searchParams.get('id'));if(!id)return jsonResponse(res,400,{error:'Vídeo inválido'});return supabaseRequest(`creative_videos?id=eq.${id}`,{method:'DELETE'}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,502,{error:error.message}))}
   }
   if(requestUrl.pathname==='/api/creative-search-settings'){
-    if(req.method==='GET'){const settings=readJsonFile(creativeSearchSettingsFile,{presets:[],history:{}});return jsonResponse(res,200,{presets:Array.isArray(settings.presets)?settings.presets:[]})}
-    if(req.method==='POST')return readBody(req,(error,payload)=>{const id=String(payload?.id||''),name=String(payload?.name||'').trim().slice(0,80),terms=[...new Set((Array.isArray(payload?.terms)?payload.terms:[]).map(value=>String(value||'').trim()).filter(Boolean))].slice(0,10);if(error||!name||!terms.length)return jsonResponse(res,400,{error:'Informe um nome e pelo menos um termo.'});const settings=readJsonFile(creativeSearchSettingsFile,{presets:[],history:{}}),existing=(Array.isArray(settings.presets)?settings.presets:[]).find(item=>item.id===id),preset={id:existing?.id||crypto.randomUUID(),name,terms,created_at:existing?.created_at||new Date().toISOString(),updated_at:new Date().toISOString()};settings.presets=[...(Array.isArray(settings.presets)?settings.presets:[]).filter(item=>item.id!==preset.id&&item.name.toLowerCase()!==name.toLowerCase()),preset].slice(-50);settings.history=settings.history&&typeof settings.history==='object'?settings.history:{};try{writeJsonFile(creativeSearchSettingsFile,settings);return jsonResponse(res,existing?200:201,preset)}catch{return jsonResponse(res,500,{error:'Não foi possível salvar os termos.'})}});
-    if(req.method==='DELETE'){const id=requestUrl.searchParams.get('id'),removeAll=requestUrl.searchParams.get('all')==='1',settings=readJsonFile(creativeSearchSettingsFile,{presets:[],history:{}});settings.presets=removeAll?[]:(Array.isArray(settings.presets)?settings.presets:[]).filter(item=>item.id!==id);try{writeJsonFile(creativeSearchSettingsFile,settings);return jsonResponse(res,200,{ok:true,removed_all:removeAll})}catch{return jsonResponse(res,500,{error:'Não foi possível excluir os termos.'})}}
+    if(req.method==='GET'){const settings=readJsonFile(getCreativeSearchSettingsFile(),{presets:[],history:{}});return jsonResponse(res,200,{presets:Array.isArray(settings.presets)?settings.presets:[]})}
+    if(req.method==='POST')return readBody(req,(error,payload)=>{const id=String(payload?.id||''),name=String(payload?.name||'').trim().slice(0,80),terms=[...new Set((Array.isArray(payload?.terms)?payload.terms:[]).map(value=>String(value||'').trim()).filter(Boolean))].slice(0,10);if(error||!name||!terms.length)return jsonResponse(res,400,{error:'Informe um nome e pelo menos um termo.'});const settings=readJsonFile(getCreativeSearchSettingsFile(),{presets:[],history:{}}),existing=(Array.isArray(settings.presets)?settings.presets:[]).find(item=>item.id===id),preset={id:existing?.id||crypto.randomUUID(),name,terms,created_at:existing?.created_at||new Date().toISOString(),updated_at:new Date().toISOString()};settings.presets=[...(Array.isArray(settings.presets)?settings.presets:[]).filter(item=>item.id!==preset.id&&item.name.toLowerCase()!==name.toLowerCase()),preset].slice(-50);settings.history=settings.history&&typeof settings.history==='object'?settings.history:{};try{writeJsonFile(getCreativeSearchSettingsFile(),settings);return jsonResponse(res,existing?200:201,preset)}catch{return jsonResponse(res,500,{error:'Não foi possível salvar os termos.'})}});
+    if(req.method==='DELETE'){const id=requestUrl.searchParams.get('id'),removeAll=requestUrl.searchParams.get('all')==='1',settings=readJsonFile(getCreativeSearchSettingsFile(),{presets:[],history:{}});settings.presets=removeAll?[]:(Array.isArray(settings.presets)?settings.presets:[]).filter(item=>item.id!==id);try{writeJsonFile(getCreativeSearchSettingsFile(),settings);return jsonResponse(res,200,{ok:true,removed_all:removeAll})}catch{return jsonResponse(res,500,{error:'Não foi possível excluir os termos.'})}}
     return jsonResponse(res,405,{error:'Método não permitido'});
   }
   if(requestUrl.pathname==='/api/creative-audit/agent/claim'&&req.method==='POST'){
-    creativeAgentLastSeen=Date.now();cleanCreativeAudits();const now=Date.now(),job=creativeAuditJobs.find(item=>item.status==='pending'||(item.status==='claimed'&&now-item.claimed_at>CREATIVE_CLAIM_TTL));
+    if(localRuntime)localRuntime.agentSeen(Date.now());else creativeAgentLastSeen=Date.now();cleanCreativeAudits();const now=Date.now(),job=creativeAuditJobs.find(item=>(!localRuntime||creativeAuditSessions.has(item.session_id))&&(item.status==='pending'||(item.status==='claimed'&&now-item.claimed_at>CREATIVE_CLAIM_TTL)));
     if(!job)return jsonResponse(res,200,{job:null});job.status='claimed';job.claimed_at=now;job.attempts=(job.attempts||0)+1;return jsonResponse(res,200,{job:{id:job.id,expected_type:job.expected_type,title:job.video.title,media_url:`/api/creative-audit/agent/media?id=${encodeURIComponent(job.id)}`}});
   }
-  if(requestUrl.pathname==='/api/creative-audit/agent/heartbeat'&&req.method==='POST'){creativeAgentLastSeen=Date.now();return jsonResponse(res,200,{ok:true})}
+  if(requestUrl.pathname==='/api/creative-audit/agent/heartbeat'&&req.method==='POST'){if(localRuntime)localRuntime.agentSeen(Date.now());else creativeAgentLastSeen=Date.now();return jsonResponse(res,200,{ok:true})}
   if(requestUrl.pathname==='/api/creative-audit/agent/result'&&req.method==='POST')return readBody(req,(error,payload)=>{
-    creativeAgentLastSeen=Date.now();const job=creativeAuditJobs.find(item=>item.id===String(payload?.job_id||''));if(error||!job)return jsonResponse(res,404,{error:'Trabalho não encontrado ou expirado.'});const session=creativeAuditSessions.get(job.session_id);if(!session)return jsonResponse(res,410,{error:'Pesquisa expirada.'});
+    if(localRuntime)localRuntime.agentSeen(Date.now());else creativeAgentLastSeen=Date.now();const job=creativeAuditJobs.find(item=>item.id===String(payload?.job_id||'')&&(!localRuntime||creativeAuditSessions.has(item.session_id)));if(error||!job)return jsonResponse(res,404,{error:'Trabalho não encontrado ou expirado.'});const session=creativeAuditSessions.get(job.session_id);if(!session)return jsonResponse(res,410,{error:'Pesquisa expirada.'});
     const detected=['car','property'].includes(payload.detected_type)?payload.detected_type:'other',relevant=payload.relevant===true&&detected===job.expected_type;job.status='done';job.finished_at=Date.now();session.results.set(job.video.id,{relevant,detected_type:detected,confidence:Math.max(0,Math.min(1,Number(payload.confidence)||0)),reason:String(payload.reason||'').slice(0,300)});return jsonResponse(res,200,{ok:true});
   });
   if(requestUrl.pathname==='/api/creative-audit/agent/media'&&req.method==='GET'){
-    creativeAgentLastSeen=Date.now();const job=creativeAuditJobs.find(item=>item.id===requestUrl.searchParams.get('id'));if(!job)return jsonResponse(res,404,{error:'Vídeo temporário não encontrado.'});const token=secretValue('APIFY_TOKEN','APIFY_TOKEN__FILE');
-    return fetch(job.video.download_url,{headers:job.video.download_url.includes('api.apify.com')?{Authorization:`Bearer ${token}`}:{}}).then(response=>{if(!response.ok||!response.body)throw new Error(`Download indisponível (${response.status})`);const headers={'Content-Type':response.headers.get('content-type')||'video/mp4','Cache-Control':'no-store'},length=response.headers.get('content-length');if(length)headers['Content-Length']=length;res.writeHead(200,headers);Readable.fromWeb(response.body).pipe(res)}).catch(error=>{if(!res.headersSent)jsonResponse(res,502,{error:error.message});else res.destroy(error)});
+    if(localRuntime)localRuntime.agentSeen(Date.now());else creativeAgentLastSeen=Date.now();const job=creativeAuditJobs.find(item=>item.id===requestUrl.searchParams.get('id')&&(!localRuntime||creativeAuditSessions.has(item.session_id)));if(!job)return jsonResponse(res,404,{error:'Vídeo temporário não encontrado.'});const token=secretValue('APIFY_TOKEN','APIFY_TOKEN__FILE');
+    return fetch(job.video.download_url,{headers:new URL(job.video.download_url).hostname==='api.apify.com'?{Authorization:`Bearer ${token}`}:{}}).then(response=>{if(!response.ok||!response.body)throw new Error(`Download indisponível (${response.status})`);const headers={'Content-Type':response.headers.get('content-type')||'video/mp4','Cache-Control':'no-store'},length=response.headers.get('content-length');if(length)headers['Content-Length']=length;res.writeHead(200,headers);Readable.fromWeb(response.body).pipe(res)}).catch(error=>{if(!res.headersSent)jsonResponse(res,502,{error:error.message});else res.destroy(error)});
   }
   if(requestUrl.pathname==='/api/creative-audit/download'&&req.method==='GET'){
     cleanCreativeAudits();const session=creativeAuditSessions.get(requestUrl.searchParams.get('session')),video=session?.candidates.find(item=>item.id===requestUrl.searchParams.get('video')),audit=video&&session.results.get(video.id);
     if(!session||!video||(session.audit_enabled&&video.expected_type!=='any'&&!audit?.relevant))return jsonResponse(res,404,{error:'Vídeo não encontrado ou pesquisa expirada.'});const token=secretValue('APIFY_TOKEN','APIFY_TOKEN__FILE');
     const resolveDownload=video.download_url?Promise.resolve(video.download_url):fetch('https://api.apify.com/v2/acts/clockworks~tiktok-scraper/run-sync-get-dataset-items?timeout=120',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({postURLs:[video.video_url],resultsPerPage:1,scrapeRelatedVideos:false,shouldDownloadVideos:true,shouldDownloadCovers:false,shouldDownloadSlideshowImages:false,downloadSubtitlesOptions:'NEVER_DOWNLOAD_SUBTITLES',commentsPerPost:0})}).then(async response=>{const text=await response.text();let rows=[];try{rows=text?JSON.parse(text):[]}catch{}if(!response.ok)throw new Error(rows?.error?.message||'O download não foi preparado.');const url=rows?.[0]?.mediaUrls?.[0];if(!url)throw new Error('O TikTok não disponibilizou este vídeo para download.');video.download_url=url;return url});
-    return resolveDownload.then(url=>fetch(url,{headers:url.includes('api.apify.com')?{Authorization:`Bearer ${token}`}:{}})).then(response=>{if(!response.ok||!response.body)throw new Error(`Download indisponível (${response.status})`);const headers={'Content-Type':response.headers.get('content-type')||'video/mp4','Content-Disposition':`attachment; filename="${video.platform||'video'}-${video.id}.mp4"`,'Cache-Control':'no-store'},length=response.headers.get('content-length');if(length)headers['Content-Length']=length;res.writeHead(200,headers);Readable.fromWeb(response.body).pipe(res)}).catch(error=>{if(!res.headersSent)jsonResponse(res,502,{error:error.message});else res.destroy(error)});
+    return resolveDownload.then(url=>fetch(url,{headers:new URL(url).hostname==='api.apify.com'?{Authorization:`Bearer ${token}`}:{}})).then(response=>{if(!response.ok||!response.body)throw new Error(`Download indisponível (${response.status})`);const headers={'Content-Type':response.headers.get('content-type')||'video/mp4','Content-Disposition':`attachment; filename="${video.platform||'video'}-${video.id}.mp4"`,'Cache-Control':'no-store'},length=response.headers.get('content-length');if(length)headers['Content-Length']=length;res.writeHead(200,headers);Readable.fromWeb(response.body).pipe(res)}).catch(error=>{if(!res.headersSent)jsonResponse(res,502,{error:error.message});else res.destroy(error)});
   }
   if(requestUrl.pathname==='/api/creative-thumbnail'&&req.method==='GET'){
     cleanCreativeAudits();const session=creativeAuditSessions.get(requestUrl.searchParams.get('session')),platform=requestUrl.searchParams.get('platform')||'',video=session?.candidates.find(item=>item.id===requestUrl.searchParams.get('video')&&(!platform||item.platform===platform));
@@ -265,7 +275,7 @@ http.createServer((req,res)=>{
     cleanCreativeAudits();const session=creativeAuditSessions.get(requestUrl.searchParams.get('id'));if(!session)return jsonResponse(res,404,{error:'Pesquisa temporária não encontrada ou expirada.'});const completed=session.results.size,total=session.candidates.filter(video=>video.expected_type!=='any').length,done=completed>=total;
     const approved=session.candidates.filter(video=>{if(video.expected_type==='any')return true;const result=session.results.get(video.id);if(!result?.relevant)return false;video.visual_verified=true;video.detected_type=result.detected_type;video.visual_reason=result.reason;video.visual_confidence=result.confidence;return true}),counts=new Map(),limited=approved.filter(video=>{const key=`${video.platform||'tiktok'}:${video.search_term}`,count=counts.get(key)||0;if(count>=session.per_term)return false;counts.set(key,count+1);return true});
     const downloadable=done?limited.map(video=>({...video,thumbnail_proxy_url:video.thumbnail_url?`/api/creative-thumbnail?session=${encodeURIComponent(session.id)}&platform=${encodeURIComponent(video.platform||'tiktok')}&video=${encodeURIComponent(video.id)}`:'',download_url:video.download_url?`/api/creative-audit/download?session=${encodeURIComponent(session.id)}&video=${encodeURIComponent(video.id)}`:''})):[];
-    return jsonResponse(res,200,{id:session.id,status:done?'complete':'processing',processed:completed,total,approved:downloadable,rejected:done?total-approved.filter(video=>video.expected_type!=='any').length:0,agent_online:Date.now()-creativeAgentLastSeen<45000,expires_at:new Date(session.expires_at).toISOString()});
+    return jsonResponse(res,200,{id:session.id,status:done?'complete':'processing',processed:completed,total,approved:downloadable,rejected:done?total-approved.filter(video=>video.expected_type!=='any').length:0,agent_online:Date.now()-(localRuntime?localRuntime.agentSeen():creativeAgentLastSeen)<45000,expires_at:new Date(session.expires_at).toISOString()});
   }
   if(requestUrl.pathname==='/api/creative-search'&&req.method==='POST')return readBody(req,async(error,payload)=>{
     const terms=Array.isArray(payload?.terms)?[...new Set(payload.terms.map(value=>String(value||'').trim()).filter(Boolean))].slice(0,10):[];
@@ -273,17 +283,18 @@ http.createServer((req,res)=>{
     if(error||!terms.length)return jsonResponse(res,400,{error:'Informe pelo menos um termo de pesquisa.'});
     if(terms.length*perTerm>150)return jsonResponse(res,400,{error:'O limite por busca é de 150 vídeos. Reduza os termos ou a quantidade por termo.'});
     const token=secretValue('APIFY_TOKEN','APIFY_TOKEN__FILE');if(!token)return jsonResponse(res,503,{error:'A integração com a Apify ainda não está configurada.'});
+    if(localRuntime&&creativeVisualAuditEnabled()&&Date.now()-localRuntime.agentSeen()>45000)return jsonResponse(res,409,{error:'Inicie o analisador local deste usuário antes da pesquisa visual, ou desative a análise visual em Configurações.'});
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),365000);
     try{
-      const items=[],instagramItems=[],failures=[];let nextTerm=0,nextInstagramTerm=0;const worker=async()=>{while(nextTerm<terms.length){const term=terms[nextTerm++],actorInput={searchQueries:[term],resultsPerPage:Math.min(30,CREATIVE_VISUAL_AUDIT_ENABLED?perTerm*2:perTerm),searchSection:'/video',videoSearchSorting:sorting,videoSearchDateFilter:period,shouldDownloadVideos:CREATIVE_VISUAL_AUDIT_ENABLED,shouldDownloadCovers:false,shouldDownloadSlideshowImages:false,downloadSubtitlesOptions:'NEVER_DOWNLOAD_SUBTITLES',commentsPerPost:0,topLevelCommentsPerPost:0,maxRepliesPerComment:0,maxFollowersPerProfile:0,maxFollowingPerProfile:0,scrapeRelatedSearchWords:false};try{const response=await fetch('https://api.apify.com/v2/acts/clockworks~tiktok-scraper/run-sync-get-dataset-items?timeout=175',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(actorInput),signal:controller.signal}),text=await response.text();let rows=[];try{rows=text?JSON.parse(text):[]}catch{}if(!response.ok)throw new Error(rows?.error?.message||'Busca externa não concluída.');items.push(...(Array.isArray(rows)?rows:[]).map(item=>({...item,_hurtzSearchTerm:term})))}catch(termError){failures.push({platform:'tiktok',term,error:termError.message})}}};
+      const items=[],instagramItems=[],failures=[];let nextTerm=0,nextInstagramTerm=0;const worker=async()=>{while(nextTerm<terms.length){const term=terms[nextTerm++],actorInput={searchQueries:[term],resultsPerPage:Math.min(30,creativeVisualAuditEnabled()?perTerm*2:perTerm),searchSection:'/video',videoSearchSorting:sorting,videoSearchDateFilter:period,shouldDownloadVideos:creativeVisualAuditEnabled(),shouldDownloadCovers:false,shouldDownloadSlideshowImages:false,downloadSubtitlesOptions:'NEVER_DOWNLOAD_SUBTITLES',commentsPerPost:0,topLevelCommentsPerPost:0,maxRepliesPerComment:0,maxFollowersPerProfile:0,maxFollowingPerProfile:0,scrapeRelatedSearchWords:false};try{const response=await fetch('https://api.apify.com/v2/acts/clockworks~tiktok-scraper/run-sync-get-dataset-items?timeout=175',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(actorInput),signal:controller.signal}),text=await response.text();let rows=[];try{rows=text?JSON.parse(text):[]}catch{}if(!response.ok)throw new Error(rows?.error?.message||'Busca externa não concluída.');items.push(...(Array.isArray(rows)?rows:[]).map(item=>({...item,_hurtzSearchTerm:term})))}catch(termError){failures.push({platform:'tiktok',term,error:termError.message})}}};
       const instagramWorker=async()=>{while(nextInstagramTerm<terms.length){const term=terms[nextInstagramTerm++];try{const response=await fetch('https://api.apify.com/v2/acts/apify~instagram-search-scraper/run-sync-get-dataset-items?timeout=150',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({search:term,searchType:'popular',searchLimit:perTerm,liveSearch:false}),signal:controller.signal}),text=await response.text();let rows=[];try{rows=text?JSON.parse(text):[]}catch{}if(!response.ok)throw new Error(rows?.error?.message||'Busca do Instagram não concluída.');instagramItems.push(...(Array.isArray(rows)?rows:[]).map(item=>({...item,_hurtzSearchTerm:term})))}catch(termError){failures.push({platform:'instagram',term,error:termError.message})}}};
       const searches=[];if(platform!=='instagram')searches.push(...Array.from({length:Math.min(4,terms.length)},worker));if(platform!=='tiktok')searches.push(...Array.from({length:Math.min(2,terms.length)},instagramWorker));await Promise.all(searches);if(!items.length&&!instagramItems.length)throw new Error(failures[0]?.error||'Nenhum termo de pesquisa foi concluído.');
       const unique=new Map();for(const item of items){if(item?.errorCode||!item?.webVideoUrl)continue;const id=String(item.id||item.webVideoUrl.match(/\/video\/(\d+)/)?.[1]||''),searchTerm=item._hurtzSearchTerm||item.searchQuery||terms[0]||'',key=`tiktok:${id}`;if(!id||unique.has(key))continue;unique.set(key,{id,platform:'tiktok',title:String(item.text||'Vídeo do TikTok').slice(0,1000),video_url:item.webVideoUrl,embed_url:`https://www.tiktok.com/player/v1/${id}`,thumbnail_url:item.videoMeta?.coverUrl||item.videoMeta?.originalCoverUrl||'',download_url:Array.isArray(item.mediaUrls)?item.mediaUrls[0]||'':'',creator_name:item.authorMeta?.name||item.authorMeta?.nickName||'',creator_url:item.authorMeta?.name?`https://www.tiktok.com/@${item.authorMeta.name}`:'',view_count:Number(item.playCount)||0,like_count:Number(item.diggCount)||0,comment_count:Number(item.commentCount)||0,share_count:Number(item.shareCount)||0,duration:Number(item.videoMeta?.duration)||0,created_time:Number(item.createTime)||0,search_term:searchTerm,expected_type:creativeExpectedType(searchTerm,contentType)})}
       for(const item of instagramItems){if(!item?.url||!item?.videoUrl)continue;const id=String(item.shortCode||item.id||''),searchTerm=item._hurtzSearchTerm||terms[0]||'',key=`instagram:${id}`;if(!id||unique.has(key))continue;unique.set(key,{id,platform:'instagram',title:String(item.caption||item.alt||'Reel do Instagram').slice(0,1000),video_url:item.url,embed_url:`https://www.instagram.com/p/${encodeURIComponent(id)}/embed`,thumbnail_url:item.displayUrl||item.images?.[0]||'',download_url:item.videoUrl||'',creator_name:item.ownerFullName||item.ownerUsername||'',creator_url:item.ownerUsername?`https://www.instagram.com/${item.ownerUsername}/`:'',view_count:Number(item.videoViewCount||item.videoPlayCount)||0,like_count:Number(item.likesCount)||0,comment_count:Number(item.commentsCount)||0,share_count:0,duration:Number(item.videoDuration)||0,created_time:Math.floor(Date.parse(item.timestamp||'')/1000)||0,search_term:searchTerm,expected_type:creativeExpectedType(searchTerm,contentType)})}
-      const periodSeconds={PAST_24_HOURS:86400,PAST_WEEK:604800,PAST_MONTH:2592000,LAST_3_MONTHS:7776000,LAST_6_MONTHS:15552000}[period]||0,cutoff=periodSeconds?Math.floor(Date.now()/1000)-periodSeconds:0,candidates=[...unique.values()].filter(video=>!cutoff||video.platform!=='instagram'||!video.created_time||video.created_time>=cutoff);if(sorting==='MOST_LIKED')candidates.sort((a,b)=>b.like_count-a.like_count);if(sorting==='LATEST')candidates.sort((a,b)=>b.created_time-a.created_time);const sessionId=crypto.randomUUID(),session={id:sessionId,candidates,results:new Map(),per_term:perTerm,audit_enabled:CREATIVE_VISUAL_AUDIT_ENABLED,created_at:Date.now(),expires_at:Date.now()+CREATIVE_AUDIT_TTL};creativeAuditSessions.set(sessionId,session);
-      if(!CREATIVE_VISUAL_AUDIT_ENABLED){const counts=new Map(),limited=candidates.filter(video=>{const key=`${video.platform||'tiktok'}:${video.search_term}`,count=counts.get(key)||0;if(count>=perTerm)return false;counts.set(key,count+1);return true}).map(video=>({...video,thumbnail_proxy_url:video.thumbnail_url?`/api/creative-thumbnail?session=${encodeURIComponent(sessionId)}&platform=${encodeURIComponent(video.platform||'tiktok')}&video=${encodeURIComponent(video.id)}`:'',download_url:`/api/creative-audit/download?session=${encodeURIComponent(sessionId)}&video=${encodeURIComponent(video.id)}`}));return jsonResponse(res,200,{id:sessionId,status:'complete',total:0,approved:limited,rejected:0,failed_terms:failures,visual_audit_enabled:false,temporary:true})}
+      const periodSeconds={PAST_24_HOURS:86400,PAST_WEEK:604800,PAST_MONTH:2592000,LAST_3_MONTHS:7776000,LAST_6_MONTHS:15552000}[period]||0,cutoff=periodSeconds?Math.floor(Date.now()/1000)-periodSeconds:0,candidates=[...unique.values()].filter(video=>!cutoff||video.platform!=='instagram'||!video.created_time||video.created_time>=cutoff);if(sorting==='MOST_LIKED')candidates.sort((a,b)=>b.like_count-a.like_count);if(sorting==='LATEST')candidates.sort((a,b)=>b.created_time-a.created_time);const sessionId=crypto.randomUUID(),session={id:sessionId,candidates,results:new Map(),per_term:perTerm,audit_enabled:creativeVisualAuditEnabled(),created_at:Date.now(),expires_at:Date.now()+CREATIVE_AUDIT_TTL};creativeAuditSessions.set(sessionId,session);
+      if(!creativeVisualAuditEnabled()){const counts=new Map(),limited=candidates.filter(video=>{const key=`${video.platform||'tiktok'}:${video.search_term}`,count=counts.get(key)||0;if(count>=perTerm)return false;counts.set(key,count+1);return true}).map(video=>({...video,thumbnail_proxy_url:video.thumbnail_url?`/api/creative-thumbnail?session=${encodeURIComponent(sessionId)}&platform=${encodeURIComponent(video.platform||'tiktok')}&video=${encodeURIComponent(video.id)}`:'',download_url:`/api/creative-audit/download?session=${encodeURIComponent(sessionId)}&video=${encodeURIComponent(video.id)}`}));return jsonResponse(res,200,{id:sessionId,status:'complete',total:0,approved:limited,rejected:0,failed_terms:failures,visual_audit_enabled:false,temporary:true})}
       candidates.filter(video=>video.expected_type!=='any').forEach(video=>{if(!video.download_url){session.results.set(video.id,{relevant:false,detected_type:'other',confidence:0,reason:'Download temporário indisponível'});return}creativeAuditJobs.push({id:crypto.randomUUID(),session_id:sessionId,video,expected_type:video.expected_type,status:'pending',created_at:Date.now(),attempts:0})});
-      jsonResponse(res,202,{id:sessionId,status:candidates.some(video=>video.expected_type!=='any')?'processing':'complete',total:candidates.filter(video=>video.expected_type!=='any').length,agent_online:Date.now()-creativeAgentLastSeen<45000,temporary:true});
+      jsonResponse(res,202,{id:sessionId,status:candidates.some(video=>video.expected_type!=='any')?'processing':'complete',total:candidates.filter(video=>video.expected_type!=='any').length,agent_online:Date.now()-(localRuntime?localRuntime.agentSeen():creativeAgentLastSeen)<45000,temporary:true});
     }catch(searchError){jsonResponse(res,searchError.name==='AbortError'?504:502,{error:searchError.name==='AbortError'?'A pesquisa excedeu o tempo máximo. Reduza a quantidade e tente novamente.':searchError.message})}finally{clearTimeout(timeout)}
   });
   if(requestUrl.pathname==='/api/task-columns'){
@@ -397,6 +408,30 @@ http.createServer((req,res)=>{
       res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(data);
     });
   }
+  if (requestUrl.pathname === '/api/meta-comments') {
+    const configPath=path.resolve(root,'..','Meta Ads Monitor','monitored_accounts.json');
+    let allowed=[];try{allowed=JSON.parse(fs.readFileSync(configPath,'utf8')).accounts.map(item=>item.id)}catch{}
+    if(req.method==='GET'){
+      const accountIds=(requestUrl.searchParams.get('accounts')||'').split(',').filter(Boolean),status=requestUrl.searchParams.get('status')||'active',days=requestUrl.searchParams.get('days')||'30';
+      if(!accountIds.length||accountIds.length>50||accountIds.some(id=>!/^act_\d+$/.test(id)||!allowed.includes(id))||!['active','inactive','all'].includes(status)||!['7','30','90','all'].includes(days))return jsonResponse(res,400,{error:'Filtros de comentários inválidos.'});
+      const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/comments_moderation.py search --accounts ${accountIds.join(',')} --status ${status} --days ${days}`;
+      return runMonitorCommand(remote,{timeout:180000,maxBuffer:12*1024*1024},(error,stdout,stderr)=>{
+        if(error)return jsonResponse(res,502,{error:'Não foi possível consultar os comentários na Meta.',detail:stderr.trim()});
+        try{return jsonResponse(res,200,JSON.parse(stdout))}catch{return jsonResponse(res,502,{error:'Resposta inválida da consulta de comentários Meta.'})}
+      });
+    }
+    if(req.method==='POST')return readBody(req,(error,payload)=>{
+      const action=String(payload?.action||''),commentIds=Array.isArray(payload?.comment_ids)?[...new Set(payload.comment_ids.map(String))]:[];
+      if(error||!['hide','unhide','delete'].includes(action)||!commentIds.length||commentIds.length>100||commentIds.some(id=>!/^\d+(?:_\d+)?$/.test(id)))return jsonResponse(res,400,{error:'Ação de moderação inválida.'});
+      const remote=`set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/comments_moderation.py moderate --action ${action} --comments ${commentIds.join(',')}`;
+      return runMonitorCommand(remote,{timeout:120000,maxBuffer:6*1024*1024},(commandError,stdout,stderr)=>{
+        if(commandError)return jsonResponse(res,502,{error:'A Meta não concluiu a moderação.',detail:stderr.trim()});
+        try{const result=JSON.parse(stdout),file=path.join(alertDataDir,'comment-moderation-history.json'),history=readJsonFile(file,{events:[]});history.events=[{id:crypto.randomUUID(),created_at:new Date().toISOString(),action,comment_ids:commentIds,success:Number(result.success)||0,failed:Number(result.failed)||0},...(history.events||[])].slice(0,500);writeJsonFile(file,history);return jsonResponse(res,200,result)}catch{return jsonResponse(res,502,{error:'Resposta inválida da moderação Meta.'})}
+      });
+    });
+    return jsonResponse(res,405,{error:'Método não permitido.'});
+  }
+  if(requestUrl.pathname==='/api/meta-comment-history'&&req.method==='GET')return jsonResponse(res,200,readJsonFile(path.join(alertDataDir,'comment-moderation-history.json'),{events:[]}));
   if (requestUrl.pathname === '/api/meta-spend') {
     const from = requestUrl.searchParams.get('from');
     const to = requestUrl.searchParams.get('to');
@@ -457,11 +492,12 @@ http.createServer((req,res)=>{
     });
   }
   const clean = decodeURIComponent(req.url.split('?')[0]);
-  if(['/personal-meta.js','/preview-server.js'].includes(clean)){res.writeHead(404);return res.end('Not found')}
+  if(['/personal-meta.js','/preview-server.js','/local-store.js','/local-services.js','/local-runtime.js','/integration-config.js'].includes(clean)){res.writeHead(404);return res.end('Not found')}
   const target = path.resolve(root, clean === '/' ? 'index.html' : `.${clean}`);
-  if (!target.startsWith(root)) { res.writeHead(403); return res.end('Forbidden'); }
+  if (!target.startsWith(root+path.sep)) { res.writeHead(403); return res.end('Forbidden'); }
   fs.readFile(target,(err,data)=>{
     if(err){res.writeHead(404);return res.end('Not found')}
-    res.writeHead(200,{'Content-Type':types[path.extname(target)]||'application/octet-stream','Cache-Control':'no-store'});res.end(data);
+    res.writeHead(200,{'Content-Type':types[path.extname(target)]||'application/octet-stream','Cache-Control':'no-store'});res.end(localRuntime?localRuntime.inject(path.relative(root,target),data):data);
   });
-}).listen(port,process.env.HOST||'127.0.0.1',()=>console.log(`Dashboard Meta Ads: http://${process.env.HOST||'127.0.0.1'}:${port}`));
+
+}

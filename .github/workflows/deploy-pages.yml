@@ -30,10 +30,13 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Build public files
+        run: node dev/build-pages.cjs
+
       - name: Upload dashboard
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "Dashboard Meta Ads"
+          path: ".codex-tmp/pages"
 
       - name: Deploy
         id: deployment

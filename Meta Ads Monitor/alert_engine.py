@@ -21,7 +21,7 @@ PLANS_PATH = Path(os.getenv("META_ALERT_PLANS", DATA_DIR / "plans.json"))
 CONFIG_PATH = Path(os.getenv("META_ALERT_CONFIG", DATA_DIR / "config.json"))
 STATE_PATH = DATA_DIR / "state.json"
 HISTORY_PATH = DATA_DIR / "history.jsonl"
-MONITORED_PATH = ROOT / "monitored_accounts.json"
+MONITORED_PATH = Path(os.getenv("META_MONITORED_ACCOUNTS", ROOT / "monitored_accounts.json"))
 REPORT_DATA_DIR = DATA_DIR / "reports"
 
 DEFAULT_CONFIG = {

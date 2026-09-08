@@ -11,7 +11,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-CONFIG = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
+CONFIG = json.loads(Path(os.environ.get("HURTZ_CREATIVE_CONFIG", ROOT / "config.json")).read_text(encoding="utf-8"))
 API_URL = CONFIG["api_url"].rstrip("/")
 TOKEN = CONFIG["token"]
 MODEL = CONFIG.get("model", "qwen2.5vl:3b")

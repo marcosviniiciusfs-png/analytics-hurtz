@@ -1,0 +1,27 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{spawn}=require('node:child_process');
+const {createPersonalMeta}=require('../Dashboard Meta Ads/personal-meta');
+test('production tools require real sessions and never enable development access',async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hurtz-prod-test-')),vault=createPersonalMeta({directory:dir});
+ const a=vault.issueSession({id:'prod-a',email:'a@example.test'}),b=vault.issueSession({id:'prod-b',email:'b@example.test'});
+ const child=spawn(process.execPath,[path.resolve(__dirname,'../Dashboard Meta Ads/preview-server.js')],{env:{...process.env,ANALYTICS_LOCAL_ONLY:'0',ANALYTICS_PERSONAL_TOOLS:'1',META_PERSONAL_DATA_DIR:dir,PORT:'8095',HOST:'127.0.0.1'},stdio:['ignore','pipe','pipe']});
+ t.after(async()=>{child.kill();await new Promise(r=>child.once('close',r));fs.rmSync(dir,{recursive:true,force:true})});
+ await new Promise((resolve,reject)=>{child.stdout.once('data',resolve);child.once('error',reject);child.once('exit',()=>reject(new Error('Server stopped before ready')))});
+ const request=async(token,route,method='GET',data,extra={})=>{const r=await fetch('http://127.0.0.1:8095'+route,{method,headers:{Authorization:'Bearer '+(token||''),'Content-Type':'application/json',...extra},...(data?{body:JSON.stringify(data)}:{})});return {status:r.status,body:await r.json()}};
+ assert.equal((await request(null,'/api/local/session','POST',{}, {'X-Local-Client':'1'})).status,404);
+ assert.equal((await request(null,'/api/tasks')).status,401);
+ assert.equal((await request(a,'/api/session')).body.tools,true);
+ assert.equal((await request(a,'/api/local/settings','GET',null,{Origin:'https://evil.example'})).status,403);
+ assert.equal((await request(a,'/api/local/settings','GET',null,{Origin:'https://analytics.hurtzcompany.com'})).status,200);
+ const config=await request(a,'/api/local/settings','PUT',{apifyToken:'private-a'});
+ assert.equal(config.body.local,false);assert.equal(config.body.apifyConfigured,true);assert.ok(!JSON.stringify(config).includes('private-a'));
+ assert.equal((await request(b,'/api/local/settings')).body.apifyConfigured,false);
+ const columns=(await request(a,'/api/tasks')).body.columns;
+ assert.equal((await request(a,'/api/tasks','POST',{title:'Owned task',column_id:columns[0].id})).status,201);
+ assert.equal((await request(b,'/api/tasks')).body.tasks.length,0);
+ const access=await request(a,'/api/local/access','POST',{scope:'extension'});
+ assert.equal(new URL(access.body.api_url).protocol,'https:');
+ assert.equal((await request(access.body.token,'/api/tasks')).status,403);
+ const html=await (await fetch('http://127.0.0.1:8095')).text();assert.ok(!html.includes('window.HURTZ_LOCAL=true'));
+ assert.equal((await request(a,'/api/session','DELETE')).status,200);
+ assert.equal((await request(a,'/api/tasks')).status,401);
+});
