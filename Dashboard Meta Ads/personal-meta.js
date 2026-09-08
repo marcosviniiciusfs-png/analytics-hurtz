@@ -56,7 +56,9 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       payload = await response.json();
     } catch { throw fail(502, 'A Meta não respondeu. Tente novamente.'); }
     if (!response.ok || payload.error) {
+      console.warn(JSON.stringify({event:'meta_graph_error',endpoint,status:response.status,code:payload.error?.code,subcode:payload.error?.error_subcode,trace:payload.error?.fbtrace_id}));
       if (payload.error?.code === 190) throw fail(409, 'Sua conexão com o Facebook expirou. Conecte novamente.');
+      if ([10,200,294].includes(payload.error?.code)) throw fail(403, 'O Facebook não liberou a leitura dos anúncios. Reconecte e autorize as contas nas configurações do Tryv CRM.');
       throw fail(502, 'A Meta não autorizou esta consulta. Verifique as permissões da conexão.');
     }
     return payload;
@@ -81,6 +83,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   async function catalog(user) {
     const conn = connection(user);
     const accounts = await rows(conn.token, 'me/adaccounts', {fields: 'id,name,account_status,currency,business,is_prepay_account'});
+    if (read('connection', user.id)?.revision !== conn.revision) throw fail(409, 'A conexão mudou. Atualize a consulta.');
     return {conn, accounts};
   }
   async function authorizeAccounts(user, ids) {
@@ -140,13 +143,21 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (!challenge || challenge.user !== user.id || challenge.session !== user.sessionHash || challenge.expires <= Date.now()) throw fail(400, 'A tentativa de conexão expirou. Tente novamente.');
       if (typeof payload.accessToken !== 'string' || payload.accessToken.length < 20 || payload.accessToken.length > 4096) throw fail(400, 'Autorização do Facebook inválida.');
       const token = payload.accessToken;
-      const debug = (await graph(token, 'debug_token', {input_token: token})).data;
-      if (!debug?.is_valid || debug.app_id !== APP_ID || debug.type !== 'USER' || !(debug.scopes || []).some(s => ['ads_read', 'ads_management'].includes(s))) throw fail(403, 'Autorize a leitura de anúncios pelo Tryv CRM.');
-      if ((debug.expires_at && debug.expires_at * 1000 <= Date.now()) || (debug.data_access_expires_at && debug.data_access_expires_at * 1000 <= Date.now())) throw fail(409, 'A autorização do Facebook expirou.');
-      const me = await graph(token, 'me', {fields: 'id,name'});
-      if (!me.id || (debug.user_id && debug.user_id !== me.id)) throw fail(403, 'Identidade do Facebook inválida.');
+      // /debug_token requires an app/developer credential. Normal users authenticate
+      // their token via /app, /me and /me/permissions instead; all are answered by Meta.
+      const [application, me, permissionRows] = await Promise.all([
+        graph(token, 'app', {fields: 'id,name'}),
+        graph(token, 'me', {fields: 'id,name'}),
+        rows(token, 'me/permissions'),
+      ]);
+      const scopes=permissionRows.filter(item=>item.status==='granted').map(item=>item.permission);
+      if(application.id!==APP_ID)throw fail(403,'Conecte o Facebook pelo aplicativo Tryv CRM.');
+      if(!me.id||!scopes.some(scope=>['ads_read','ads_management'].includes(scope)))throw fail(403,'Autorize a leitura de anúncios pelo Tryv CRM em Editar configurações no Facebook.');
       const accounts = await rows(token, 'me/adaccounts', {fields: 'id,name'});
-      write('connection', user.id, {token, facebookId: me.id, name: me.name, revision: crypto.randomUUID(), expiresAt: (debug.expires_at || 0) * 1000, dataExpiresAt: (debug.data_access_expires_at || 0) * 1000});
+      // SDK expiry is only a conservative UI hint, never an authorization decision:
+      // every catalog/report is checked live against Meta with this user's token.
+      const seconds=Number(payload.expiresIn),expiresAt=Number.isFinite(seconds)&&seconds>0?Date.now()+Math.min(seconds,60*86400)*1000:0;
+      write('connection', user.id, {token, facebookId: me.id, name: me.name, scopes, revision: crypto.randomUUID(), expiresAt, dataExpiresAt: 0});
       return send(res, 200, {connected: true, name: me.name, accountCount: accounts.length});
     }
     if (route === '/api/meta/connection' && req.method === 'DELETE') {

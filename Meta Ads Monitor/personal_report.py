@@ -6,6 +6,19 @@ import re
 import sys
 
 
+def collect_accounts(ids, collect):
+    def safe_collect(account_id):
+        try:
+            return collect(account_id)
+        except Exception:
+            # Never serialize upstream exceptions: URLs may include credentials.
+            return {'id': account_id, 'reconciled': False, 'result_reconciled': False,
+                    'error': 'A Meta não liberou a auditoria desta conta neste período. Verifique as permissões ou tente atualizar.',
+                    'campaigns': [], 'daily': []}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        return {row['id']: row for row in pool.map(safe_collect, ids)}
+
+
 def main():
     payload = json.loads(sys.stdin.read(65536))
     ids = payload['ids']
@@ -19,9 +32,7 @@ def main():
     period = json.dumps({'since': payload['from'], 'until': payload['to']})
     def collect(account_id):
         return audit(account_id, period) if payload['kind'] == 'spend' else breakdown(account_id, period, payload.get('reportOnly', False))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        rows = list(pool.map(collect, ids))
-    print(json.dumps({'since': payload['from'], 'until': payload['to'], 'accounts': {row['id']: row for row in rows}}))
+    print(json.dumps({'since': payload['from'], 'until': payload['to'], 'accounts': collect_accounts(ids, collect)}))
 
 
 if __name__ == '__main__':

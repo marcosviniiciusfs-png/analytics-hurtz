@@ -6,17 +6,20 @@ const path = require('node:path');
 const {Readable} = require('node:stream');
 const {createPersonalMeta} = require('./personal-meta');
 
-function fixture(t, runner, debugOverrides = {}) {
+function fixture(t, runner, overrides = {}) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'personal-meta-'));
   t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
   const tokens = {a: 'facebook-user-a-token-0000000000', b: 'facebook-user-b-token-0000000000'};
   const fetchImpl = async (url, options) => {
     const who = options.headers.Authorization.endsWith(tokens.a) ? 'a' : 'b';
     const endpoint = new URL(url).pathname;
-    const payload = endpoint.endsWith('/debug_token') ? {data: {is_valid: true, app_id: '2093320124537661', type: 'USER', user_id: who, scopes: ['ads_read'], ...debugOverrides}}
-      : endpoint.endsWith('/me/adaccounts') ? {data: [{id: who === 'a' ? 'act_111' : 'act_222', name: who}]}
+    assert.ok(!endpoint.endsWith('/debug_token'), 'ordinary users must not require a developer credential');
+    const payload = overrides.error ? {error: overrides.error}
+      : endpoint.endsWith('/app') ? {id: overrides.app_id || '2093320124537661', name: 'Tryv CRM'}
+      : endpoint.endsWith('/me/permissions') ? {data: (overrides.scopes || ['ads_read']).map(permission=>({permission,status:'granted'}))}
+      : endpoint.endsWith('/me/adaccounts') ? overrides.catalog || {data: [{id: who === 'a' ? 'act_111' : 'act_222', name: who}]}
         : {id: who, name: `Facebook ${who}`};
-    return {ok: true, json: async () => payload};
+    return {ok: !payload.error, status:payload.error?400:200, json: async () => payload};
   };
   const api = createPersonalMeta({directory, fetchImpl, runReport: runner || (async ({token}) => ({tokenUsed: token}))});
   const sessionA = api.issueSession({id: 'user-a', email: 'a@example.test'}), sessionB = api.issueSession({id: 'user-b', email: 'b@example.test'});
@@ -97,9 +100,28 @@ test('disconnect during a running report prevents stale results from returning',
 });
 
 test('tokens from other apps, missing permissions, and expired access are rejected', async t => {
-  for (const [overrides, expected] of [[{app_id: 'other-app'}, 403], [{scopes: ['public_profile']}, 403], [{is_valid: false}, 403], [{expires_at: 1}, 409], [{data_access_expires_at: 1}, 409]]) {
+  for (const [overrides, expected] of [[{app_id: 'other-app'}, 403], [{scopes: ['public_profile']}, 403], [{error:{code:190}}, 409], [{error:{code:200}}, 403]]) {
     const f = fixture(t, undefined, overrides);
     assert.equal((await f.connect(f.sessionA, f.tokens.a)).status, expected);
     assert.equal(f.api.read('connection', 'user-a'), null);
   }
+});
+
+test('empty account list is valid and can be refreshed when Meta access changes', async t => {
+  const overrides={catalog:{data:[]}},f=fixture(t,undefined,overrides);
+  assert.equal((await f.connect(f.sessionA,f.tokens.a)).status,200);
+  assert.equal((await f.request(f.sessionA,'/api/meta-accounts')).body.account_count,0);
+  overrides.catalog={data:[{id:'act_111',name:'Newly granted'}]};
+  assert.equal((await f.request(f.sessionA,'/api/meta-accounts')).body.account_count,1);
+  overrides.catalog={data:[]};
+  assert.equal((await f.request(f.sessionA,'/api/meta-spend?from=2026-09-01&to=2026-09-02&accounts=act_111')).status,403);
+});
+
+test('expired stored connection cannot run reports and profiles are private', async t => {
+  const f=fixture(t);await f.connect(f.sessionA,f.tokens.a);
+  assert.equal((await f.request(f.sessionA,'/api/account-profiles','PUT',{items:[{id:'one',accountIds:['act_111']}],activeId:'one'})).status,200);
+  assert.deepEqual((await f.request(f.sessionB,'/api/account-profiles')).body.items,[]);
+  f.api.write('connection','user-a',{...f.api.read('connection','user-a'),expiresAt:1});
+  assert.equal((await f.request(f.sessionA,'/api/meta/connection')).body.expired,true);
+  assert.equal((await f.request(f.sessionA,'/api/meta-accounts')).status,409);
 });
