@@ -82,7 +82,7 @@
       <section class="comments-view" id="comments" hidden>
         <div class="comments-heading"><div><p class="eyebrow">MODERAÇÃO META ADS</p><h2>Comentários dos anúncios</h2><p>Encontre comentários publicados nos anúncios da página selecionada e modere tudo em um só lugar.</p></div><span class="comments-permission-chip">Ações protegidas pela Meta</span></div>
         <form class="comments-filter-card" id="commentsFilterForm">
-          <fieldset class="comments-account-field"><legend>Página do Facebook</legend><div class="comments-account-tools"><span id="commentsPageSummary">Selecione uma página</span><button type="button" id="commentsChoosePage">Selecionar página</button></div></fieldset>
+          <div class="comments-account-field"><div class="comments-filter-grid"><label style="grid-column:1/-1"><span>Página do Facebook</span><select id="commentsPageSelect" style="max-width:560px" disabled><option value="">Carregando páginas...</option></select></label></div><div class="comments-account-tools"><small id="commentsPagesStatus" role="status"></small><div><button type="button" id="commentsPagesRefresh">Atualizar páginas</button><button type="button" id="commentsPagesAuthorize">Autorizar páginas</button></div></div></div>
           <div class="comments-filter-grid">
             <label><span>Status dos anúncios</span><select id="commentsAdStatus"><option value="active">Ativos</option><option value="inactive">Inativos</option><option value="all">Todos</option></select></label>
             <label><span>Comentários publicados</span><select id="commentsPeriod"><option value="7">Nos últimos 7 dias</option><option value="30" selected>Nos últimos 30 dias</option><option value="90">Nos últimos 90 dias</option><option value="all">Todo o período disponível</option></select></label>
@@ -387,6 +387,6 @@
       <div class="campaign-section"><div class="campaign-title"><div><h3>Campanhas com veiculação</h3><p id="campaignPeriod"></p></div><span id="campaignCount"></span></div><form class="campaign-goal-panel" id="campaignGoalPanel" hidden><div><strong id="campaignGoalTitle">Configurar coluna</strong><small>Metas diárias desta conta para definir as cores.</small></div><div class="campaign-goal-fields" id="campaignGoalFields"></div><button type="submit">Salvar metas</button><button type="button" class="clear-goal-button" id="clearCampaignGoal">Limpar</button><button type="button" class="close-goal-button" id="closeCampaignGoal">×</button></form><div class="campaign-table-wrap"><table class="campaign-table"><thead><tr><th>Campanha</th><th>Objetivo</th><th>Status</th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="investment">Investimento <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="results">Resultados <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="cost">Custo/resultado <span>⚙</span></button></th></tr></thead><tbody id="campaignBody"></tbody><tfoot id="campaignFoot"></tfoot></table></div></div>
     </section>
   </div>
-  <script src="app.js?v=20260908-comment-pages"></script>
+  <script src="app.js?v=20260908-comment-select"></script>
 </body>
 </html>
