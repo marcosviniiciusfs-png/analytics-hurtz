@@ -41,20 +41,14 @@ test('local workflows persist and stay isolated across users',async t=>{
  assert.equal((await request(access.token,'/api/tasks')).status,403);
  assert.equal((await request(access.token,'/api/creative-videos')).body.videos.length,2);
  await request(a,'/api/local/settings','PUT',{visualAudit:true});await request(b,'/api/local/settings','PUT',{visualAudit:true,apifyToken:'apify-b-test'});
- assert.equal((await request(a,'/api/creative-search','POST',{terms:['HB20'],platform:'tiktok',limit:1})).status,409);
- const agentA=(await request(a,'/api/local/access','POST',{scope:'agent'})).body.token,agentB=(await request(b,'/api/local/access','POST',{scope:'agent'})).body.token;
- await request(agentA,'/api/creative-audit/agent/heartbeat','POST',{});await request(agentB,'/api/creative-audit/agent/heartbeat','POST',{});
- const visualA=await request(a,'/api/creative-search','POST',{terms:['HB20'],platform:'tiktok',limit:1});
- const visualB=await request(b,'/api/creative-search','POST',{terms:['HB20'],platform:'tiktok',limit:1});
- assert.equal(visualA.status,202);assert.equal(visualB.status,202);
- const jobA=(await request(agentA,'/api/creative-audit/agent/claim','POST',{})).body.job;
- const jobB=(await request(agentB,'/api/creative-audit/agent/claim','POST',{})).body.job;
- assert.ok(jobA&&jobB,'one user must not remove another user’s pending jobs');assert.notEqual(jobA.id,jobB.id);
- assert.equal((await request(agentB,'/api/creative-audit/agent/result','POST',{job_id:jobA.id,relevant:true,detected_type:'car'})).status,404);
- assert.equal((await request(agentA,'/api/creative-audit/agent/result','POST',{job_id:jobA.id,relevant:true,detected_type:'car'})).status,200);
- assert.equal((await request(a,'/api/creative-audit/status?id='+visualA.body.id)).body.status,'complete');
- assert.equal((await request(b,'/api/creative-audit/status?id='+visualB.body.id)).body.status,'processing');
- assert.equal((await request(agentA,'/api/local/settings')).status,403);
+ for(const user of [a,b]){
+  assert.equal((await request(user,'/api/local/settings')).body.visualAudit,false);
+  const result=await request(user,'/api/creative-search','POST',{terms:['HB20'],platform:'tiktok',limit:1});
+  assert.equal(result.status,200);assert.equal(result.body.status,'complete');assert.equal(result.body.approved.length,1);
+  const resumed=await request(user,'/api/creative-audit/status?id='+result.body.id);
+  assert.equal(resumed.body.status,'complete');assert.equal(resumed.body.approved.length,1);assert.equal(resumed.body.visual_audit_enabled,false);
+  assert.equal((await request(user===a?b:a,'/api/creative-audit/status?id='+result.body.id)).status,404);
+ }
  const instance=(await request(a,'/api/evolution/instance','POST',{label:'Local'})).body.instance;assert.ok(instance);
  assert.equal((await request(b,'/api/evolution/groups?instance='+instance)).status,403);
  assert.equal((await request(a,'/api/evolution/groups?instance='+instance)).body.groups.length,1);

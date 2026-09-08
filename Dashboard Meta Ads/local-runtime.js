@@ -6,9 +6,9 @@ const {createServices}=require('./local-services');
 function createRuntime(vault,{production=false}={}){
  const store=createStore(vault),root=path.resolve(vault.directory,'workspaces');
  const defaults=production?require('./integration-config').defaults():{};
- const sharedAnalyzer=process.env.ANALYTICS_SHARED_ANALYZER==='1';
+ const sharedAnalyzer=false;
  const isPlatformWorker=()=>store.context.getStore()?.scope==='platform_agent';
- const ownGet=store.get;store.get=(kind,fallback)=>kind==='integrations'?{...defaults,...ownGet(kind,fallback),...(sharedAnalyzer?{visualAudit:true}:{})}:ownGet(kind,fallback);
+ const ownGet=store.get;store.get=(kind,fallback)=>kind==='integrations'?{...defaults,...ownGet(kind,fallback),visualAudit:false}:ownGet(kind,fallback);
  function folder(){const dir=path.join(root,crypto.createHash('sha256').update(store.user().id).digest('hex'));fs.mkdirSync(dir,{recursive:true,mode:0o700});return dir}
  function body(req){return new Promise((resolve,reject)=>{let size=0,chunks=[];req.on('data',c=>{size+=c.length;if(size>8*1024*1024){reject(fail(413,'Dados acima do limite.'));req.destroy()}else chunks.push(c)});req.on('end',()=>{try{resolve(JSON.parse(Buffer.concat(chunks).toString()||'{}'))}catch{reject(fail(400,'JSON inválido.'))}});});}
  const services=createServices({vault,store,folder,body});

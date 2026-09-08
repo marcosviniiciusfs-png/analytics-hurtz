@@ -15,7 +15,7 @@ try{
  await page.reload();await page.locator('#settingsNav').waitFor();await page.locator('#tasksNav').click();await page.getByText('Tarefa local automatizada',{exact:true}).waitFor({state:'visible'});
  await page.locator('#creativeLibraryNav').click();await page.locator('#localVideoUrl').fill('https://www.instagram.com/reel/ABCtest/');await page.locator('#localVideoTitle').fill('Referência local');await page.locator('#localLibraryForm button[type=submit], #localLibraryForm button:not([type])').first().click();await page.locator('#localLibraryItems h3').filter({hasText:'Referência local'}).waitFor();
  await page.locator('#settingsNav').click();await page.locator('#localExtensionConnection').click();await page.waitForFunction(()=>document.querySelector('#localAccessOutput').value.includes('la_'));assert.match(await page.locator('#localAccessOutput').inputValue(),/localhost:8094/);
- await page.locator('#localAgentConnection').click();await page.waitForFunction(()=>document.querySelector('#localAccessOutput').value.includes('qwen2.5vl'));
+ assert.equal(await page.locator('#localAgentConnection').isHidden(),true);
  await page.locator('#localDiagnostics').click();await page.waitForFunction(()=>document.querySelector('#localDiagnosticsStatus').textContent.includes('Armazenamento'));
  await page.locator('#alertsNav').click();await page.locator('#sendAlertTest').click();assert.match(await page.locator('#alertFormStatus').innerText(),/Verifique o WhatsApp/);
  await page.locator('#commentsNav').click();assert.equal(await page.locator('#comments').isVisible(),true);
@@ -26,6 +26,6 @@ try{
  await page.locator('#settingsNav').click();await page.waitForFunction(()=>document.querySelector('#localApifyStatus').textContent.includes('ainda não'));
  await page.screenshot({path:path.join(root,'.codex-tmp/local-implementation.png'),fullPage:false});
  assert.deepEqual(errors,[]);assert.equal(serverErrors.includes('TypeError'),false,serverErrors);
- console.log(JSON.stringify({passed:true,checks:['menus restored','settings save','creative search','task create and persistence','Instagram library','extension credential','agent credential','diagnostics','WhatsApp guard','comments screen','two users in browser'],javascriptErrors:0}));
+ console.log(JSON.stringify({passed:true,checks:['menus restored','settings save','creative search','task create and persistence','Instagram library','extension credential','no local analyzer dependency','diagnostics','WhatsApp guard','comments screen','two users in browser'],javascriptErrors:0}));
 }finally{if(browser)await browser.close();child.kill();await new Promise(r=>child.once('close',r));fs.rmSync(dir,{recursive:true,force:true})}
 })().catch(e=>{console.error(e.message);process.exitCode=1});
