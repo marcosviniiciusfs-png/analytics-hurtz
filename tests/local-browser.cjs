@@ -18,14 +18,20 @@ try{
  assert.equal(await page.locator('#localAgentConnection').isHidden(),true);
  await page.locator('#localDiagnostics').click();await page.waitForFunction(()=>document.querySelector('#localDiagnosticsStatus').textContent.includes('Armazenamento'));
  await page.locator('#alertsNav').click();await page.locator('#sendAlertTest').click();assert.match(await page.locator('#alertFormStatus').innerText(),/Verifique o WhatsApp/);
- await page.locator('#commentsNav').click();assert.equal(await page.locator('#comments').isVisible(),true);
+ await page.evaluate(async()=>{const headers={Authorization:'Bearer '+localStorage.getItem('hurtz-monitor-session-v2'),'Content-Type':'application/json'};const {nonce}=await(await fetch('/api/meta/challenge',{method:'POST',headers,body:'{}'})).json();await fetch('/api/meta/connection',{method:'POST',headers,body:JSON.stringify({nonce,accessToken:'facebook-a-token-0000000000'})})});
+ await page.locator('#commentsNav').click();await page.locator('#commentsPageModal').waitFor({state:'visible'});
+ await page.locator('#commentsPageSearch').fill('Page a');await page.locator('[data-comments-page="100"]').click();
+ await page.waitForFunction(()=>document.querySelector('#commentsRequestStatus').textContent.includes('Consulta concluída'));
+ assert.equal(await page.locator('#commentsPageSummary').innerText(),'Page a');assert.equal(await page.locator('[data-comment-row]').count(),1);
+ await page.locator('#commentsChoosePage').click();await page.keyboard.press('Escape');await page.locator('#commentsPageModal').waitFor({state:'hidden'});
+
  const signup=await page.request.post('http://localhost:8094/api/auth/signup',{data:{email:'second@example.test',password:'browser-test-password'}});const user=await signup.json();assert.ok(user.token);
- await page.evaluate(token=>localStorage.setItem('hurtz-monitor-session-v2',token),user.token);await page.reload();await page.locator('#settingsNav').waitFor();
+ await page.evaluate(token=>localStorage.setItem('hurtz-monitor-session-v2',token),user.token);await page.reload();await page.locator('#settingsNav').waitFor();if(await page.locator('#commentsPageModal').isVisible())await page.locator('#commentsPageClose').click();
  await page.locator('#creativeLibraryNav').click();await page.waitForFunction(()=>document.querySelector('#localLibraryStatus').textContent.includes('0 referência'));
  await page.locator('#tasksNav').click();assert.equal(await page.getByText('Tarefa local automatizada',{exact:true}).count(),0);
  await page.locator('#settingsNav').click();await page.waitForFunction(()=>document.querySelector('#localApifyStatus').textContent.includes('ainda não'));
  await page.screenshot({path:path.join(root,'.codex-tmp/local-implementation.png'),fullPage:false});
  assert.deepEqual(errors,[]);assert.equal(serverErrors.includes('TypeError'),false,serverErrors);
- console.log(JSON.stringify({passed:true,checks:['menus restored','settings save','creative search','task create and persistence','Instagram library','extension credential','no local analyzer dependency','diagnostics','WhatsApp guard','comments screen','two users in browser'],javascriptErrors:0}));
+ console.log(JSON.stringify({passed:true,checks:['menus restored','settings save','creative search','task create and persistence','Instagram library','extension credential','no local analyzer dependency','diagnostics','WhatsApp guard','page modal and filtered comments','two users in browser'],javascriptErrors:0}));
 }finally{if(browser)await browser.close();child.kill();await new Promise(r=>child.once('close',r));fs.rmSync(dir,{recursive:true,force:true})}
-})().catch(e=>{console.error(e.message);process.exitCode=1});
+})().catch(e=>{console.error(e.stack);process.exitCode=1});

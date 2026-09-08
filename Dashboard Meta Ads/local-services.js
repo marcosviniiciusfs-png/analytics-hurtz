@@ -38,22 +38,26 @@ function createServices({vault,store,folder,body,fetchImpl=fetch}){
    const result=await python('alert_engine.py',args,env);store.put('monitor-status',{ok:true,at:new Date().toISOString()});return result;
   }finally{running.delete(u.id)}
  }
+ async function commentPages(){const u=store.user(),conn=vault.connection(u),pages=await vault.rows(conn.token,'me/accounts',{fields:'id,name'});if(vault.connection(u).revision!==conn.revision)throw fail(409,'A conexão mudou. Atualize a consulta.');return {pages:pages.map(p=>({id:p.id,name:p.name}))}}
  async function comments(req,url){
   const u=store.user();
   if(req.method==='GET'){
    const ids=(url.searchParams.get('accounts')||'').split(',').filter(Boolean),status=url.searchParams.get('status')||'active',days=url.searchParams.get('days')||'30';
    if(!['active','inactive','all'].includes(status)||!['7','30','90','all'].includes(days))throw fail(400,'Filtros inválidos.');
-   const {conn,accounts}=await vault.authorizeAccounts(u,ids),output=[],warnings=[],observed={};
-   for(const id of ids){const ads=await vault.rows(conn.token,id+'/ads',{fields:'id,name,effective_status,campaign{name},adset{name},creative{effective_object_story_id,object_story_id,thumbnail_url}'});
+   const pageId=url.searchParams.get('page');
+   if(pageId&&!(await commentPages()).pages.some(p=>p.id===pageId))throw fail(403,'Esta página não está autorizada para seu Facebook.');
+   const {conn,accounts}=pageId?await vault.catalog(u):await vault.authorizeAccounts(u,ids),output=[],warnings=[],observed={};
+   if(pageId)ids.splice(0,ids.length,...accounts.map(a=>a.id));
+   let nextAccount=0;const worker=async()=>{while(nextAccount<ids.length){const id=ids[nextAccount++];try{const ads=await vault.rows(conn.token,id+'/ads',{fields:'id,name,effective_status,campaign{name},adset{name},creative{effective_object_story_id,object_story_id,thumbnail_url}'});
     for(const ad of ads.filter(a=>status==='all'||(status==='active')===(a.effective_status==='ACTIVE'))){
-     const post=ad.creative?.effective_object_story_id||ad.creative?.object_story_id;if(!post)continue;
+     const post=ad.creative?.effective_object_story_id||ad.creative?.object_story_id;if(!post||(pageId&&post.split('_')[0]!==pageId))continue;
      try{const page=post.split('_')[0],pageToken=(await vault.graph(conn.token,page,{fields:'access_token'})).access_token||conn.token;
       const rows=await vault.rows(pageToken,post+'/comments',{fields:'id,message,created_time,like_count,comment_count,from{id,name},is_hidden,permalink_url',filter:'stream',...(days==='all'?{}:{since:Math.floor(Date.now()/1000)-Number(days)*86400})});
       rows.forEach(c=>observed[c.id]={account:id,page,revision:conn.revision,expires:Date.now()+3600000});
       if(rows.length)output.push({account_id:id,account_name:accounts.find(a=>a.id===id)?.name,ad:{id:ad.id,name:ad.name,effective_status:ad.effective_status,campaign_name:ad.campaign?.name,adset_name:ad.adset?.name,post_id:post,thumbnail_url:ad.creative?.thumbnail_url||''},comments:rows});
      }catch(e){warnings.push({account_id:id,ad_id:ad.id,message:e.message})}
     }
-   }
+   }catch(e){warnings.push({account_id:id,message:e.message})}}};await Promise.all(Array.from({length:Math.min(4,ids.length)},worker));
    if(vault.connection(u).revision!==conn.revision)throw fail(409,'Conexão alterada durante a busca.');store.put('comment-observations',observed);
    return {ads:output,warnings,accounts:ids.length,comments:output.reduce((n,row)=>n+row.comments.length,0)};
   }
@@ -65,6 +69,7 @@ function createServices({vault,store,folder,body,fetchImpl=fetch}){
   const result={action:p.action,results,success:results.filter(r=>r.ok).length,failed:results.filter(r=>!r.ok).length};store.put('comment-history',[{id:crypto.randomUUID(),created_at:new Date().toISOString(),action:p.action,comment_ids:ids,success:result.success,failed:result.failed},...store.get('comment-history',[])].slice(0,500));return result;
  }
  async function handle(req,url){const route=url.pathname;
+  if(route==='/api/meta-comment-pages'&&req.method==='GET')return commentPages();
   if(route==='/api/meta-comments')return comments(req,url);
   if(route==='/api/meta-comment-history')return {events:store.get('comment-history',[])};
   if(route==='/api/alerts')return {config:config(),history:history(),last_run:readFile('alerts/state.json',{}).last_run,monitor_error:store.get('monitor-status',{})?.error,evolution_configured:Boolean(store.get('integrations',{}).evolutionKey&&config().evolution_instance)};
