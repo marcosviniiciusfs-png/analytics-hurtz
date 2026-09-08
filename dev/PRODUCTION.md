@@ -19,9 +19,18 @@ O Facebook continua usando exclusivamente o token da pessoa conectada, validado
 como pertencente ao Tryv CRM. As permissões adicionais para comentários são
 solicitadas pelo botão específico em Configurações e dependem da aprovação do app.
 
-O analisador visual é opcional. Gere sua conexão restrita em Configurações e
-execute o agente num computador com Ollama, Qwen2.5-VL e FFmpeg. A credencial vale
-7 dias e pertence ao usuário que a gerou. A busca comum funciona sem o agente.
+Com `ANALYTICS_SHARED_ANALYZER=1`, a análise visual fica habilitada para todos
+os usuários atuais e futuros. O operador provisiona uma credencial privada com
+escopo `platform_agent`; esse escopo não pode ser emitido pela interface dos
+usuários. O agente recebe trabalhos de todas as filas, mas só pode baixar mídia
+e devolver resultados dos trabalhos que assumiu. Pesquisas, resultados e
+credenciais Apify continuam separados por usuário. Esse token de serviço não
+permite consultar Facebook, tarefas ou configurações.
+
+O computador com Ollama, Qwen2.5-VL e FFmpeg precisa permanecer ligado e conectado.
+Uma thread mantém o sinal de atividade durante a inferência. A credencial de
+serviço provisionada vale 90 dias e sua renovação é responsabilidade do operador.
+As conexões individuais de agente e extensão continuam válidas por 7 dias.
 
 Os relatórios utilizam o resultado principal de cada campanha. O total de uma
 conta soma essas métricas por campanha; leads e conversas permanecem disponíveis

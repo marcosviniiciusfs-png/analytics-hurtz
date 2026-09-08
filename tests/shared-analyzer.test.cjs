@@ -1,0 +1,33 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{spawn}=require('node:child_process');
+const {createPersonalMeta}=require('../Dashboard Meta Ads/personal-meta');
+test('service analyzer processes two private queues without granting cross-user access',async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hurtz-shared-')),vault=createPersonalMeta({directory:dir});
+ const worker='la_service_test',other='la_other_service';
+ for(const [token,id] of [[worker,'worker-a'],[other,'worker-b']])vault.write('local-access',token,{id,scope:'platform_agent',expires:Date.now()+60000});
+ const child=spawn(process.execPath,['--require',path.join(__dirname,'local-providers.cjs'),path.resolve(__dirname,'../dev/local-server.cjs')],{env:{...process.env,PORT:'8096',LOCAL_DATA_DIR:dir,ANALYTICS_SHARED_ANALYZER:'1'},stdio:['ignore','pipe','pipe']});
+ t.after(async()=>{child.kill();await new Promise(r=>child.once('close',r));fs.rmSync(dir,{recursive:true,force:true})});
+ await new Promise((resolve,reject)=>{child.stdout.once('data',resolve);child.once('error',reject)});
+ const req=async(token,route,method='GET',data)=>{const r=await fetch('http://127.0.0.1:8096'+route,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},...(data?{body:JSON.stringify(data)}:{})});return {status:r.status,body:await r.json()}};
+ const a=(await req('','/api/auth/signup','POST',{email:'a@example.test',password:'test-password'})).body.token;
+ const b=(await req('','/api/auth/signup','POST',{email:'b@example.test',password:'test-password'})).body.token;
+ for(const user of [a,b]){const c=await req(user,'/api/local/settings','PUT',{visualAudit:false,apifyToken:'test-apify'});assert.equal(c.body.visualAudit,true);assert.equal(c.body.sharedAnalyzer,true);assert.equal((await req(user,'/api/local/access','POST',{scope:'platform_agent'})).status,400)}
+ for(const route of ['/api/tasks','/api/local/settings','/api/meta-accounts','/api/local/access'])assert.equal((await req(worker,route)).status,403);
+ assert.equal((await req(worker,'/api/creative-audit/agent/heartbeat','POST',{})).status,200);
+ assert.equal((await req(b,'/api/local/settings')).body.analyzerOnline,true);
+ const search=async user=>{const r=await req(user,'/api/creative-search','POST',{terms:['HB20'],platform:'tiktok',limit:1});assert.equal(r.status,202);return r.body.id};
+ const sa=await search(a),sb=await search(b);
+ const ja=(await req(worker,'/api/creative-audit/agent/claim','POST',{})).body.job;
+ assert.ok(ja);
+ assert.equal((await req(other,ja.media_url)).status,404);
+ assert.equal((await req(b,ja.media_url)).status,404);
+ assert.equal((await req(b,'/api/creative-audit/status?id='+sa)).status,404);
+ const media=await fetch('http://127.0.0.1:8096'+ja.media_url,{headers:{Authorization:'Bearer '+worker}});assert.equal(media.status,200);await media.arrayBuffer();
+ const result={job_id:ja.id,relevant:true,detected_type:'car',confidence:1};
+ assert.equal((await req(other,'/api/creative-audit/agent/result','POST',result)).status,404);
+ assert.equal((await req(worker,'/api/creative-audit/agent/result','POST',result)).status,200);
+ const jb=(await req(worker,'/api/creative-audit/agent/claim','POST',{})).body.job;assert.ok(jb);assert.notEqual(ja.id,jb.id);
+ assert.equal((await req(worker,'/api/creative-audit/agent/result','POST',{...result,job_id:jb.id})).status,200);
+ assert.equal((await req(a,'/api/creative-audit/status?id='+sa)).body.status,'complete');
+ assert.equal((await req(b,'/api/creative-audit/status?id='+sb)).body.status,'complete');
+ assert.equal((await req(a,'/api/creative-audit/status?id='+sb)).status,404);
+});

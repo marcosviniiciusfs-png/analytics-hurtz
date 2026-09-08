@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -139,18 +140,24 @@ def work(job):
 def main():
     ensure_ollama()
     print("Hurtz Creative Analyzer conectado. Aguardando vídeos...", flush=True)
-    last_heartbeat = 0
+    stopping = threading.Event()
+    def heartbeat():
+        while not stopping.is_set():
+            try:
+                api("/api/creative-audit/agent/heartbeat", "POST", {}, timeout=15)
+            except Exception:
+                pass
+            stopping.wait(20)
+    threading.Thread(target=heartbeat, daemon=True).start()
     while True:
         try:
-            if time.time() - last_heartbeat > 20:
-                api("/api/creative-audit/agent/heartbeat", "POST", {}, timeout=15)
-                last_heartbeat = time.time()
             response = api("/api/creative-audit/agent/claim", "POST", {}, timeout=30)
             if response.get("job"):
                 work(response["job"])
             else:
                 time.sleep(POLL_SECONDS)
         except KeyboardInterrupt:
+            stopping.set()
             break
         except Exception as error:
             print(f"[{time.strftime('%H:%M:%S')}] Falha temporária: {error}", flush=True)

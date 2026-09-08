@@ -6,7 +6,9 @@ const {createServices}=require('./local-services');
 function createRuntime(vault,{production=false}={}){
  const store=createStore(vault),root=path.resolve(vault.directory,'workspaces');
  const defaults=production?require('./integration-config').defaults():{};
- const ownGet=store.get;store.get=(kind,fallback)=>kind==='integrations'?{...defaults,...ownGet(kind,fallback)}:ownGet(kind,fallback);
+ const sharedAnalyzer=process.env.ANALYTICS_SHARED_ANALYZER==='1';
+ const isPlatformWorker=()=>store.context.getStore()?.scope==='platform_agent';
+ const ownGet=store.get;store.get=(kind,fallback)=>kind==='integrations'?{...defaults,...ownGet(kind,fallback),...(sharedAnalyzer?{visualAudit:true}:{})}:ownGet(kind,fallback);
  function folder(){const dir=path.join(root,crypto.createHash('sha256').update(store.user().id).digest('hex'));fs.mkdirSync(dir,{recursive:true,mode:0o700});return dir}
  function body(req){return new Promise((resolve,reject)=>{let size=0,chunks=[];req.on('data',c=>{size+=c.length;if(size>8*1024*1024){reject(fail(413,'Dados acima do limite.'));req.destroy()}else chunks.push(c)});req.on('end',()=>{try{resolve(JSON.parse(Buffer.concat(chunks).toString()||'{}'))}catch{reject(fail(400,'JSON inválido.'))}});});}
  const services=createServices({vault,store,folder,body});
@@ -26,7 +28,7 @@ function createRuntime(vault,{production=false}={}){
   }else{const actual=await derive(password,saved?.salt||'unknown-account');if(!saved||!crypto.timingSafeEqual(actual,Buffer.from(saved.digest,'hex')))throw fail(401,'E-mail ou senha incorretos.');}
   return {ok:true,confirmed:true,token:vault.issueSession(saved),user:{id:saved.id,email},message:'Conta local conectada.'};
  }
- function scopedMap(){const map=new Map();return {set(k,v){v.localOwner=store.user().id;map.set(k,v);return this},get(k){const v=map.get(k),u=store.context.getStore();return !u||v?.localOwner===u.id?v:undefined},has(k){return !!this.get(k)},allHas(k){return map.has(k)},delete(k){if(this.has(k))return map.delete(k);return false},[Symbol.iterator](){return map[Symbol.iterator]()}}}
+ function scopedMap(){const map=new Map();return {set(k,v){v.localOwner=store.user().id;map.set(k,v);return this},get(k){const v=map.get(k),u=store.context.getStore();return !u||isPlatformWorker()||v?.localOwner===u.id?v:undefined},has(k){return !!this.get(k)},allHas(k){return map.has(k)},delete(k){if(this.has(k))return map.delete(k);return false},[Symbol.iterator](){return map[Symbol.iterator]()}}}
  async function dispatch(req,res,url,send,legacy){
   const host=req.headers.host||'';if(!production&&!/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(host))return send(res,403,{error:'Este servidor aceita somente localhost.'});
   const origin=req.headers.origin;const extension=origin?.startsWith('chrome-extension://');
@@ -44,10 +46,11 @@ function createRuntime(vault,{production=false}={}){
    const bearer=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');let user=vault.session(bearer);
    if(!user&&/^la_[\w-]+$/.test(bearer)){const access=vault.read('local-access',bearer);if(access?.expires>Date.now())user=access;}
    if(!user)throw fail(401,'Entre no seu espaço local.');
+   if(user.scope==='platform_agent'&&(!sharedAnalyzer||!['/api/creative-audit/agent/heartbeat','/api/creative-audit/agent/claim','/api/creative-audit/agent/media','/api/creative-audit/agent/result'].includes(url.pathname)))throw fail(403,'Credencial exclusiva do serviço de análise.');
    if(user.scope==='agent'&&!url.pathname.startsWith('/api/creative-audit/agent/'))throw fail(403,'Credencial exclusiva do analisador.');
    if(user.scope==='extension'&&url.pathname!=='/api/creative-videos')throw fail(403,'Credencial exclusiva da biblioteca.');
    if(extension&&user.scope!=='extension')throw fail(403,'Gere uma conexão para a extensão em Configurações.');
-   register(user.id,user.email);
+   if(user.scope!=='platform_agent')register(user.id,user.email);
    return await store.context.run(user,async()=>{
     if(url.pathname==='/api/session'&&req.method==='GET')return send(res,200,{ok:true,personal:true,tools:true,user:{id:user.id,email:user.email}});
     if(url.pathname==='/api/local/settings'){
@@ -58,7 +61,7 @@ function createRuntime(vault,{production=false}={}){
       if(Object.hasOwn(p,'visualAudit'))saved.visualAudit=Boolean(p.visualAudit);
       store.put('integrations',saved);
      }
-     const c=store.get('integrations',{});return send(res,200,{local:!production,user:{id:user.id,email:user.email},apifyConfigured:!!c.apifyToken,evolutionConfigured:!!(c.evolutionUrl&&c.evolutionKey),evolutionUrl:c.evolutionUrl||'',visualAudit:!!c.visualAudit});
+     const c=store.get('integrations',{});return send(res,200,{local:!production,user:{id:user.id,email:user.email},apifyConfigured:!!c.apifyToken,evolutionConfigured:!!(c.evolutionUrl&&c.evolutionKey),evolutionUrl:c.evolutionUrl||'',visualAudit:!!c.visualAudit,sharedAnalyzer,analyzerOnline:Date.now()-agentSeen()<45000});
     }
     if(url.pathname==='/api/local/access'&&req.method==='POST'){
      const p=await body(req);if(!['agent','extension'].includes(p.scope))throw fail(400,'Tipo de conexão inválido.');
@@ -83,7 +86,9 @@ function createRuntime(vault,{production=false}={}){
  function secret(name){const c=store.get('integrations',{});return name==='APIFY_TOKEN'?c.apifyToken||'':''}
  function inject(file,buffer){if(file==='index.html'&&!production)return buffer.toString('utf8').replace('<head>','<head><script>window.HURTZ_LOCAL=true;</script>');return buffer}
  const timer=setInterval(async()=>{for(const u of registry()){await store.context.run(u,async()=>{if(!services.config().enabled)return;try{await services.runAlerts()}catch(e){store.put('monitor-status',{error:e.message,at:new Date().toISOString()})}})}},15*60000);timer.unref();
- const agentTimes=new Map();function agentSeen(time){const id=store.user().id;if(time)agentTimes.set(id,time);return agentTimes.get(id)||0}
- return {dispatch,store,folder,secret,scopedMap,inject,services,agentSeen,bind:fn=>AsyncResource.bind(fn),visualAudit:()=>!!store.get('integrations',{}).visualAudit};
+ let platformHeartbeat=0;const agentTimes=new Map();function agentSeen(time){const id=store.user().id;if(isPlatformWorker()){if(time)platformHeartbeat=time;return platformHeartbeat}if(time)agentTimes.set(id,time);return Math.max(agentTimes.get(id)||0,sharedAnalyzer?platformHeartbeat:0)}
+ function mediaToken(owner){if(!isPlatformWorker())return secret('APIFY_TOKEN');return store.context.run({id:owner},()=>secret('APIFY_TOKEN'))}
+ function canFinish(job){return !isPlatformWorker()||job.claimedBy===store.user().id}
+ return {dispatch,store,folder,secret,mediaToken,canFinish,scopedMap,inject,services,agentSeen,bind:fn=>AsyncResource.bind(fn),visualAudit:()=>!!store.get('integrations',{}).visualAudit};
 }
 module.exports={createRuntime};
