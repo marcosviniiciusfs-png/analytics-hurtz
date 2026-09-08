@@ -304,3 +304,20 @@ button.is-loading{cursor:wait!important;opacity:.72}
 
 /* Navegação entre contas no editor de relatórios PNG em lote */
 .bulk-png-editor{grid-column:1/-1;min-height:0;padding:12px 22px}.bulk-png-name-list{display:flex;grid-template-columns:none;gap:8px;max-height:none;overflow-x:auto;overflow-y:hidden;padding:0 0 7px;scrollbar-width:thin;scrollbar-color:#d9a37c #f4eee9}.bulk-png-name-row{display:grid;grid-template-columns:22px minmax(190px,1fr) auto;align-items:center;flex:0 0 min(360px,82vw);gap:8px;padding:7px 8px;cursor:pointer}.bulk-png-name-row label{display:grid;min-width:0;gap:2px}.bulk-png-name-row label small{color:#92867d;font-size:7px;font-weight:800;text-transform:uppercase}.bulk-png-name-row input{width:100%;box-sizing:border-box}.bulk-png-name-row button{min-width:76px}.bulk-png-name-row.active button{border-color:#e87722;background:#e87722;color:#fff}.bulk-png-index{display:grid!important;place-items:center;width:22px;height:22px;border-radius:50%;background:#eee9e5!important;color:#6e6259!important;font-size:8px!important;font-weight:800}.bulk-png-name-row.active .bulk-png-index{background:#fff0e5!important;color:#d95f0b!important}
+
+/* Editor PNG: preview adapts to its panel without changing export resolution. */
+.png-report-modal{box-sizing:border-box;width:min(1560px,calc(100vw - 32px));height:calc(100dvh - 32px);max-height:1000px;min-width:0;grid-template-columns:minmax(320px,.8fr) minmax(0,1.4fr);grid-template-rows:auto auto auto minmax(0,1fr)}
+.png-report-modal>*{min-width:0;box-sizing:border-box}
+.png-report-modal-head{grid-column:1/-1;grid-row:1}
+.png-report-controls{grid-column:1/-1;grid-row:2;grid-template-columns:minmax(0,1fr) auto auto}
+.bulk-png-editor{grid-column:1/-1;grid-row:3;max-height:145px;overflow:auto}
+.png-field-editor{grid-column:1;grid-row:4;min-height:0;overflow:auto;padding:16px}
+.png-field-editor-head{position:static;margin:-16px -16px 16px;padding:16px;display:flex;flex-wrap:wrap;gap:12px;backdrop-filter:none}
+.png-field-editor-head>div{flex:1 1 220px;min-width:0}
+.png-field-editor-head>button{max-width:100%;white-space:normal}
+.png-field-editor-fields{grid-template-columns:1fr}
+.png-edit-grid.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+.png-report-preview{grid-column:2;grid-row:4;min-width:0;min-height:0;padding:20px;display:flex;align-items:flex-start;justify-content:center;overflow:auto}
+.png-report-preview canvas{display:block;flex:0 1 auto;width:100%;max-width:100%;min-width:0;height:auto;object-fit:contain}
+@media(max-width:999px){.png-report-backdrop{padding:8px}.png-report-modal{width:100%;height:calc(100dvh - 16px);display:flex;flex-direction:column;overflow:auto}.png-report-modal>*{flex-shrink:0}.png-report-controls{grid-template-columns:minmax(0,1fr) auto}.png-report-controls label{grid-column:1/-1}.bulk-png-editor{max-height:160px}.png-report-preview{order:3;overflow:visible;padding:12px}.png-field-editor{order:4;overflow:visible}.png-field-editor-fields{grid-template-columns:1fr}.png-field-editor fieldset{grid-column:auto}.png-report-preview canvas{width:100%;min-width:0}.png-edit-grid,.png-edit-grid.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.png-report-modal-head,.png-report-controls,.bulk-png-editor{padding:12px}.png-edit-grid,.png-edit-grid.metrics{grid-template-columns:1fr}.bulk-png-name-row{grid-template-columns:22px minmax(0,1fr) auto;flex-basis:100%}}
