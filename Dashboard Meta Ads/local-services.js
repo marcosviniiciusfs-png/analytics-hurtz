@@ -47,9 +47,17 @@ function createServices({vault,store,folder,body,fetchImpl=fetch}){
   if(access.permissions.includes('business_management')){try{const businesses=await vault.rows(conn.token,'me/businesses',{fields:'id'});let next=0;const worker=async()=>{while(next<businesses.length){const b=businesses[next++];await Promise.all([collect(b.id+'/owned_pages'),collect(b.id+'/client_pages')])}};await Promise.all(Array.from({length:Math.min(3,businesses.length)},worker))}catch(e){warnings.push({source:'businesses',message:e.message})}}
   if(vault.connection(u).revision!==conn.revision)throw fail(409,'A conexão mudou. Atualize a consulta.');return {pages:[...pages.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')),...access,warnings};
  }
+ async function instagramPage(page,conn,access){
+  const missing=['instagram_basic','instagram_manage_comments'].filter(p=>!access.permissions.includes(p));
+  if(!access.permissions.includes('instagram_basic'))return {state:'permissions',missingPermissions:missing,message:'Autorize o Instagram para verificar a conta vinculada a esta página.'};
+  try{const data=await vault.graph(conn.token,page,{fields:'instagram_business_account{id,username}'}),ig=data.instagram_business_account;
+   if(!ig?.id)return {state:'not_linked',message:'Esta página não tem uma conta profissional do Instagram vinculada.'};
+   return {state:missing.length?'permissions':'ready',id:ig.id,username:ig.username||'',missingPermissions:missing,message:missing.length?'Instagram vinculado. Falta autorizar a leitura e moderação de comentários.':'Instagram vinculado'+(ig.username?' · @'+ig.username:'')};
+  }catch{return {state:'error',message:'Não foi possível verificar o Instagram desta página. Revise o acesso ou tente novamente.'}}
+ }
  async function comments(req,url){
   const u=store.user(),permissionConnection=vault.connection(u),access=await commentPermissionStatus(permissionConnection);
-  const required=req.method==='GET'?['pages_read_engagement','pages_read_user_content']:['pages_manage_engagement'],missing=required.filter(p=>!access.permissions.includes(p));
+  const required=req.method==='GET'?['pages_read_engagement','pages_read_user_content']:[],missing=required.filter(p=>!access.permissions.includes(p));
   if(missing.length)throw fail(403,'A conexão não recebeu '+missing.join(', ')+'. Se você já autorizou novamente, o administrador do Tryv CRM precisa verificar a liberação dessas permissões para usuários em produção. Atualizar a lista de páginas não concede permissões.');
   if(req.method==='GET'){
    const ids=(url.searchParams.get('accounts')||'').split(',').filter(Boolean),status=url.searchParams.get('status')||'active',days=url.searchParams.get('days')||'30';
@@ -58,8 +66,22 @@ function createServices({vault,store,folder,body,fetchImpl=fetch}){
    if(pageId&&!(await commentPages()).pages.some(p=>p.id===pageId))throw fail(403,'Esta página não está autorizada para seu Facebook.');
    const {conn,accounts}=pageId?await vault.catalog(u):await vault.authorizeAccounts(u,ids),output=[],warnings=[],observed={},archive=store.get('comment-archive',[]);
    if(pageId)ids.splice(0,ids.length,...accounts.map(a=>a.id));
-   let nextAccount=0;const worker=async()=>{while(nextAccount<ids.length){const id=ids[nextAccount++];try{const ads=await vault.rows(conn.token,id+'/ads',{fields:'id,name,created_time,effective_status,campaign{name},adset{name},creative{effective_object_story_id,object_story_id,thumbnail_url}'});
+   const instagram=pageId?await instagramPage(pageId,conn,access):{state:'select_page',message:'Selecione uma página para consultar o Instagram.'};
+   let igToken;const getIgToken=()=>igToken||(igToken=vault.graph(conn.token,pageId,{fields:'access_token'}).then(p=>p.access_token||conn.token));
+   let nextAccount=0;const worker=async()=>{while(nextAccount<ids.length){const id=ids[nextAccount++];try{const fields='id,name,created_time,effective_status,campaign{name},adset{name},creative{effective_object_story_id,object_story_id,thumbnail_url,effective_instagram_media_id,instagram_user_id}';let ads;try{ads=await vault.rows(conn.token,id+'/ads',{fields})}catch{ads=await vault.rows(conn.token,id+'/ads',{fields:fields.replace(',effective_instagram_media_id,instagram_user_id','')});warnings.push({platform:'instagram',account_id:id,message:'A Meta não retornou os vínculos de mídia do Instagram para esta conta.'})}
     for(const ad of ads.filter(a=>status==='all'||(status==='active')===(a.effective_status==='ACTIVE'))){
+     const media=ad.creative?.effective_instagram_media_id;
+     if(instagram.state==='ready'&&media){try{
+      const token=await getIgToken(),meta=await vault.graph(token,media,{fields:'id,owner,timestamp,permalink'});
+      if(String(meta.owner?.id||'')===String(instagram.id)){
+       const raw=await vault.rows(token,media+'/comments',{fields:'id,text,timestamp,username,from,hidden,like_count'});
+       const rows=raw.filter(c=>days==='all'||Date.parse(c.timestamp)>=Date.now()-Number(days)*86400000).map(c=>({id:c.id,message:c.text||'',created_time:c.timestamp,from:{id:c.from?.id,name:c.username||c.from?.username||''},is_hidden:c.hidden===true,like_count:c.like_count||0,platform:'instagram',permalink_url:meta.permalink||''}));
+       rows.forEach(c=>observed[c.id]={account:id,page:pageId,post:media,ad_id:ad.id,ad_name:ad.name,instagram_id:instagram.id,comment:c,revision:conn.revision,expires:Date.now()+3600000});
+       const deletedCount=archive.filter(c=>c.account===id&&c.post===media).length;
+       if(rows.length||deletedCount)output.push({platform:'instagram',deleted_count:deletedCount,account_id:id,account_name:accounts.find(a=>a.id===id)?.name,ad:{id:ad.id,name:ad.name,created_time:ad.created_time||null,published_time:meta.timestamp||null,effective_status:ad.effective_status,campaign_name:ad.campaign?.name,adset_name:ad.adset?.name,post_id:media,thumbnail_url:ad.creative?.thumbnail_url||''},comments:rows});
+      }
+     }catch(e){warnings.push({platform:'instagram',account_id:id,ad_id:ad.id,message:e.message})}}
+
      const post=ad.creative?.effective_object_story_id||ad.creative?.object_story_id;if(!post||(pageId&&post.split('_')[0]!==pageId))continue;
      try{const page=post.split('_')[0],pageToken=(await vault.graph(conn.token,page,{fields:'access_token'})).access_token||conn.token;
       const params={fields:'id,message,created_time,like_count,comment_count,from{id,name,picture},is_hidden,permalink_url',filter:'stream',...(days==='all'?{}:{since:Math.floor(Date.now()/1000)-Number(days)*86400})};
@@ -72,17 +94,18 @@ function createServices({vault,store,folder,body,fetchImpl=fetch}){
     }
    }catch(e){warnings.push({account_id:id,message:e.message})}}};await Promise.all(Array.from({length:Math.min(4,ids.length)},worker));
    if(vault.connection(u).revision!==conn.revision)throw fail(409,'Conexão alterada durante a busca.');store.put('comment-observations',observed);
-   return {ads:output,warnings,accounts:ids.length,comments:output.reduce((n,row)=>n+row.comments.length,0)};
+   return {ads:output,instagram,warnings,accounts:ids.length,comments:output.reduce((n,row)=>n+row.comments.length,0)};
   }
   if(req.method!=='POST')throw fail(405,'Método não permitido.');
   const p=await body(req),ids=[...new Set(p.comment_ids||[])],seen=store.get('comment-observations',{}),conn=vault.connection(u);
   if(!['hide','unhide','delete'].includes(p.action)||!ids.length||ids.length>100||ids.some(id=>!seen[id]||seen[id].expires<Date.now()||seen[id].revision!==conn.revision))throw fail(403,'Busque os comentários novamente antes de moderar.');
-  await vault.authorizeAccounts(u,[...new Set(ids.map(id=>seen[id].account))]);const results=[];
-  for(const id of ids){try{const token=(await vault.graph(conn.token,seen[id].page,{fields:'access_token'})).access_token||conn.token;const r=await fetchImpl('https://graph.facebook.com/v25.0/'+encodeURIComponent(id),{method:p.action==='delete'?'DELETE':'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/x-www-form-urlencoded'},...(p.action==='delete'?{}:{body:new URLSearchParams({is_hidden:String(p.action==='hide')})}),signal:AbortSignal.timeout(45000)});const data=await r.json();results.push({id,ok:r.ok&&(data===true||data?.success===true),...(!r.ok||!(data===true||data?.success===true)?{error:'A Meta não autorizou a moderação deste comentário.'}:{})})}catch{results.push({id,ok:false,error:'Falha na resposta da Meta.'})}}
+  await vault.authorizeAccounts(u,[...new Set(ids.map(id=>seen[id].account))]);const results=[],igLinks=new Map();
+  for(const id of ids){try{const ig=seen[id].comment?.platform==='instagram',required=ig?['instagram_basic','instagram_manage_comments','pages_read_engagement']:['pages_manage_engagement'];if(required.some(p=>!access.permissions.includes(p)))throw fail(403,'Permissão de moderação pendente.');if(ig){if(!igLinks.has(seen[id].page))igLinks.set(seen[id].page,await instagramPage(seen[id].page,conn,access));const link=igLinks.get(seen[id].page);if(link.state!=='ready'||link.id!==seen[id].instagram_id)throw fail(403,'Vínculo do Instagram alterado.');}const token=(await vault.graph(conn.token,seen[id].page,{fields:'access_token'})).access_token||conn.token;const r=await fetchImpl('https://graph.facebook.com/v25.0/'+encodeURIComponent(id)+(ig?'?ad_id='+encodeURIComponent(seen[id].ad_id):''),{method:p.action==='delete'?'DELETE':'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/x-www-form-urlencoded'},...(p.action==='delete'?{}:{body:new URLSearchParams({[ig?'hide':'is_hidden']:String(p.action==='hide')})}),signal:AbortSignal.timeout(45000)});const data=await r.json();results.push({id,ok:r.ok&&(data===true||data?.success===true),...(!r.ok||!(data===true||data?.success===true)?{error:'A Meta não autorizou a moderação deste comentário.'}:{})})}catch{results.push({id,ok:false,error:'Falha na resposta da Meta.'})}}
   if(p.action==='delete'){const archived=store.get('comment-archive',[]),known=new Set(archived.map(c=>c.comment?.id));for(const r of results.filter(r=>r.ok)){const record=seen[r.id];if(record.comment&&!known.has(r.id)){archived.unshift({account:record.account,page:record.page,post:record.post,ad_id:record.ad_id,ad_name:record.ad_name,comment:record.comment,deleted_at:new Date().toISOString()});known.add(r.id)}}store.put('comment-archive',archived.slice(0,2000))}
   const result={action:p.action,results,success:results.filter(r=>r.ok).length,failed:results.filter(r=>!r.ok).length};store.put('comment-history',[{id:crypto.randomUUID(),created_at:new Date().toISOString(),action:p.action,comment_ids:ids,success:result.success,failed:result.failed},...store.get('comment-history',[])].slice(0,500));return result;
  }
  async function handle(req,url){const route=url.pathname;
+  if(route==='/api/meta-comment-instagram'&&req.method==='GET'){const page=url.searchParams.get('page'),u=store.user(),conn=vault.connection(u);if(!page||!(await commentPages()).pages.some(p=>p.id===page))throw fail(403,'Página não autorizada.');const result=await instagramPage(page,conn,await commentPermissionStatus(conn));if(vault.connection(u).revision!==conn.revision)throw fail(409,'Conexão alterada.');return result}
   if(route==='/api/meta-comment-archive'&&req.method==='GET'){const u=store.user(),account=url.searchParams.get('account'),post=url.searchParams.get('post');if(!account||!post)throw fail(400,'Informe a conta e a publicação.');await vault.authorizeAccounts(u,[account]);return {comments:store.get('comment-archive',[]).filter(c=>c.account===account&&c.post===post)}}
   if(route==='/api/meta-comment-pages'&&req.method==='GET')return commentPages();
   if(route==='/api/meta-comments')return comments(req,url);
