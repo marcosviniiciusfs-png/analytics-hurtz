@@ -142,3 +142,5 @@ test('unavailable business photo does not prevent loading authorized accounts', 
   const result=await f.request(f.sessionA,'/api/meta-accounts');
   assert.equal(result.status,200);assert.equal(result.body.accounts[0].id,'act_111');assert.equal(result.body.accounts[0].business_profile_picture_uri,'');
 });
+
+test('campaign manager routes retain personal authentication and write permissions',async t=>{const f=fixture(t);await f.connect(f.sessionA,f.tokens.a);assert.equal((await f.request(f.sessionA,'/api/ads-manager/campaigns?account=act_111')).status,200);assert.equal((await f.request(f.sessionB,'/api/ads-manager/campaigns?account=act_111')).status,409);assert.equal((await f.request(f.sessionA,'/api/ads-manager/create?account=act_111','POST',{})).status,403)});

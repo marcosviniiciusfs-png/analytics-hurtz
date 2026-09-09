@@ -121,7 +121,9 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       req.on('error', () => reject(fail(400, 'Requisição interrompida.')));
     });
   }
+  const campaignManager=require('./campaign-manager').createCampaignManager({graph,rows,authorizeAccounts,connection,read,write,fetchImpl});
   async function handle(req, res, user, url, send) {
+    if(url.pathname.startsWith('/api/ads-manager/'))return send(res,200,await campaignManager.handle(req,user,url));
     const route = url.pathname;
     if (route === '/api/session') {
       if (req.method === 'DELETE') { remove('session', String(req.headers.authorization || '').replace(/^Bearer\s+/i, '')); return send(res, 200, {ok: true}); }
