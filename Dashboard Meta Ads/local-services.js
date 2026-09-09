@@ -50,7 +50,7 @@ function createServices({vault,store,folder,body,fetchImpl=fetch}){
  async function comments(req,url){
   const u=store.user(),permissionConnection=vault.connection(u),access=await commentPermissionStatus(permissionConnection);
   const required=req.method==='GET'?['pages_read_engagement','pages_read_user_content']:['pages_manage_engagement'],missing=required.filter(p=>!access.permissions.includes(p));
-  if(missing.length)throw fail(403,'Autorize as permissões '+missing.join(', ')+' pelo botão Autorizar páginas. Se o Facebook não oferecer essas permissões, o administrador do Tryv CRM precisa habilitá-las no aplicativo.');
+  if(missing.length)throw fail(403,'A conexão não recebeu '+missing.join(', ')+'. Se você já autorizou novamente, o administrador do Tryv CRM precisa verificar a liberação dessas permissões para usuários em produção. Atualizar a lista de páginas não concede permissões.');
   if(req.method==='GET'){
    const ids=(url.searchParams.get('accounts')||'').split(',').filter(Boolean),status=url.searchParams.get('status')||'active',days=url.searchParams.get('days')||'30';
    if(!['active','inactive','all'].includes(status)||!['7','30','90','all'].includes(days))throw fail(400,'Filtros inválidos.');
