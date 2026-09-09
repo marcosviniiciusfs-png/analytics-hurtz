@@ -54,6 +54,9 @@ test('sessions and encrypted connections remain isolated across users', async t 
   }
   const restored = createPersonalMeta({directory: f.directory});
   assert.equal(restored.session(f.sessionA).id, 'user-a');
+  assert.equal(restored.connection(restored.session(f.sessionA)).token,f.tokens.a);
+  assert.equal(restored.connection(restored.session(f.sessionB)).token,f.tokens.b);
+  const freshSession=restored.issueSession({id:'user-a',email:'a@example.test'});assert.equal(restored.connection(restored.session(freshSession)).token,f.tokens.a);
 });
 
 test('challenge belongs to one session and cannot be replayed', async t => {
