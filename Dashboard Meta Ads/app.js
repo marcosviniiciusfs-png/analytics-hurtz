@@ -1768,7 +1768,7 @@ if(personalIdentity?.personal){
     await loadFacebookSdk(facebookSettings);await prepareFacebookLogin();
   }catch(error){facebookStatus.textContent=error.message}})();
 }
-if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260908-server-search');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
+if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260909-sidebar');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
 window.addEventListener('storage',event=>{if(event.key===MONITOR_SESSION_KEY)location.reload()});
 
 })().catch(error=>{console.error("Falha ao iniciar o Analytics");const status=document.querySelector("#accountSearchStatus");if(status)status.textContent="Não foi possível iniciar. Atualize a página."});
