@@ -381,3 +381,5 @@ button.is-loading{cursor:wait!important;opacity:.72}
 @media(prefers-reduced-motion:reduce){.account-member-circle{transition:none}.account-member-avatar:hover .account-member-circle{transform:none}}
 
 .account-member-circle,.account-member-small{position:relative}.account-member-photo{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover}.account-member-mark{z-index:1}
+
+.account-member-actions{display:flex;justify-content:flex-end;padding:8px 14px;border-bottom:1px solid var(--line)}.account-member-actions button{min-height:36px;padding:6px 12px;border:1px solid var(--line);border-radius:8px;background:#fff6ef;color:#914309;font:600 13px "DM Sans",sans-serif;cursor:pointer}.account-member-actions button:hover{background:#ffead8}.account-member-actions button:focus-visible{outline:2px solid #914309;outline-offset:2px}.account-member-actions button:disabled{opacity:.5;cursor:default}
