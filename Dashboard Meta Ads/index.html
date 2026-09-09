@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hurtz | Monitor Meta Ads</title>
+  <title>Traffic pocket | Monitor Meta Ads</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260823-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260909-account-selector" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260909-traffic-pocket" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -19,7 +19,7 @@
   </div>
   <div class="shell">
     <aside class="sidebar">
-      <div class="brand"><img src="hurtz-logo.png" alt="" /><span class="brand-name">Hurtz Analytics</span></div>
+      <div class="brand"><img src="hurtz-logo.png" alt="" /><span class="brand-name">Traffic pocket</span></div>
       <nav aria-label="Menu principal">
         <a class="active" href="./"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg></span><span class="nav-label">Visão geral</span></a>
         <a href="./#accounts"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c1.1 1.4 2.4 2.1 4 2.1 2.4 0 4-1.2 4-3 0-2-1.8-2.5-4-3-2.2-.5-4-1-4-3 0-1.8 1.6-3 4-3 1.6 0 2.9.6 4 1.9M12 5v14"/></svg></span><span class="nav-label">Contas</span></a>
@@ -159,7 +159,7 @@
 
       <section class="tasks-view" id="tasks" hidden>
         <div class="tasks-heading">
-          <div><p class="eyebrow">GESTÃO DE TRABALHO</p><h2>Tarefas</h2><p>Organize demandas, responsáveis e prazos sem sair do Analytics Hurtz.</p></div>
+          <div><p class="eyebrow">GESTÃO DE TRABALHO</p><h2>Tarefas</h2><p>Organize demandas, responsáveis e prazos sem sair do Traffic pocket.</p></div>
           <div class="tasks-heading-actions"><button class="task-secondary-button task-notification-button" id="taskNotificationsButton" type="button">Menções <span id="taskNotificationCount">0</span></button><button class="task-secondary-button" id="taskStructureButton" type="button">Etapas e organização</button><button class="task-primary-button" id="newTaskButton" type="button">+ Nova tarefa</button></div>
         </div>
         <div class="task-retention-notice" role="alert"><strong>Retenção de 72 horas</strong><span>O quadro não limita a quantidade de cartões. Porém, cada tarefa é apagada permanentemente 72 horas após sua criação, junto com seus arquivos.</span></div>
@@ -181,7 +181,7 @@
       </section>
 
       <section class="creative-search-view" id="creativeSearch" hidden>
-        <div class="creative-search-heading"><div><p class="eyebrow">PESQUISA AUTOMÁTICA</p><h2>Pesquisa de criativos</h2><p>Encontre vídeos do TikTok e Instagram simultaneamente, visualize e baixe sem armazená-los no Analytics.</p></div><span class="creative-extension-status connected">Apify conectada</span></div>
+        <div class="creative-search-heading"><div><p class="eyebrow">PESQUISA AUTOMÁTICA</p><h2>Pesquisa de criativos</h2><p>Encontre vídeos do TikTok e Instagram simultaneamente, visualize e baixe sem armazená-los no Traffic pocket.</p></div><span class="creative-extension-status connected">Apify conectada</span></div>
         <div class="creative-search-card">
           <form id="creativeSearchForm" class="creative-auto-form"><label class="creative-terms-field"><span>O que você quer encontrar?</span><textarea id="creativeSearchTerms" rows="5" maxlength="1200" placeholder="Um termo por linha. Ex.:&#10;HB20 seminovo&#10;financiamento HB20&#10;comprar HB20" required></textarea><small>Use termos específicos. O sistema pesquisa cada linha e remove resultados repetidos.</small></label>
             <div class="creative-presets"><label><span>Termos salvos</span><select id="creativePresetSelect"><option value="">Selecione uma predefinição</option></select></label><label><span>Nome da predefinição</span><input id="creativePresetName" type="text" maxlength="80" placeholder="Ex.: Imóveis populares"></label><button type="button" id="saveCreativePreset">Salvar nova</button><button type="button" id="deleteCreativePreset" class="danger" disabled>Excluir esta</button><button type="button" id="deleteAllCreativePresets" class="danger">Excluir todas</button><small id="creativePresetStatus" aria-live="polite"></small></div>
@@ -189,7 +189,7 @@
             <div class="creative-search-options"><label><input id="creativePreferNoText" type="checkbox"><span><strong>Priorizar vídeos sem texto</strong><small>Analisa somente a capa ou o primeiro frame. O vídeo completo não será analisado.</small></span></label></div>
             <div class="creative-submit-row"><div><strong>Pesquisa rápida</strong><span>A análise quadro a quadro permanece desativada. A leitura opcional usa apenas uma imagem.</span></div><button class="creative-auto-search" type="submit"><span>Buscar vídeos</span><b>→</b></button></div>
           </form>
-          <div class="creative-search-help"><div><strong>Privacidade do conteúdo</strong><span>Os resultados ficam apenas nesta tela enquanto ela estiver aberta. Nenhum vídeo ou resultado é salvo no banco do Analytics.</span></div></div>
+          <div class="creative-search-help"><div><strong>Privacidade do conteúdo</strong><span>Os resultados ficam apenas nesta tela enquanto ela estiver aberta. Nenhum vídeo ou resultado é salvo no banco do Traffic pocket.</span></div></div>
         </div>
         <div class="creative-search-progress" id="creativeSearchProgress" hidden><div><span></span></div><strong>Pesquisando vídeos...</strong><small>A busca pode levar alguns minutos, conforme a quantidade e os termos.</small></div>
         <div class="creative-library-head"><div><h3>Resultados temporários</h3><p id="creativeLibraryStatus">Digite os termos para iniciar.</p></div><div class="creative-result-actions"><button type="button" id="downloadSelectedCreative" hidden>Baixar selecionados</button><button type="button" id="clearCreativeResults" hidden>Limpar resultados</button></div></div>
@@ -335,7 +335,7 @@
   <div class="alert-login-backdrop" id="alertLoginModal" hidden>
     <section class="alert-login-card" role="dialog" aria-modal="true" aria-labelledby="alertAuthTitle">
       <img src="hurtz-logo.png" alt="Hurtz">
-      <p class="eyebrow">ACESSO PROTEGIDO</p><h2 id="alertAuthTitle">Entrar no Analytics</h2>
+      <p class="eyebrow">ACESSO PROTEGIDO</p><h2 id="alertAuthTitle">Entrar no Traffic pocket</h2>
       <p id="alertAuthDescription">Entre com seu e-mail para continuar a consulta.</p>
       <form id="alertLoginForm" data-auth-panel="login">
         <label>E-mail<input id="alertLoginUser" type="email" autocomplete="email" required></label>
@@ -394,6 +394,6 @@
       <div class="campaign-section"><div class="campaign-title"><div><h3>Campanhas com veiculação</h3><p id="campaignPeriod"></p></div><span id="campaignCount"></span></div><form class="campaign-goal-panel" id="campaignGoalPanel" hidden><div><strong id="campaignGoalTitle">Configurar coluna</strong><small>Metas diárias desta conta para definir as cores.</small></div><div class="campaign-goal-fields" id="campaignGoalFields"></div><button type="submit">Salvar metas</button><button type="button" class="clear-goal-button" id="clearCampaignGoal">Limpar</button><button type="button" class="close-goal-button" id="closeCampaignGoal">×</button></form><div class="campaign-table-wrap"><table class="campaign-table"><thead><tr><th>Campanha</th><th>Objetivo</th><th>Status</th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="investment">Investimento <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="results">Resultados <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="cost">Custo/resultado <span>⚙</span></button></th></tr></thead><tbody id="campaignBody"></tbody><tfoot id="campaignFoot"></tfoot></table></div></div>
     </section>
   </div>
-  <script src="app.js?v=20260909-account-selector"></script>
+  <script src="app.js?v=20260909-traffic-pocket"></script>
 </body>
 </html>
