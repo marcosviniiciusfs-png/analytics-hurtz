@@ -69,6 +69,13 @@ test('local workflows persist and stay isolated across users',async t=>{
  assert.equal((await request(b,'/api/meta-comment-history')).body.events.length,0);
  await connect(a,'facebook-a-unconfirmed-0000000000');await request(a,'/api/meta-comments?page=100&status=active&days=30');
  const unconfirmed=await request(a,'/api/meta-comments','POST',{action:'delete',comment_ids:['100_1001']});assert.equal(unconfirmed.body.success,0);assert.equal(unconfirmed.body.failed,1);assert.equal(unconfirmed.body.results[0].ok,false);
+ assert.equal((await request(a,'/api/meta-comment-archive?account=act_111&post=100_101')).body.comments.length,0,'failed deletions must not enter archive');
+ await connect(a,'facebook-a-token-0000000000');await request(a,'/api/meta-comments?page=100&status=active&days=30');
+ assert.equal((await request(a,'/api/meta-comments','POST',{action:'delete',comment_ids:['100_1001']})).body.success,1);
+ const archived=await request(a,'/api/meta-comment-archive?account=act_111&post=100_101');assert.equal(archived.body.comments.length,1);assert.equal(archived.body.comments[0].comment.message,'Comment a');assert.equal(archived.body.comments[0].comment.from.name,'Author');
+ assert.equal((await request(a,'/api/meta-comment-archive?account=act_111&post=other')).body.comments.length,0);
+ assert.equal((await request(b,'/api/meta-comment-archive?account=act_111&post=100_101')).status,403);
+ assert.equal((await request(b,'/api/meta-comment-archive?account=act_222&post=200_202')).body.comments.length,0);
  await request(a,'/api/meta/connection','DELETE');assert.equal((await request(a,'/api/meta-comments','POST',{action:'hide',comment_ids:['100_1001']})).status,409);
  assert.equal((await request(a,'/api/tasks')).body.tasks.length,1,'Facebook disconnect must not delete local work');
  const login=await request(null,'/api/auth/login','POST',{email:'a@example.test',password:'local-test-password'});assert.equal((await request(login.body.token,'/api/tasks')).body.tasks.length,1);

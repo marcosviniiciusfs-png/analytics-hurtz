@@ -56,16 +56,18 @@ function createServices({vault,store,folder,body,fetchImpl=fetch}){
    if(!['active','inactive','all'].includes(status)||!['7','30','90','all'].includes(days))throw fail(400,'Filtros inválidos.');
    const pageId=url.searchParams.get('page');
    if(pageId&&!(await commentPages()).pages.some(p=>p.id===pageId))throw fail(403,'Esta página não está autorizada para seu Facebook.');
-   const {conn,accounts}=pageId?await vault.catalog(u):await vault.authorizeAccounts(u,ids),output=[],warnings=[],observed={};
+   const {conn,accounts}=pageId?await vault.catalog(u):await vault.authorizeAccounts(u,ids),output=[],warnings=[],observed={},archive=store.get('comment-archive',[]);
    if(pageId)ids.splice(0,ids.length,...accounts.map(a=>a.id));
    let nextAccount=0;const worker=async()=>{while(nextAccount<ids.length){const id=ids[nextAccount++];try{const ads=await vault.rows(conn.token,id+'/ads',{fields:'id,name,created_time,effective_status,campaign{name},adset{name},creative{effective_object_story_id,object_story_id,thumbnail_url}'});
     for(const ad of ads.filter(a=>status==='all'||(status==='active')===(a.effective_status==='ACTIVE'))){
      const post=ad.creative?.effective_object_story_id||ad.creative?.object_story_id;if(!post||(pageId&&post.split('_')[0]!==pageId))continue;
      try{const page=post.split('_')[0],pageToken=(await vault.graph(conn.token,page,{fields:'access_token'})).access_token||conn.token;
-      const rows=await vault.rows(pageToken,post+'/comments',{fields:'id,message,created_time,like_count,comment_count,from{id,name},is_hidden,permalink_url',filter:'stream',...(days==='all'?{}:{since:Math.floor(Date.now()/1000)-Number(days)*86400})});
+      const params={fields:'id,message,created_time,like_count,comment_count,from{id,name,picture},is_hidden,permalink_url',filter:'stream',...(days==='all'?{}:{since:Math.floor(Date.now()/1000)-Number(days)*86400})};
+      let rows;try{rows=await vault.rows(pageToken,post+'/comments',params)}catch{rows=await vault.rows(pageToken,post+'/comments',{...params,fields:params.fields.replace('from{id,name,picture}','from{id,name}')})}
       let publishedTime=null;if(rows.length){try{publishedTime=(await vault.graph(pageToken,post,{fields:'created_time'})).created_time||null}catch{}}
-      rows.forEach(c=>observed[c.id]={account:id,page,revision:conn.revision,expires:Date.now()+3600000});
-      if(rows.length)output.push({platform:'facebook',account_id:id,account_name:accounts.find(a=>a.id===id)?.name,ad:{id:ad.id,name:ad.name,created_time:ad.created_time||null,published_time:publishedTime,effective_status:ad.effective_status,campaign_name:ad.campaign?.name,adset_name:ad.adset?.name,post_id:post,thumbnail_url:ad.creative?.thumbnail_url||''},comments:rows.map(comment=>({...comment,platform:'facebook'}))});
+      rows.forEach(c=>observed[c.id]={account:id,page,post,ad_id:ad.id,ad_name:ad.name,comment:{id:c.id,message:c.message||'',created_time:c.created_time||null,from:c.from?{id:c.from.id,name:c.from.name,picture:c.from.picture}:null,platform:'facebook'},revision:conn.revision,expires:Date.now()+3600000});
+      const deletedCount=archive.filter(c=>c.account===id&&c.post===post).length;
+      if(rows.length||deletedCount)output.push({deleted_count:deletedCount,platform:'facebook',account_id:id,account_name:accounts.find(a=>a.id===id)?.name,ad:{id:ad.id,name:ad.name,created_time:ad.created_time||null,published_time:publishedTime,effective_status:ad.effective_status,campaign_name:ad.campaign?.name,adset_name:ad.adset?.name,post_id:post,thumbnail_url:ad.creative?.thumbnail_url||''},comments:rows.map(comment=>({...comment,platform:'facebook'}))});
      }catch(e){warnings.push({account_id:id,ad_id:ad.id,message:e.message})}
     }
    }catch(e){warnings.push({account_id:id,message:e.message})}}};await Promise.all(Array.from({length:Math.min(4,ids.length)},worker));
@@ -77,9 +79,11 @@ function createServices({vault,store,folder,body,fetchImpl=fetch}){
   if(!['hide','unhide','delete'].includes(p.action)||!ids.length||ids.length>100||ids.some(id=>!seen[id]||seen[id].expires<Date.now()||seen[id].revision!==conn.revision))throw fail(403,'Busque os comentários novamente antes de moderar.');
   await vault.authorizeAccounts(u,[...new Set(ids.map(id=>seen[id].account))]);const results=[];
   for(const id of ids){try{const token=(await vault.graph(conn.token,seen[id].page,{fields:'access_token'})).access_token||conn.token;const r=await fetchImpl('https://graph.facebook.com/v25.0/'+encodeURIComponent(id),{method:p.action==='delete'?'DELETE':'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/x-www-form-urlencoded'},...(p.action==='delete'?{}:{body:new URLSearchParams({is_hidden:String(p.action==='hide')})}),signal:AbortSignal.timeout(45000)});const data=await r.json();results.push({id,ok:r.ok&&(data===true||data?.success===true),...(!r.ok||!(data===true||data?.success===true)?{error:'A Meta não autorizou a moderação deste comentário.'}:{})})}catch{results.push({id,ok:false,error:'Falha na resposta da Meta.'})}}
+  if(p.action==='delete'){const archived=store.get('comment-archive',[]),known=new Set(archived.map(c=>c.comment?.id));for(const r of results.filter(r=>r.ok)){const record=seen[r.id];if(record.comment&&!known.has(r.id)){archived.unshift({account:record.account,page:record.page,post:record.post,ad_id:record.ad_id,ad_name:record.ad_name,comment:record.comment,deleted_at:new Date().toISOString()});known.add(r.id)}}store.put('comment-archive',archived.slice(0,2000))}
   const result={action:p.action,results,success:results.filter(r=>r.ok).length,failed:results.filter(r=>!r.ok).length};store.put('comment-history',[{id:crypto.randomUUID(),created_at:new Date().toISOString(),action:p.action,comment_ids:ids,success:result.success,failed:result.failed},...store.get('comment-history',[])].slice(0,500));return result;
  }
  async function handle(req,url){const route=url.pathname;
+  if(route==='/api/meta-comment-archive'&&req.method==='GET'){const u=store.user(),account=url.searchParams.get('account'),post=url.searchParams.get('post');if(!account||!post)throw fail(400,'Informe a conta e a publicação.');await vault.authorizeAccounts(u,[account]);return {comments:store.get('comment-archive',[]).filter(c=>c.account===account&&c.post===post)}}
   if(route==='/api/meta-comment-pages'&&req.method==='GET')return commentPages();
   if(route==='/api/meta-comments')return comments(req,url);
   if(route==='/api/meta-comment-history')return {events:store.get('comment-history',[])};

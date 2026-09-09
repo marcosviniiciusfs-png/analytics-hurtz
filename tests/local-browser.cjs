@@ -5,6 +5,7 @@ try{
  for(let i=0;i<50;i++){try{if((await fetch('http://localhost:8094')).ok)break}catch{}await new Promise(r=>setTimeout(r,100))}
  browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('https://connect.facebook.net/**',r=>r.fulfill({contentType:'text/javascript',body:'window.FB={init(){},login(){}};window.fbAsyncInit();'}));
+ await page.route('https://media.local.test/**',r=>r.fulfill({contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64')}));
  await page.goto('http://localhost:8094');await page.locator('#settingsNav').waitFor();
  for(const id of ['tasksNav','creativeSearchNav','commentsNav','alertsNav','creativeLibraryNav'])assert.equal(await page.locator('#'+id).isVisible(),true,id);
  await page.locator('#settingsNav').click();await page.locator('#localSettings').waitFor({state:'visible'});
@@ -25,6 +26,9 @@ try{
  await page.reload();await page.waitForFunction(()=>document.querySelector('#commentsPageSelect')?.value==='100');await page.waitForFunction(()=>document.querySelector('#commentsRequestStatus').textContent.includes('Consulta concluída'));assert.equal(await page.locator('[data-comment-ad]').count(),1);assert.equal(await page.locator('[data-comment-row]').count(),0);
  await page.locator('[data-comment-ad]').click();await page.locator('#commentsAdDialog').waitFor({state:'visible'});
  assert.equal(await page.locator('[data-comment-row]').count(),1);assert.match(await page.locator('#commentsDialogList').innerText(),/Facebook · Página/);assert.match(await page.locator('#commentsDialogMeta').innerText(),/Publicado em 29\/08\/2026/);
+ assert.equal(await page.locator('#commentsDialogList .comment-avatar img').count(),1);assert.match(await page.locator('#commentsDialogList').innerText(),/Author/);
+ const actionBoxes=await page.locator('#commentsDialogList .comment-action').evaluateAll(elements=>elements.map(el=>({height:el.getBoundingClientRect().height,display:getComputedStyle(el).display,align:getComputedStyle(el).alignItems})));assert.equal(actionBoxes.length,3);assert.ok(actionBoxes.every(box=>box.height===actionBoxes[0].height&&['flex','inline-flex'].includes(box.display)&&box.align==='center'),JSON.stringify(actionBoxes));
+ assert.equal(await page.locator('#connectPersonalFacebook').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(8, 102, 217)');
  // Failed deletion must keep the row and announce the failure inside the dialog.
  await page.route('**/api/meta-comments',route=>route.fulfill({json:{results:[{id:'100_1001',ok:false,error:'A Meta não confirmou a exclusão.'}],success:0,failed:1}}));
  const remove=async()=>{await page.locator('[data-comment-action="delete"]').click();await page.locator('#commentsConfirmInput').fill('EXCLUIR');await page.locator('#commentsConfirmDelete').click()};
@@ -33,8 +37,11 @@ try{
  await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('#commentsAdDialog').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
  await page.screenshot({path:path.join(root,'.codex-tmp/comments-dialog-mobile.png')});
  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:path.join(root,'.codex-tmp/comments-dialog-desktop.png')});
- await remove();await page.waitForFunction(()=>document.querySelector('#commentsDialogStatus').textContent.includes('Exclusão confirmada pela Meta'));assert.equal(await page.locator('[data-comment-row]').count(),0);assert.equal(await page.locator('[data-comment-ad]').count(),0);
+ await remove();await page.waitForFunction(()=>document.querySelector('#commentsDialogStatus').textContent.includes('Exclusão confirmada pela Meta'));assert.equal(await page.locator('[data-comment-row]').count(),0);assert.equal(await page.locator('[data-comment-ad]').count(),1);
+ await page.locator('#commentsDeletedTab').click();await page.getByText('Comment a',{exact:true}).waitFor();assert.equal(await page.locator('#commentsDialogList [data-comment-action]').count(),0);assert.match(await page.locator('#commentsDialogList').innerText(),/Excluído em/);assert.equal(await page.locator('#commentsDialogList .comment-avatar img').count(),1);await page.screenshot({path:path.join(root,'.codex-tmp/comments-archive-desktop.png')});
+ await page.locator('#commentsCurrentTab').click();assert.equal(await page.locator('[data-comment-row]').count(),0);
  await page.locator('#commentsDialogClose').click();assert.equal(await page.locator('#commentsAdDialog').isVisible(),false);
+ await page.reload();await page.locator('[data-comment-ad]').waitFor();await page.locator('[data-comment-ad]').click();await page.locator('#commentsDeletedTab').click();await page.getByText('Comment a',{exact:true}).waitFor();await page.locator('#commentsDeletedTab').press('ArrowLeft');assert.equal(await page.locator('#commentsCurrentTab').getAttribute('aria-selected'),'true');await page.locator('#commentsDialogClose').click();
  await page.waitForFunction(()=>!document.querySelector('#connectPersonalFacebook')?.disabled&&!!window.FB);
  await page.evaluate(()=>{window.commentAuthTestMarker='same-document';window.FB.login=(callback,options)=>{window.commentAuthScopes=options.scope;callback({authResponse:{accessToken:'facebook-a-limited-0000000000',expiresIn:3600}})}});
  await page.locator('#commentsPagesAuthorize').click();await page.waitForFunction(()=>document.querySelector('#commentsPagesStatus').textContent.includes('essa conexão não recebeu'));

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260823-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260909-comment-cards" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260909-comment-history" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -92,7 +92,7 @@
           <div class="comments-filter-actions"><span id="commentsRequestStatus" role="status" aria-live="polite">Selecione a página que deseja consultar.</span><button class="comments-load-button" type="submit">Buscar comentários</button></div>
         </form>
         <div class="comments-bulk-bar" id="commentsBulkBar" hidden><label><input type="checkbox" id="commentsSelectAll"><span>Selecionar todos os resultados visíveis</span></label><strong id="commentsSelectedCount">0 selecionados</strong><button type="button" data-comments-action="hide">Ocultar selecionados</button><button type="button" data-comments-action="unhide">Reexibir selecionados</button><button class="danger" type="button" data-comments-action="delete">Excluir selecionados</button></div>
-        <div class="comments-results-head"><div><h3>Anúncios com comentários</h3><p id="commentsResultsSummary">Faça uma busca para carregar os resultados.</p></div></div>
+        <div class="comments-results-head"><div><h3>Anúncios com comentários</h3><p class="comments-source-note">Comentários do Facebook. A consulta ao Instagram ainda não está integrada.</p><p id="commentsResultsSummary">Faça uma busca para carregar os resultados.</p></div></div>
         <div class="comments-results" id="commentsResults"><div class="comments-empty"><strong>Nenhum comentário carregado</strong><span>Escolha uma página e os filtros acima para iniciar.</span></div></div>
         <section class="comments-history"><div class="comments-results-head"><div><h3>Histórico de moderação</h3><p>Registro das últimas ações executadas pelo dashboard.</p></div><button type="button" id="refreshCommentsHistory">Atualizar histórico</button></div><div id="commentsHistoryList"><div class="comments-history-empty">Nenhuma ação registrada.</div></div></section>
       </section>
@@ -100,7 +100,7 @@
       <dialog id="commentsAdDialog" class="comments-ad-dialog" aria-labelledby="commentsDialogTitle">
         <header class="comments-dialog-header"><div><p class="eyebrow">COMENTÁRIOS DO ANÚNCIO</p><h2 id="commentsDialogTitle">Comentários do anúncio</h2><p id="commentsDialogMeta"></p></div><button type="button" id="commentsDialogClose" aria-label="Fechar comentários">×</button></header>
         <div id="commentsDialogStatus" class="comments-dialog-status" role="status" aria-live="polite" aria-atomic="true"></div>
-        <div id="commentsDialogBulk"></div><div id="commentsDialogList" class="comments-list"></div>
+        <div class="comments-dialog-tabs" role="tablist" aria-label="Comentários do anúncio"><button type="button" id="commentsCurrentTab" role="tab" aria-selected="true" aria-controls="commentsDialogPanel">Publicados</button><button type="button" id="commentsDeletedTab" role="tab" aria-selected="false" aria-controls="commentsDialogPanel" tabindex="-1">Apagados</button></div><div id="commentsDialogPanel" role="tabpanel" aria-labelledby="commentsCurrentTab"><div id="commentsDialogBulk"></div><div id="commentsDialogList" class="comments-list"></div></div>
       </dialog>
 
       <div class="comments-confirm-backdrop" id="commentsConfirmModal" hidden>
@@ -393,6 +393,6 @@
       <div class="campaign-section"><div class="campaign-title"><div><h3>Campanhas com veiculação</h3><p id="campaignPeriod"></p></div><span id="campaignCount"></span></div><form class="campaign-goal-panel" id="campaignGoalPanel" hidden><div><strong id="campaignGoalTitle">Configurar coluna</strong><small>Metas diárias desta conta para definir as cores.</small></div><div class="campaign-goal-fields" id="campaignGoalFields"></div><button type="submit">Salvar metas</button><button type="button" class="clear-goal-button" id="clearCampaignGoal">Limpar</button><button type="button" class="close-goal-button" id="closeCampaignGoal">×</button></form><div class="campaign-table-wrap"><table class="campaign-table"><thead><tr><th>Campanha</th><th>Objetivo</th><th>Status</th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="investment">Investimento <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="results">Resultados <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="cost">Custo/resultado <span>⚙</span></button></th></tr></thead><tbody id="campaignBody"></tbody><tfoot id="campaignFoot"></tfoot></table></div></div>
     </section>
   </div>
-  <script src="app.js?v=20260909-comment-cards"></script>
+  <script src="app.js?v=20260909-comment-history"></script>
 </body>
 </html>

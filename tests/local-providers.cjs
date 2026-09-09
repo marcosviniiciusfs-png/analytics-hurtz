@@ -1,5 +1,5 @@
 // Test process only. Reject all unmocked external traffic.
-const original=global.fetch,instances=[];
+const original=global.fetch,instances=[],deletedComments=new Set();
 const response=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
 global.fetch=async(input,options={})=>{
  const url=new URL(input),headers=new Headers(options.headers),token=headers.get('Authorization')||'',who=token.includes('facebook-b-')?'b':'a';
@@ -18,8 +18,8 @@ global.fetch=async(input,options={})=>{
   if(route.endsWith('/ads'))return response({data:[{id:who==='a'?'101':'202',name:'Ad '+who,created_time:'2026-08-28T12:00:00Z',effective_status:'ACTIVE',campaign:{name:'Campaign'},adset:{name:'Adset'},creative:{effective_object_story_id:who==='a'?'100_101':'200_202'}}]});
   if(route==='100'||route==='200')return response({access_token:(route==='100'?'facebook-a-page-token':'facebook-b-page-token')+(token.includes('unconfirmed')?'-unconfirmed':'')});
   if(['100_101','200_202'].includes(route))return response({created_time:'2026-08-29T12:00:00Z'});
-  if(route.endsWith('/comments'))return response({data:[{id:who==='a'?'100_1001':'200_2001',message:'Comment '+who,created_time:new Date().toISOString(),from:{name:'Author'},is_hidden:false}]});
-  if(['100_1001','200_2001'].includes(route))return response({success:!token.includes('unconfirmed')});
+  if(route.endsWith('/comments'))return response({data:deletedComments.has(who==='a'?'100_1001':'200_2001')?[]:[{id:who==='a'?'100_1001':'200_2001',message:'Comment '+who,permalink_url:'https://www.facebook.com/example/posts/101?comment_id=1001',created_time:new Date().toISOString(),from:{id:'author-'+who,name:'Author',picture:{data:{url:'https://media.local.test/avatar.png'}}},is_hidden:false}]});
+  if(['100_1001','200_2001'].includes(route)){const success=!token.includes('unconfirmed');if(success&&options.method==='DELETE')deletedComments.add(route);return response({success});}
   throw new Error('Unmocked Meta endpoint: '+route);
  }
  if(url.hostname==='api.apify.com')return response([{id:'10000001',webVideoUrl:'https://www.tiktok.com/@test/video/10000001',text:'HB20 seminovo',authorMeta:{name:'test'},videoMeta:{coverUrl:'https://media.local.test/cover.png',duration:10},mediaUrls:['https://media.local.test/video.mp4'],playCount:42}]);
