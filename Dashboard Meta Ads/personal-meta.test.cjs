@@ -14,7 +14,8 @@ function fixture(t, runner, overrides = {}) {
     const who = options.headers.Authorization.endsWith(tokens.a) ? 'a' : 'b';
     const endpoint = new URL(url).pathname;
     assert.ok(!endpoint.endsWith('/debug_token'), 'ordinary users must not require a developer credential');
-    const payload = overrides.error ? {error: overrides.error}
+    overrides.requests?.push(new URL(url).searchParams.get('fields'));
+    const payload = overrides.pictureError && new URL(url).searchParams.get('fields')?.includes('profile_picture_uri') ? {error:{code:100,message:'Photo unavailable'}} : overrides.error ? {error: overrides.error}
       : endpoint.endsWith('/app') ? {id: overrides.app_id || '2093320124537661', name: 'Tryv CRM'}
       : endpoint.endsWith('/me/permissions') ? {data: (overrides.scopes || ['ads_read']).map(permission=>({permission,status:'granted'}))}
       : endpoint.endsWith('/me/adaccounts') ? overrides.catalog || {data: [{id: who === 'a' ? 'act_111' : 'act_222', name: who}]}
@@ -127,4 +128,17 @@ test('expired stored connection cannot run reports and profiles are private', as
   f.api.write('connection','user-a',{...f.api.read('connection','user-a'),expiresAt:1});
   assert.equal((await f.request(f.sessionA,'/api/meta/connection')).body.expired,true);
   assert.equal((await f.request(f.sessionA,'/api/meta-accounts')).status,409);
+});
+
+test('account catalog requests and returns the owning business photo', async t => {
+  const requests=[], f=fixture(t,null,{requests,catalog:{data:[{id:'act_111',name:'Account',business:{id:'900',name:'BM',profile_picture_uri:'https://example.test/bm.png'}}]}});
+  await f.connect(f.sessionA,f.tokens.a);
+  const result=await f.request(f.sessionA,'/api/meta-accounts');
+  assert.equal(result.body.accounts[0].business_profile_picture_uri,'https://example.test/bm.png');
+  assert.ok(requests.some(fields=>fields?.includes('business{id,name,profile_picture_uri}')));
+});
+test('unavailable business photo does not prevent loading authorized accounts', async t => {
+  const f=fixture(t,null,{pictureError:true});await f.connect(f.sessionA,f.tokens.a);
+  const result=await f.request(f.sessionA,'/api/meta-accounts');
+  assert.equal(result.status,200);assert.equal(result.body.accounts[0].id,'act_111');assert.equal(result.body.accounts[0].business_profile_picture_uri,'');
 });

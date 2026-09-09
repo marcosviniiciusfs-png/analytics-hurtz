@@ -80,9 +80,11 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if ((value.expiresAt && value.expiresAt <= Date.now()) || (value.dataExpiresAt && value.dataExpiresAt <= Date.now())) throw fail(409, 'Sua conexão com o Facebook expirou. Conecte novamente.');
     return value;
   }
-  async function catalog(user) {
+  async function catalog(user, pictures = false) {
     const conn = connection(user);
-    const accounts = await rows(conn.token, 'me/adaccounts', {fields: 'id,name,account_status,currency,business,is_prepay_account'});
+    let accounts;
+    if (pictures) {try {accounts = await rows(conn.token, 'me/adaccounts', {fields: 'id,name,account_status,currency,business{id,name,profile_picture_uri},is_prepay_account'});} catch { /* Optional business photo must not block the account catalog. */ }}
+    if (!accounts) accounts = await rows(conn.token, 'me/adaccounts', {fields: 'id,name,account_status,currency,business,is_prepay_account'});
     if (read('connection', user.id)?.revision !== conn.revision) throw fail(409, 'A conexão mudou. Atualize a consulta.');
     return {conn, accounts};
   }
@@ -166,8 +168,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       return send(res, 200, {ok: true});
     }
     if (route === '/api/meta-accounts' && req.method === 'GET') {
-      const {accounts} = await catalog(user);
-      return send(res, 200, {account_count: accounts.length, business_count: new Set(accounts.map(a => a.business?.id).filter(Boolean)).size, accounts: accounts.map(a => ({...a, business_name: a.business?.name || '', business_id: a.business?.id || ''}))});
+      const {accounts} = await catalog(user, true);
+      return send(res, 200, {account_count: accounts.length, business_count: new Set(accounts.map(a => a.business?.id).filter(Boolean)).size, accounts: accounts.map(a => ({...a, business_name: a.business?.name || '', business_id: a.business?.id || '', business_profile_picture_uri: a.business?.profile_picture_uri || ''}))});
     }
     if (route === '/api/meta-monitor-config' && req.method === 'GET') {
       const {accounts} = await catalog(user);
