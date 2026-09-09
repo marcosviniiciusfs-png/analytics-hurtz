@@ -22,6 +22,7 @@ try{
  await page.locator('#commentsNav').click();await page.locator('#commentsPageSelect option[value="100"]').waitFor({state:'attached'});await page.locator('#commentsPageSelect').selectOption('100');
  await page.waitForFunction(()=>document.querySelector('#commentsRequestStatus').textContent.includes('Consulta concluída'));
  assert.equal(await page.locator('#commentsPageSelect').inputValue(),'100');assert.equal(await page.locator('[data-comment-row]').count(),1);assert.equal(await page.locator('#commentsPageModal').count(),0);
+ await page.reload();await page.waitForFunction(()=>document.querySelector('#commentsPageSelect')?.value==='100');await page.waitForFunction(()=>document.querySelector('#commentsRequestStatus').textContent.includes('Consulta concluída'));assert.equal(await page.locator('[data-comment-row]').count(),1);
  const signup=await page.request.post('http://localhost:8094/api/auth/signup',{data:{email:'second@example.test',password:'browser-test-password'}});const user=await signup.json();assert.ok(user.token);
  await page.evaluate(token=>localStorage.setItem('hurtz-monitor-session-v2',token),user.token);await page.reload();await page.locator('#settingsNav').waitFor();
  await page.locator('#creativeLibraryNav').click();await page.waitForFunction(()=>document.querySelector('#localLibraryStatus').textContent.includes('0 referência'));
