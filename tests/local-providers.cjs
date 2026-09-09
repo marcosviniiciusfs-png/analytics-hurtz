@@ -15,10 +15,11 @@ global.fetch=async(input,options={})=>{
   if(route==='me/permissions'&&token.includes('limited'))return response({data:[{permission:'ads_read',status:'granted'},{permission:'pages_show_list',status:'granted'}]});
   if(route==='me/permissions')return response({data:[{permission:'ads_read',status:'granted'},{permission:'business_management',status:'granted'},{permission:'pages_show_list',status:'granted'},{permission:'pages_read_engagement',status:'granted'},{permission:'pages_read_user_content',status:'granted'},{permission:'pages_manage_engagement',status:'granted'}]});
   if(route==='me/adaccounts')return response({data:[{id:who==='a'?'act_111':'act_222',name:'Account '+who,account_status:1}]});
-  if(route.endsWith('/ads'))return response({data:[{id:who==='a'?'101':'202',name:'Ad '+who,effective_status:'ACTIVE',campaign:{name:'Campaign'},adset:{name:'Adset'},creative:{effective_object_story_id:who==='a'?'100_101':'200_202'}}]});
-  if(route==='100'||route==='200')return response({access_token:route==='100'?'facebook-a-page-token':'facebook-b-page-token'});
+  if(route.endsWith('/ads'))return response({data:[{id:who==='a'?'101':'202',name:'Ad '+who,created_time:'2026-08-28T12:00:00Z',effective_status:'ACTIVE',campaign:{name:'Campaign'},adset:{name:'Adset'},creative:{effective_object_story_id:who==='a'?'100_101':'200_202'}}]});
+  if(route==='100'||route==='200')return response({access_token:(route==='100'?'facebook-a-page-token':'facebook-b-page-token')+(token.includes('unconfirmed')?'-unconfirmed':'')});
+  if(['100_101','200_202'].includes(route))return response({created_time:'2026-08-29T12:00:00Z'});
   if(route.endsWith('/comments'))return response({data:[{id:who==='a'?'100_1001':'200_2001',message:'Comment '+who,created_time:new Date().toISOString(),from:{name:'Author'},is_hidden:false}]});
-  if(['100_1001','200_2001'].includes(route))return response({success:true});
+  if(['100_1001','200_2001'].includes(route))return response({success:!token.includes('unconfirmed')});
   throw new Error('Unmocked Meta endpoint: '+route);
  }
  if(url.hostname==='api.apify.com')return response([{id:'10000001',webVideoUrl:'https://www.tiktok.com/@test/video/10000001',text:'HB20 seminovo',authorMeta:{name:'test'},videoMeta:{coverUrl:'https://media.local.test/cover.png',duration:10},mediaUrls:['https://media.local.test/video.mp4'],playCount:42}]);

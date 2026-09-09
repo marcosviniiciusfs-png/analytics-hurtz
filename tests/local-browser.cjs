@@ -21,8 +21,20 @@ try{
  await page.evaluate(async()=>{const headers={Authorization:'Bearer '+localStorage.getItem('hurtz-monitor-session-v2'),'Content-Type':'application/json'};const {nonce}=await(await fetch('/api/meta/challenge',{method:'POST',headers,body:'{}'})).json();await fetch('/api/meta/connection',{method:'POST',headers,body:JSON.stringify({nonce,accessToken:'facebook-a-token-0000000000'})})});
  await page.locator('#commentsNav').click();await page.locator('#commentsPageSelect option[value="100"]').waitFor({state:'attached'});await page.locator('#commentsPageSelect').selectOption('100');
  await page.waitForFunction(()=>document.querySelector('#commentsRequestStatus').textContent.includes('Consulta concluída'));
- assert.equal(await page.locator('#commentsPageSelect').inputValue(),'100');assert.equal(await page.locator('[data-comment-row]').count(),1);assert.equal(await page.locator('#commentsPageModal').count(),0);
- await page.reload();await page.waitForFunction(()=>document.querySelector('#commentsPageSelect')?.value==='100');await page.waitForFunction(()=>document.querySelector('#commentsRequestStatus').textContent.includes('Consulta concluída'));assert.equal(await page.locator('[data-comment-row]').count(),1);
+ assert.equal(await page.locator('#commentsPageSelect').inputValue(),'100');assert.equal(await page.locator('[data-comment-ad]').count(),1);assert.equal(await page.locator('[data-comment-row]').count(),0);assert.equal(await page.locator('#commentsPageModal').count(),0);
+ await page.reload();await page.waitForFunction(()=>document.querySelector('#commentsPageSelect')?.value==='100');await page.waitForFunction(()=>document.querySelector('#commentsRequestStatus').textContent.includes('Consulta concluída'));assert.equal(await page.locator('[data-comment-ad]').count(),1);assert.equal(await page.locator('[data-comment-row]').count(),0);
+ await page.locator('[data-comment-ad]').click();await page.locator('#commentsAdDialog').waitFor({state:'visible'});
+ assert.equal(await page.locator('[data-comment-row]').count(),1);assert.match(await page.locator('#commentsDialogList').innerText(),/Facebook · Página/);assert.match(await page.locator('#commentsDialogMeta').innerText(),/Publicado em 29\/08\/2026/);
+ // Failed deletion must keep the row and announce the failure inside the dialog.
+ await page.route('**/api/meta-comments',route=>route.fulfill({json:{results:[{id:'100_1001',ok:false,error:'A Meta não confirmou a exclusão.'}],success:0,failed:1}}));
+ const remove=async()=>{await page.locator('[data-comment-action="delete"]').click();await page.locator('#commentsConfirmInput').fill('EXCLUIR');await page.locator('#commentsConfirmDelete').click()};
+ await remove();await page.waitForFunction(()=>document.querySelector('#commentsDialogStatus').textContent.includes('não confirmou'));assert.equal(await page.locator('[data-comment-row]').count(),1);
+ await page.unroute('**/api/meta-comments');
+ await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('#commentsAdDialog').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+ await page.screenshot({path:path.join(root,'.codex-tmp/comments-dialog-mobile.png')});
+ await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:path.join(root,'.codex-tmp/comments-dialog-desktop.png')});
+ await remove();await page.waitForFunction(()=>document.querySelector('#commentsDialogStatus').textContent.includes('Exclusão confirmada pela Meta'));assert.equal(await page.locator('[data-comment-row]').count(),0);assert.equal(await page.locator('[data-comment-ad]').count(),0);
+ await page.locator('#commentsDialogClose').click();assert.equal(await page.locator('#commentsAdDialog').isVisible(),false);
  await page.waitForFunction(()=>!document.querySelector('#connectPersonalFacebook')?.disabled&&!!window.FB);
  await page.evaluate(()=>{window.commentAuthTestMarker='same-document';window.FB.login=(callback,options)=>{window.commentAuthScopes=options.scope;callback({authResponse:{accessToken:'facebook-a-limited-0000000000',expiresIn:3600}})}});
  await page.locator('#commentsPagesAuthorize').click();await page.waitForFunction(()=>document.querySelector('#commentsPagesStatus').textContent.includes('essa conexão não recebeu'));

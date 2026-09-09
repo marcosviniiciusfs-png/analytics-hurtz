@@ -63,10 +63,12 @@ test('local workflows persist and stay isolated across users',async t=>{
  assert.equal((await request(b,'/api/meta-comments?page=100&status=active&days=30')).status,403);
  assert.equal((await request(a,'/api/meta-comments?page=300&status=active&days=30')).body.comments,0);
  assert.equal((await request(a,'/api/meta-comments?page=100&status=active&days=30')).body.comments,1);
- const comments=await request(a,'/api/meta-comments?accounts=act_111&status=active&days=30');assert.equal(comments.status,200);assert.equal(comments.body.comments,1);
+ const comments=await request(a,'/api/meta-comments?accounts=act_111&status=active&days=30');assert.equal(comments.status,200);assert.equal(comments.body.comments,1);assert.equal(comments.body.ads[0].platform,'facebook');assert.equal(comments.body.ads[0].comments[0].platform,'facebook');assert.equal(comments.body.ads[0].ad.published_time,'2026-08-29T12:00:00Z');
  assert.equal((await request(b,'/api/meta-comments','POST',{action:'hide',comment_ids:['100_1001']})).status,403);
  assert.equal((await request(a,'/api/meta-comments','POST',{action:'hide',comment_ids:['100_1001']})).body.success,1);
  assert.equal((await request(b,'/api/meta-comment-history')).body.events.length,0);
+ await connect(a,'facebook-a-unconfirmed-0000000000');await request(a,'/api/meta-comments?page=100&status=active&days=30');
+ const unconfirmed=await request(a,'/api/meta-comments','POST',{action:'delete',comment_ids:['100_1001']});assert.equal(unconfirmed.body.success,0);assert.equal(unconfirmed.body.failed,1);assert.equal(unconfirmed.body.results[0].ok,false);
  await request(a,'/api/meta/connection','DELETE');assert.equal((await request(a,'/api/meta-comments','POST',{action:'hide',comment_ids:['100_1001']})).status,409);
  assert.equal((await request(a,'/api/tasks')).body.tasks.length,1,'Facebook disconnect must not delete local work');
  const login=await request(null,'/api/auth/login','POST',{email:'a@example.test',password:'local-test-password'});assert.equal((await request(login.body.token,'/api/tasks')).body.tasks.length,1);
