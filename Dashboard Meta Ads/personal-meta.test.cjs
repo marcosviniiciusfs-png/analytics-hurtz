@@ -11,10 +11,11 @@ function fixture(t, runner, overrides = {}) {
   t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
   const tokens = {a: 'facebook-user-a-token-0000000000', b: 'facebook-user-b-token-0000000000'};
   const fetchImpl = async (url, options) => {
-    const who = options.headers.Authorization.endsWith(tokens.a) ? 'a' : 'b';
+    const who = options.headers?.Authorization?.endsWith(tokens.a) ? 'a' : 'b';
     const endpoint = new URL(url).pathname;
     assert.ok(!endpoint.endsWith('/debug_token'), 'ordinary users must not require a developer credential');
     overrides.requests?.push(new URL(url).searchParams.get('fields'));
+    if(endpoint.endsWith('/oauth/access_token')){assert.equal(new URL(url).search,'');assert.equal(options.method,'POST');return {ok:true,json:async()=>({access_token:tokens.a+'-long',expires_in:5184000})}}
     const payload = overrides.pictureError && new URL(url).searchParams.get('fields')?.includes('profile_picture_uri') ? {error:{code:100,message:'Photo unavailable'}} : overrides.error ? {error: overrides.error}
       : endpoint.endsWith('/app') ? {id: overrides.app_id || '2093320124537661', name: 'Tryv CRM'}
       : endpoint.endsWith('/me/permissions') ? {data: (overrides.scopes || ['ads_read']).map(permission=>({permission,status:'granted'}))}
@@ -22,7 +23,7 @@ function fixture(t, runner, overrides = {}) {
         : {id: who, name: `Facebook ${who}`};
     return {ok: !payload.error, status:payload.error?400:200, json: async () => payload};
   };
-  const api = createPersonalMeta({directory, fetchImpl, runReport: runner || (async ({token}) => ({tokenUsed: token}))});
+  const api = createPersonalMeta({directory, fetchImpl, oauthConfig:overrides.oauthConfig??null, runReport: runner || (async ({token}) => ({tokenUsed: token}))});
   const sessionA = api.issueSession({id: 'user-a', email: 'a@example.test'}), sessionB = api.issueSession({id: 'user-b', email: 'b@example.test'});
   async function request(token, route, method = 'GET', payload) {
     const req = Readable.from(payload === undefined ? [] : [JSON.stringify(payload)]);
@@ -144,3 +145,10 @@ test('unavailable business photo does not prevent loading authorized accounts', 
 });
 
 test('campaign manager routes retain personal authentication and write permissions',async t=>{const f=fixture(t);await f.connect(f.sessionA,f.tokens.a);assert.equal((await f.request(f.sessionA,'/api/ads-manager/campaigns?account=act_111')).status,200);assert.equal((await f.request(f.sessionB,'/api/ads-manager/campaigns?account=act_111')).status,409);assert.equal((await f.request(f.sessionA,'/api/ads-manager/create?account=act_111','POST',{})).status,403)});
+
+test('long-lived connection survives logout, a new session and server restart without exposing secrets',async t=>{
+ const f=fixture(t,null,{oauthConfig:{appId:'2093320124537661',secret:'test-app-secret'}});await f.connect(f.sessionA,f.tokens.a);
+ const stored=f.api.read('connection','user-a');assert.equal(stored.longLived,true);assert.ok(stored.expiresAt>Date.now()+59*86400000);assert.ok(stored.token.endsWith('-long'));
+ await f.request(f.sessionA,'/api/session','DELETE');assert.ok(f.api.read('connection','user-a'));
+ const restarted=createPersonalMeta({directory:f.directory,oauthConfig:null}),session=restarted.issueSession({id:'user-a',email:'a@example.test'});const req=Object.assign(Readable.from([]),{method:'GET'});let result;await restarted.handle(req,{},restarted.session(session),new URL('https://test/api/meta/connection'),(_,status,payload)=>result=payload);assert.equal(result.connected,true);assert.ok(!JSON.stringify(result).includes(stored.token));assert.equal(f.api.read('connection','user-b'),null);
+});

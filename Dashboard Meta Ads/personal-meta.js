@@ -9,7 +9,7 @@ const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const VERSION = 'v25.0';
 const APP_ID = '2093320124537661';
 
-function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '/opt/meta-ads-cli/secrets/personal', fetchImpl = fetch, runReport} = {}) {
+function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '/opt/meta-ads-cli/secrets/personal', fetchImpl = fetch, runReport, oauthConfig} = {}) {
   fs.mkdirSync(directory, {recursive: true, mode: 0o700});
   const keyPath = path.join(directory, 'encryption.key');
   try { fs.writeFileSync(keyPath, crypto.randomBytes(32), {flag: 'wx', mode: 0o600}); } catch (e) { if (e.code !== 'EEXIST') throw e; }
@@ -47,6 +47,15 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     return {...value, sessionHash: hash(token)};
   }
   const challenges = new Map();
+  const exchanges=new Map();
+  const tokenService=require('./facebook-token');
+  const exchangeToken=token=>tokenService.exchange(token,{fetchImpl,...(oauthConfig!==undefined?{config:oauthConfig}:{})});
+  async function upgradeConnection(user){const conn=read('connection',user.id);if(!conn||conn.longLived||conn.expiresAt&&conn.expiresAt>Date.now()+7*86400000)return conn;
+    if(exchanges.has(user.id))return exchanges.get(user.id);
+    if(conn.exchangeAttemptAt&&Date.now()-conn.exchangeAttemptAt<3600000)return conn;
+    if(!(oauthConfig===undefined?tokenService.configuration():oauthConfig))return conn;
+    const promise=(async()=>{const upgraded=await exchangeToken(conn.token);const latest=read('connection',user.id);if(!latest||latest.revision!==conn.revision)return latest;const result={...latest,...(upgraded||{}),exchangeAttemptAt:Date.now()};write('connection',user.id,result);return result})().finally(()=>exchanges.delete(user.id));exchanges.set(user.id,promise);return promise;
+  }
   async function graph(token, endpoint, params = {}) {
     const url = new URL(`https://graph.facebook.com/${VERSION}/${endpoint}`);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
@@ -130,7 +139,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       return send(res, 200, {ok: true, user: {id: user.id, email: user.email}, personal: true});
     }
     if (route === '/api/meta/connection' && req.method === 'GET') {
-      const conn = read('connection', user.id);
+      const conn = await upgradeConnection(user);
       const expired = Boolean(conn && ((conn.expiresAt && conn.expiresAt <= Date.now()) || (conn.dataExpiresAt && conn.dataExpiresAt <= Date.now())));
       return send(res, 200, {appId: APP_ID, version: VERSION, connected: Boolean(conn) && !expired, expired, name: conn?.name || '', expiresAt: conn?.expiresAt || null});
     }
@@ -146,7 +155,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       challenges.delete(payload.nonce);
       if (!challenge || challenge.user !== user.id || challenge.session !== user.sessionHash || challenge.expires <= Date.now()) throw fail(400, 'A tentativa de conexão expirou. Tente novamente.');
       if (typeof payload.accessToken !== 'string' || payload.accessToken.length < 20 || payload.accessToken.length > 4096) throw fail(400, 'Autorização do Facebook inválida.');
-      const token = payload.accessToken;
+      let token = payload.accessToken;
       // /debug_token requires an app/developer credential. Normal users authenticate
       // their token via /app, /me and /me/permissions instead; all are answered by Meta.
       const [application, me, permissionRows] = await Promise.all([
@@ -160,8 +169,9 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const accounts = await rows(token, 'me/adaccounts', {fields: 'id,name'});
       // SDK expiry is only a conservative UI hint, never an authorization decision:
       // every catalog/report is checked live against Meta with this user's token.
-      const seconds=Number(payload.expiresIn),expiresAt=Number.isFinite(seconds)&&seconds>0?Date.now()+Math.min(seconds,60*86400)*1000:0;
-      write('connection', user.id, {token, facebookId: me.id, name: me.name, scopes, revision: crypto.randomUUID(), expiresAt, dataExpiresAt: 0});
+      const seconds=Number(payload.expiresIn),shortExpiry=Number.isFinite(seconds)&&seconds>0?Date.now()+Math.min(seconds,60*86400)*1000:0;
+      const upgraded=await exchangeToken(token);if(upgraded)token=upgraded.token;
+      write('connection', user.id, {token, facebookId: me.id, name: me.name, scopes, revision: crypto.randomUUID(), expiresAt:upgraded?.expiresAt||shortExpiry, longLived:Boolean(upgraded), dataExpiresAt: 0});
       return send(res, 200, {connected: true, name: me.name, accountCount: accounts.length});
     }
     if (route === '/api/meta/connection' && req.method === 'DELETE') {

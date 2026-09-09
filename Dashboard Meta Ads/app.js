@@ -1791,7 +1791,7 @@ if(personalIdentity?.personal){
   document.querySelector('#facebookConnectionTitle').textContent='Seu Facebook no Traffic pocket';
   void (async()=>{try{
     facebookSettings=await personalRequest('/api/meta/connection');
-    facebookStatus.textContent=facebookSettings.connected?`Conectado como ${facebookSettings.name}. Apenas suas contas autorizadas aparecem no painel.`:facebookSettings.expired?'Sua autorização expirou. Conecte o Facebook novamente.':'Conecte seu Facebook e autorize a leitura das contas que deseja acompanhar.';
+    facebookStatus.textContent=facebookSettings.connected?`Conectado como ${facebookSettings.name}. Sua conexão está salva para os próximos acessos.`:facebookSettings.expired?'Sua autorização expirou. Conecte o Facebook novamente.':'Conecte seu Facebook e autorize a leitura das contas que deseja acompanhar.';
     renderFacebookConnection();
     facebookDisconnect.hidden=!facebookSettings.connected&&!facebookSettings.expired;
     if(facebookSettings.connected){facebookConnect.disabled=false;void(async()=>{const found=await findMetaAccounts(false);if(found){await loadAccountProfiles();loadPlans();await hydrateAlertPlans();if(selectedAccountIds.size){loadAuditedPeriod(globalPeriod.from,globalPeriod.to);loadLastThreeDays();loadRealControlData(globalPeriod.to)}}})().catch(error=>{facebookStatus.textContent='Facebook conectado. Não foi possível atualizar as contas: '+error.message})}
