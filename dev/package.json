@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "start": "node local-server.cjs",
-    "test:browser": "node ../tests/local-browser.cjs"
+    "test:browser": "node ../tests/local-browser.cjs",
+    "test:tasks": "node ../tests/task-workspace-browser.cjs"
   },
   "devDependencies": {
     "playwright": "1.63.0"

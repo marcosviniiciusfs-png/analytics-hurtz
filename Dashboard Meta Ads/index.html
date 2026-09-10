@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260823-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260909-facebook-persistence" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260909-task-workspace" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -158,26 +158,23 @@
       </section>
 
       <section class="tasks-view" id="tasks" hidden>
-        <div class="tasks-heading">
-          <div><p class="eyebrow">GESTÃO DE TRABALHO</p><h2>Tarefas</h2><p>Organize demandas, responsáveis e prazos sem sair do Traffic pocket.</p></div>
-          <div class="tasks-heading-actions"><button class="task-secondary-button task-notification-button" id="taskNotificationsButton" type="button">Menções <span id="taskNotificationCount">0</span></button><button class="task-secondary-button" id="taskStructureButton" type="button">Etapas e organização</button><button class="task-primary-button" id="newTaskButton" type="button">+ Nova tarefa</button></div>
-        </div>
-        <div class="task-retention-notice" role="alert"><strong>Retenção de 72 horas</strong><span>O quadro não limita a quantidade de cartões. Porém, cada tarefa é apagada permanentemente 72 horas após sua criação, junto com seus arquivos.</span></div>
-        <div class="tasks-toolbar">
-          <div class="tasks-summary"><b id="taskCount">0 tarefas</b><span id="taskSummary">Arraste os cartões para atualizar o andamento.</span></div>
-          <div class="tasks-controls">
-            <label class="task-search"><span>⌕</span><input id="taskSearch" placeholder="Buscar tarefa..." /></label>
-            <select id="taskProjectFilter" aria-label="Filtrar por projeto"><option value="">Todos os projetos</option></select>
-            <select id="taskModuleFilter" aria-label="Filtrar por módulo"><option value="">Todos os módulos</option></select>
-            <select id="taskCycleFilter" aria-label="Filtrar por ciclo"><option value="">Todos os ciclos</option></select>
-            <select id="taskPriorityFilter" aria-label="Filtrar por prioridade"><option value="">Todas as prioridades</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select>
-            <select id="taskAssigneeFilter" aria-label="Filtrar por responsável"><option value="">Todos os responsáveis</option></select>
-            <div class="task-view-switch"><button class="active" type="button" data-task-view="board">Quadro</button><button type="button" data-task-view="list">Lista</button><button type="button" data-task-view="calendar">Calendário</button><button type="button" data-task-view="analytics">Resumo</button></div>
-            <button id="refreshTasks" type="button">↻ Atualizar</button>
+        <header class="tasks-heading">
+          <div class="tasks-title-block"><p class="eyebrow">WORKSPACE DA EQUIPE</p><div><h2>Tarefas</h2><span class="tasks-live-dot">Sincronizado</span></div><p>Planeje, acompanhe e conclua o trabalho da equipe em um só lugar.</p></div>
+          <div class="tasks-heading-actions"><button class="task-icon-button task-notification-button" id="taskNotificationsButton" type="button" aria-label="Abrir menções"><span aria-hidden="true">◌</span><b>Menções</b><i id="taskNotificationCount">0</i></button><button class="task-secondary-button" id="taskStructureButton" type="button"><span aria-hidden="true">⚙</span> Organizar</button><button class="task-primary-button" id="newTaskButton" type="button"><span aria-hidden="true">＋</span> Nova tarefa</button></div>
+        </header>
+        <div class="task-retention-notice" role="alert"><span class="task-retention-icon" aria-hidden="true">⌛</span><div><strong>As tarefas são temporárias</strong><span>Tarefas e arquivos são apagados permanentemente 72 horas após a criação.</span></div><button type="button" id="taskRetentionDetails" aria-label="Entender a retenção de tarefas">Entender</button></div>
+        <div class="task-workspace-shell">
+          <header class="task-workspace-header">
+            <div class="task-board-identity"><span class="task-board-mark" aria-hidden="true">▦</span><div><b>Quadro da equipe</b><span id="taskSummary">Arraste os cartões para atualizar o andamento.</span></div><em id="taskCount">0 tarefas</em></div>
+            <div class="task-workspace-actions"><label class="task-search"><span aria-hidden="true">⌕</span><input id="taskSearch" type="search" placeholder="Buscar tarefas" autocomplete="off" /></label><button class="task-filter-button" id="taskFilterToggle" type="button" aria-expanded="false" aria-controls="taskFilterPanel"><span aria-hidden="true">☷</span> Filtros <i id="taskActiveFilterCount" hidden>0</i></button><div class="task-view-switch" aria-label="Modo de visualização"><button class="active" type="button" data-task-view="board">Quadro</button><button type="button" data-task-view="list">Lista</button><button type="button" data-task-view="calendar">Calendário</button><button type="button" data-task-view="analytics">Resumo</button></div><button class="task-refresh-button" id="refreshTasks" type="button" aria-label="Atualizar tarefas" title="Atualizar tarefas">↻</button></div>
+          </header>
+          <div class="task-filter-panel" id="taskFilterPanel" hidden>
+            <div><label><span>Projeto</span><select id="taskProjectFilter"><option value="">Todos os projetos</option></select></label><label><span>Módulo</span><select id="taskModuleFilter"><option value="">Todos os módulos</option></select></label><label><span>Ciclo</span><select id="taskCycleFilter"><option value="">Todos os ciclos</option></select></label><label><span>Prioridade</span><select id="taskPriorityFilter"><option value="">Todas as prioridades</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select></label><label><span>Responsável</span><select id="taskAssigneeFilter"><option value="">Todos os responsáveis</option></select></label></div>
+            <button type="button" id="taskClearFilters">Limpar filtros</button>
           </div>
+          <div class="task-deadline-alerts" id="taskDeadlineAlerts" hidden></div>
+          <div class="tasks-board" id="tasksBoard" aria-live="polite" aria-busy="true"><div class="task-board-skeleton" aria-label="Carregando quadro"><section></section><section></section><section></section></div></div>
         </div>
-        <div class="task-deadline-alerts" id="taskDeadlineAlerts" hidden></div>
-        <div class="tasks-board" id="tasksBoard" aria-live="polite"></div>
       </section>
 
       <section class="creative-search-view" id="creativeSearch" hidden>
@@ -394,6 +391,6 @@
       <div class="campaign-section"><div class="campaign-title"><div><h3>Campanhas com veiculação</h3><p id="campaignPeriod"></p></div><span id="campaignCount"></span></div><form class="campaign-goal-panel" id="campaignGoalPanel" hidden><div><strong id="campaignGoalTitle">Configurar coluna</strong><small>Metas diárias desta conta para definir as cores.</small></div><div class="campaign-goal-fields" id="campaignGoalFields"></div><button type="submit">Salvar metas</button><button type="button" class="clear-goal-button" id="clearCampaignGoal">Limpar</button><button type="button" class="close-goal-button" id="closeCampaignGoal">×</button></form><div class="campaign-table-wrap"><table class="campaign-table"><thead><tr><th>Campanha</th><th>Objetivo</th><th>Status</th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="investment">Investimento <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="results">Resultados <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="cost">Custo/resultado <span>⚙</span></button></th></tr></thead><tbody id="campaignBody"></tbody><tfoot id="campaignFoot"></tfoot></table></div></div>
     </section>
   </div>
-  <script src="app.js?v=20260909-facebook-persistence"></script>
+  <script src="app.js?v=20260909-task-workspace"></script>
 </body>
 </html>
