@@ -25,3 +25,14 @@
 ## Trabalho restante
 
 Nenhuma pendência obrigatória identificada para esta especificação.
+
+## Revisão de coerência — 2026-09-10
+
+- Removida a ação global redundante de nova tarefa; a criação agora é contextual em cada etapa.
+- Menções exibem um único contador de itens não lidos.
+- “Organizar” foi substituído por “Etapas”.
+- O modal abre no fluxo de etapas e usa a configuração completa já existente, eliminando edição e exclusão duplicadas.
+- Projetos, módulos e ciclos foram movidos para uma aba opcional.
+- Módulos e ciclos ficam desabilitados até existir um projeto.
+- Corrigido o erro de escopo que interrompia a reordenação de etapas.
+- O teste de navegador cobre as novas decisões e permanece sem erros JavaScript.

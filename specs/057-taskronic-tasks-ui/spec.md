@@ -107,3 +107,11 @@ O usuário consegue operar a seção a partir de celular ou tablet sem controles
 - Alteração da política de retenção.
 - Novas automações de backend ou integrações externas.
 
+## Revisão de coerência — 2026-09-10
+
+- A criação de tarefas deve existir somente dentro das etapas; o botão global duplicado será removido.
+- Menções devem exibir exatamente um contador, correspondente às notificações não lidas.
+- A ação do cabeçalho passa a se chamar **Etapas**, refletindo sua função principal.
+- O modal deve abrir diretamente no gerenciamento de etapas. Projetos, módulos e ciclos são opcionais e ficam em uma área avançada separada.
+- Módulos e ciclos só podem ser criados quando existir um projeto, com estado desabilitado e explicação clara caso contrário.
+- Reordenar, editar e excluir etapas deve usar a configuração própria da etapa, sem ações duplicadas ou prompts improvisados.

@@ -31,3 +31,10 @@
 - [x] T015 Inspecionar capturas desktop e mobile e corrigir regressões visuais.
 - [x] T016 Executar convergência com a especificação e registrar pendências reais.
 
+## Revisão de lógica
+
+- [x] T017 Remover a criação global duplicada e manter criação contextual por etapa.
+- [x] T018 Corrigir o contador duplicado de menções.
+- [x] T019 Simplificar o gerenciamento de etapas e separar a organização avançada.
+- [x] T020 Corrigir reordenação e estados inválidos de módulos e ciclos.
+- [x] T021 Cobrir a lógica revisada no teste de navegador e atualizar a convergência.

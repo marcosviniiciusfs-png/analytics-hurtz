@@ -30,7 +30,10 @@ const { spawn } = require('node:child_process');
     await page.locator('#taskFilterToggle').click();
     assert.equal(await page.locator('#taskFilterPanel').isVisible(), true);
 
-    await page.locator('#newTaskButton').click();
+    assert.equal(await page.locator('#newTaskButton').count(), 0);
+    assert.equal(await page.locator('#taskNotificationsButton i').count(), 1);
+    assert.equal(await page.locator('#taskNotificationsButton span').count(), 0);
+    await page.locator('.task-add-card').first().click();
     await page.locator('[data-inline-task-form=""] input[name="title"]').fill('Validar nova experiência');
     await page.locator('[data-inline-task-form=""] textarea[name="description"]').fill('Conferir cartões, filtros e visualização responsiva.');
     await page.locator('[data-inline-task-form=""] button[type="submit"]').click();
@@ -41,6 +44,18 @@ const { spawn } = require('node:child_process');
     assert.equal(await page.locator('#taskModal').isVisible(), true);
     assert.ok((await page.locator('#taskModal .task-dialog').boundingBox()).width <= 850);
     await page.locator('#closeTaskModal').click();
+
+    await page.locator('#taskStructureButton').click();
+    assert.equal(await page.locator('[data-structure-panel="stages"]').isVisible(), true);
+    assert.equal(await page.locator('[data-structure-panel="advanced"]').isHidden(), true);
+    await page.screenshot({ path: path.join(root, '.codex-tmp/task-stages-dialog.png'), fullPage: false });
+    await page.locator('[data-structure-tab="advanced"]').click();
+    assert.equal(await page.locator('[data-create-structure="module"]').isDisabled(), true);
+    assert.equal(await page.locator('[data-create-structure="cycle"]').isDisabled(), true);
+    await page.locator('[data-structure-tab="stages"]').click();
+    await page.locator('[data-configure-structure-column]').first().click();
+    assert.equal(await page.locator('#taskColumnSettingsModal').isVisible(), true);
+    await page.locator('#closeTaskColumnSettings').click();
 
     await page.locator('[data-task-view="list"]').click();
     assert.equal(await page.locator('#tasksBoard').getAttribute('class'), 'tasks-board task-list-view');
@@ -54,7 +69,7 @@ const { spawn } = require('node:child_process');
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.screenshot({ path: path.join(root, '.codex-tmp/task-workspace-desktop.png'), fullPage: false });
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ passed: true, checks: ['board', 'filters', 'create task', 'task dialog', 'views', 'mobile overflow'], javascriptErrors: 0 }));
+    console.log(JSON.stringify({ passed: true, checks: ['board', 'filters', 'contextual task creation', 'single mention count', 'stage settings', 'advanced dependency guards', 'task dialog', 'views', 'mobile overflow'], javascriptErrors: 0 }));
   } finally {
     if (browser) await browser.close();
     child.kill();
