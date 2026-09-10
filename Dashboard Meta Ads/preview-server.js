@@ -90,6 +90,16 @@ const supabaseRequest = async (resource, options={}) => {
   return payload;
 };
 const taskCollaboration=require('./task-collaboration').createTaskCollaboration({request:supabaseRequest,readBody});
+const createTaskNotifications=async(taskId,names)=>{
+  const workspaceId=taskRequestScope.getStore()?.workspaceId;
+  const members=await supabaseRequest(`task_workspace_members?workspace_id=eq.${workspaceId}&select=user_id`);
+  const ids=(members||[]).map(item=>item.user_id);
+  const profiles=ids.length?await supabaseRequest(`task_user_profiles?user_id=in.(${ids.join(',')})&select=user_id,display_name`):[];
+  const wanted=new Set(names.map(name=>name.toLocaleLowerCase('pt-BR')));
+  const rows=profiles.filter(profile=>wanted.has(profile.display_name.toLocaleLowerCase('pt-BR'))).map(profile=>({task_id:taskId,recipient_name:profile.display_name,recipient_user_id:profile.user_id}));
+  if(!rows.length)throw Object.assign(new Error('Nenhum membro válido foi mencionado.'),{status:400});
+  return supabaseRequest('task_notifications?on_conflict=task_id,recipient_name',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(rows)});
+};
 const taskActivity=(taskId,action,details={})=>supabaseRequest('task_activities',{method:'POST',body:JSON.stringify({task_id:taskId||null,action,details})}).catch(()=>null);
 const cleanUuid=value=>/^[0-9a-f-]{36}$/i.test(String(value||''))?String(value):null;
 const taskStorageRequest=async(pathname,options={})=>{
@@ -217,7 +227,7 @@ function handleAuthorizedRequest(req,res,requestUrl,user=null){
       supabaseRequest('task_comments?select=id,task_id,author,body,created_at&order=created_at.asc'),
       supabaseRequest('task_attachments?select=id,task_id,file_name,mime_type,size_bytes,created_at&order=created_at.asc'),
       supabaseRequest('task_activities?select=id,task_id,action,details,actor,created_at&order=created_at.desc&limit=500'),
-      supabaseRequest('task_notifications?select=id,task_id,recipient_name,is_read,created_at&order=created_at.desc&limit=500')
+      supabaseRequest(`task_notifications?select=id,task_id,recipient_name,is_read,created_at&order=created_at.desc&limit=500${user?.id?`&recipient_user_id=eq.${user.id}`:''}`)
     ]).then(([columns,tasks,subtasks,comments,attachments,activities,notifications])=>{const payload={columns,tasks,projects:[],modules:[],cycles:[],subtasks,comments,attachments,activities,notifications};taskDataCache.payload=payload;taskDataCache.expiresAt=Date.now()+TASK_CACHE_TTL;jsonResponse(res,200,payload)}).catch(error=>jsonResponse(res,502,{error:error.message}));
     }
     if(req.method==='POST')return readBody(req,(error,payload)=>{
@@ -320,7 +330,7 @@ function handleAuthorizedRequest(req,res,requestUrl,user=null){
     const taskId=cleanUuid(payload?.task_id);
     const recipients=Array.isArray(payload?.recipients)?[...new Set(payload.recipients.map(value=>String(value).trim()).filter(Boolean))].slice(0,20):[];
     if(error||!taskId||!recipients.length)return jsonResponse(res,400,{error:'Menção inválida'});
-    supabaseRequest('task_notifications?on_conflict=task_id,recipient_name',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(recipients.map(recipient_name=>({task_id:taskId,recipient_name})))})
+    createTaskNotifications(taskId,recipients)
       .then(data=>jsonResponse(res,201,{created:data?.length||0}))
       .catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
   });
