@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260823-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260910-task-simplified" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260910-task-workspaces" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -32,6 +32,7 @@
         <a href="?view=alerts" id="alertsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg></span><span class="nav-label">Alertas</span><b class="pill" id="alertPill">0</b></a>
         <a href="#"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span><span class="nav-label">Configurações</span></a>
       </nav>
+      <div class="task-user-identity" id="taskUserIdentity" hidden><div><span>SEU ID NO APP</span><strong id="taskPublicId">—</strong></div><button type="button" id="copyTaskPublicId" aria-label="Copiar seu ID">Copiar</button></div>
       <div class="sidebar-foot"><span class="live-dot"></span><div><strong>Monitoramento ativo</strong><small>Atualiza a cada 15 min</small></div></div>
     </aside>
 
@@ -160,12 +161,12 @@
       <section class="tasks-view" id="tasks" hidden>
         <header class="tasks-heading">
           <div class="tasks-title-block"><p class="eyebrow">WORKSPACE DA EQUIPE</p><div><h2>Tarefas</h2><span class="tasks-live-dot">Sincronizado</span></div><p>Planeje, acompanhe e conclua o trabalho da equipe em um só lugar.</p></div>
-          <div class="tasks-heading-actions"><button class="task-icon-button task-notification-button" id="taskNotificationsButton" type="button" aria-label="Abrir menções"><b>Menções</b><i id="taskNotificationCount">0</i></button></div>
+          <div class="tasks-heading-actions"><button class="task-icon-button task-projects-button" id="taskProjectsButton" type="button" aria-label="Abrir projetos"><b>Projetos</b><i id="taskInviteCount" hidden>0</i></button><button class="task-icon-button task-notification-button" id="taskNotificationsButton" type="button" aria-label="Abrir menções"><b>Menções</b><i id="taskNotificationCount">0</i></button></div>
         </header>
         <div class="task-retention-notice" role="alert"><span class="task-retention-icon" aria-hidden="true">⌛</span><div><strong>As tarefas são temporárias</strong><span>Tarefas e arquivos são apagados permanentemente 72 horas após a criação.</span></div><button type="button" id="taskRetentionDetails" aria-label="Entender a retenção de tarefas">Entender</button></div>
         <div class="task-workspace-shell">
           <header class="task-workspace-header">
-            <div class="task-board-identity"><span class="task-board-mark" aria-hidden="true">▦</span><div><b>Quadro da equipe</b><span id="taskSummary">Arraste os cartões para atualizar o andamento.</span></div><em id="taskCount">0 tarefas</em></div>
+            <div class="task-board-identity"><span class="task-board-mark" aria-hidden="true">▦</span><div><b id="taskWorkspaceTitle">Meu projeto</b><span id="taskSummary">Arraste os cartões para atualizar o andamento.</span></div><span class="task-role-badge" id="taskWorkspaceRole">Proprietário</span><em id="taskCount">0 tarefas</em></div>
             <div class="task-workspace-actions"><label class="task-search"><span aria-hidden="true">⌕</span><input id="taskSearch" type="search" placeholder="Buscar tarefas" autocomplete="off" /></label><button class="task-filter-button" id="taskFilterToggle" type="button" aria-expanded="false" aria-controls="taskFilterPanel"><span aria-hidden="true">☷</span> Filtros <i id="taskActiveFilterCount" hidden>0</i></button><div class="task-view-switch" aria-label="Modo de visualização"><button class="active" type="button" data-task-view="board">Quadro</button><button type="button" data-task-view="list">Lista</button><button type="button" data-task-view="calendar">Calendário</button><button type="button" data-task-view="analytics">Resumo</button></div><button class="task-refresh-button" id="refreshTasks" type="button" aria-label="Atualizar tarefas" title="Atualizar tarefas">↻</button></div>
           </header>
           <div class="task-filter-panel" id="taskFilterPanel" hidden>
@@ -192,6 +193,21 @@
         <div class="creative-library-head"><div><h3>Resultados temporários</h3><p id="creativeLibraryStatus">Digite os termos para iniciar.</p></div><div class="creative-result-actions"><button type="button" id="downloadSelectedCreative" hidden>Baixar selecionados</button><button type="button" id="clearCreativeResults" hidden>Limpar resultados</button></div></div>
         <div class="creative-library" id="creativeLibrary"><div class="creative-library-empty"><strong>Nenhuma pesquisa executada</strong><span>Os previews aparecerão aqui para você assistir, abrir e baixar.</span></div></div>
       </section>
+
+      <div class="task-modal" id="taskProjectsModal" hidden>
+        <section class="task-dialog task-projects-dialog" role="dialog" aria-modal="true" aria-labelledby="taskProjectsTitle">
+          <button class="task-modal-close" type="button" id="closeTaskProjects" aria-label="Fechar">×</button>
+          <p class="eyebrow">COLABORAÇÃO</p><h3 id="taskProjectsTitle">Projetos de tarefas</h3>
+          <p class="task-projects-intro">Cada projeto tem seu próprio quadro, membros e menções.</p>
+          <div class="task-projects-layout">
+            <aside class="task-project-list-panel"><div class="task-project-section-title"><div><b>Meus projetos</b><small>Troque de quadro sem misturar tarefas.</small></div><button type="button" id="showCreateTaskWorkspace">＋ Novo</button></div><div class="task-project-list" id="taskWorkspaceList"></div></aside>
+            <div class="task-project-content">
+              <form class="task-workspace-create" id="taskWorkspaceCreateForm" hidden><div><b>Novo projeto</b><small>Um quadro independente para sua equipe.</small></div><label>Nome<input id="taskWorkspaceName" maxlength="80" placeholder="Ex.: Operação comercial" required></label><label>Descrição <span>(opcional)</span><textarea id="taskWorkspaceDescription" maxlength="300" rows="2" placeholder="Explique o objetivo deste projeto"></textarea></label><div><button type="button" id="cancelTaskWorkspace">Cancelar</button><button class="task-primary-button" type="submit">Criar projeto</button></div><small id="taskWorkspaceCreateStatus" role="status"></small></form>
+              <div id="taskWorkspaceManagement"><header class="task-project-current"><div><span>PROJETO ATUAL</span><h4 id="taskProjectCurrentName">—</h4><small id="taskProjectCurrentDescription"></small></div><span id="taskProjectCurrentRole">—</span></header><div class="task-project-tabs" role="tablist"><button class="active" type="button" data-task-project-tab="members">Membros</button><button type="button" data-task-project-tab="invites">Convites <i id="taskProjectInviteTabCount" hidden>0</i></button></div><section data-task-project-panel="members"><form class="task-invite-form" id="taskInviteForm"><div><b>Convidar pelo ID</b><small>O usuário precisa aceitar antes de acessar o projeto.</small></div><label>ID do usuário<input id="taskInvitePublicId" maxlength="12" placeholder="HZ-XXXX-XXXX" autocomplete="off" required></label><label>Nível de acesso<select id="taskInviteRole"><option value="member">Membro</option><option value="viewer">Visualizador</option><option value="admin">Administrador</option></select></label><button class="task-primary-button" type="submit">Enviar convite</button><small id="taskInviteStatus" role="status"></small></form><div class="task-member-list" id="taskMemberList"></div></section><section data-task-project-panel="invites" hidden><div class="task-invite-list" id="taskInviteList"></div></section></div>
+            </div>
+          </div>
+        </section>
+      </div>
 
       <div class="task-modal" id="taskNotificationsModal" hidden>
         <section class="task-dialog task-notifications-dialog">
@@ -373,6 +389,6 @@
       <div class="campaign-section"><div class="campaign-title"><div><h3>Campanhas com veiculação</h3><p id="campaignPeriod"></p></div><span id="campaignCount"></span></div><form class="campaign-goal-panel" id="campaignGoalPanel" hidden><div><strong id="campaignGoalTitle">Configurar coluna</strong><small>Metas diárias desta conta para definir as cores.</small></div><div class="campaign-goal-fields" id="campaignGoalFields"></div><button type="submit">Salvar metas</button><button type="button" class="clear-goal-button" id="clearCampaignGoal">Limpar</button><button type="button" class="close-goal-button" id="closeCampaignGoal">×</button></form><div class="campaign-table-wrap"><table class="campaign-table"><thead><tr><th>Campanha</th><th>Objetivo</th><th>Status</th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="investment">Investimento <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="results">Resultados <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="cost">Custo/resultado <span>⚙</span></button></th></tr></thead><tbody id="campaignBody"></tbody><tfoot id="campaignFoot"></tfoot></table></div></div>
     </section>
   </div>
-  <script src="app.js?v=20260910-task-simplified"></script>
+  <script src="app.js?v=20260910-task-workspaces"></script>
 </body>
 </html>

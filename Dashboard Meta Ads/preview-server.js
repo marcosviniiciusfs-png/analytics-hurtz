@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { AsyncLocalStorage } = require('node:async_hooks');
 const { execFile } = require('child_process');
 const { Readable } = require('stream');
 const { createPersonalMeta } = require('./personal-meta');
@@ -18,8 +19,8 @@ const ANALYSIS_CACHE_TTL = 15 * 60 * 1000;
 const spendResponseCache = new Map();
 const spendRequestsInFlight = new Map();
 const SPEND_CACHE_TTL = 60 * 1000;
-const userTaskCaches=new Map(),sharedTaskCache={payload:null,expiresAt:0};
-function currentTaskCache(){if(!localRuntime)return sharedTaskCache;const id=localRuntime.store.user().id;let cache=userTaskCaches.get(id);if(!cache){if(userTaskCaches.size>=100)userTaskCaches.delete(userTaskCaches.keys().next().value);cache={payload:null,expiresAt:0};userTaskCaches.set(id,cache)}return cache}
+const userTaskCaches=new Map(),sharedTaskCache={payload:null,expiresAt:0},taskRequestScope=new AsyncLocalStorage();
+function currentTaskCache(){const scoped=taskRequestScope.getStore()?.workspaceId;if(scoped){let cache=userTaskCaches.get(scoped);if(!cache){if(userTaskCaches.size>=200)userTaskCaches.delete(userTaskCaches.keys().next().value);cache={payload:null,expiresAt:0};userTaskCaches.set(scoped,cache)}return cache}if(!localRuntime)return sharedTaskCache;const id=localRuntime.store.user().id;let cache=userTaskCaches.get(id);if(!cache){if(userTaskCaches.size>=200)userTaskCaches.delete(userTaskCaches.keys().next().value);cache={payload:null,expiresAt:0};userTaskCaches.set(id,cache)}return cache}
 const taskDataCache=new Proxy({},{get:(_,key)=>currentTaskCache()[key],set:(_,key,value)=>{currentTaskCache()[key]=value;return true}});
 const TASK_CACHE_TTL=30*1000;
 const secretValue=(directName,fileName)=>{if(localRuntime)return localRuntime.secret(directName);const direct=process.env[directName];if(direct)return String(direct).trim();const file=process.env[fileName];if(file){try{return fs.readFileSync(file,'utf8').trim()}catch{}}return ''};
@@ -72,7 +73,10 @@ const runMonitorCommand = (command,options,callback) => {
   }
   return execFile('/bin/bash',['-lc',command],options,callback);
 };
+const taskScopedTables=new Set(['task_columns','tasks','task_subtasks','task_comments','task_attachments','task_activities','task_notifications']);
+const scopeTaskResource=(resource,options)=>{const context=taskRequestScope.getStore(),table=String(resource).split('?')[0],method=String(options.method||'GET').toUpperCase();if(!context?.workspaceId||!taskScopedTables.has(table))return[resource,options];const separator=resource.includes('?')?'&':'?',scopedResource=method==='POST'?resource:`${resource}${separator}workspace_id=eq.${context.workspaceId}`;if(!options.body||!['POST','PUT','PATCH'].includes(method))return[scopedResource,options];try{const value=JSON.parse(options.body),apply=item=>({...item,workspace_id:context.workspaceId});return[scopedResource,{...options,body:JSON.stringify(Array.isArray(value)?value.map(apply):apply(value))}]}catch{return[scopedResource,options]}};
 const supabaseRequest = async (resource, options={}) => {
+  [resource,options]=scopeTaskResource(resource,options);
   if(localRuntime){const result=await localRuntime.store.request(resource,options);if((options.method||'GET').toUpperCase()!=='GET'&&/^(tasks|task_)/.test(resource)){taskDataCache.payload=null;taskDataCache.expiresAt=0}return result}
   const base=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
   const secretFile=process.env.SUPABASE_SECRET_KEY__FILE;
@@ -85,6 +89,7 @@ const supabaseRequest = async (resource, options={}) => {
   if((options.method||'GET').toUpperCase()!=='GET'&&/^(tasks|task_)/.test(resource)){taskDataCache.payload=null;taskDataCache.expiresAt=0}
   return payload;
 };
+const taskCollaboration=require('./task-collaboration').createTaskCollaboration({request:supabaseRequest,readBody});
 const taskActivity=(taskId,action,details={})=>supabaseRequest('task_activities',{method:'POST',body:JSON.stringify({task_id:taskId||null,action,details})}).catch(()=>null);
 const cleanUuid=value=>/^[0-9a-f-]{36}$/i.test(String(value||''))?String(value):null;
 const taskStorageRequest=async(pathname,options={})=>{
@@ -110,6 +115,14 @@ const cleanupExpiredTasks=async()=>{
 };
 if(!localRuntime)setTimeout(cleanupExpiredTasks,1500).unref();
 if(!localRuntime)setInterval(cleanupExpiredTasks,15*60*1000).unref();
+const taskCollaborationRoutes=new Set(['/api/task-context','/api/task-workspaces','/api/task-members','/api/task-invites']);
+const taskDataRoute=pathname=>pathname==='/api/tasks'||/^\/api\/task-(columns|order|notifications|subtasks|comments|attachments)$/.test(pathname);
+const taskRouteMinimum=(pathname,method)=>method==='GET'?'viewer':pathname==='/api/task-columns'?'admin':'member';
+const handlePersonalTaskRoute=async(req,res,url,user)=>{
+  if(taskCollaborationRoutes.has(url.pathname))return taskCollaboration.handle(req,res,user,url,jsonResponse);
+  const workspaceId=url.searchParams.get('workspace'),membership=await taskCollaboration.authorize(user,workspaceId,taskRouteMinimum(url.pathname,req.method));
+  return taskRequestScope.run({workspaceId,role:membership.role,user},()=>handleAuthorizedRequest(req,res,url,user));
+};
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
@@ -160,7 +173,7 @@ http.createServer((req,res)=>{
     const bearer=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
     let personalSession;
     try{personalSession=personalMeta.session(bearer)}catch{return jsonResponse(res,401,{error:'Sessão inválida. Entre novamente.'})}
-    if(personalSession)return personalMeta.handle(req,res,personalSession,requestUrl,jsonResponse).catch(error=>{if(!res.headersSent)jsonResponse(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir a solicitação.'})});
+    if(personalSession){const handler=taskCollaborationRoutes.has(requestUrl.pathname)||taskDataRoute(requestUrl.pathname)?handlePersonalTaskRoute(req,res,requestUrl,personalSession):personalMeta.handle(req,res,personalSession,requestUrl,jsonResponse);return Promise.resolve(handler).catch(error=>{if(!res.headersSent)jsonResponse(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir a solicitação.'})})}
     if(bearer.startsWith('pa_'))return jsonResponse(res,401,{error:'Sua sessão expirou. Entre novamente.'});
   }
   if(!isCreativeAgentRoute&&process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){
@@ -174,11 +187,12 @@ http.createServer((req,res)=>{
     const config=authConfig(),token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
     if(!config.API_SESSION_TOKEN||!safeEqual(token,config.API_SESSION_TOKEN))return jsonResponse(res,401,{error:'Sessão não autorizada.'});
     if(requestUrl.pathname==='/api/session')return jsonResponse(res,200,{ok:true});
+    if(taskCollaborationRoutes.has(requestUrl.pathname)||taskDataRoute(requestUrl.pathname))return jsonResponse(res,403,{error:'Entre com uma conta individual para acessar projetos colaborativos.'});
   }
   return handleAuthorizedRequest(req,res,requestUrl);
 }).listen(port,process.env.HOST||'127.0.0.1',()=>console.log(`Dashboard Meta Ads: http://${process.env.HOST||'127.0.0.1'}:${port}`));
 
-function handleAuthorizedRequest(req,res,requestUrl){
+function handleAuthorizedRequest(req,res,requestUrl,user=null){
   if (requestUrl.pathname === '/api/alert-plans') {
     const file=path.join(alertDataDir,'plans.json');
     if(req.method==='GET')return jsonResponse(res,200,readJsonFile(file,{plans:{}}));
@@ -199,15 +213,12 @@ function handleAuthorizedRequest(req,res,requestUrl){
       return Promise.all([
       supabaseRequest('task_columns?select=id,title,position,role&order=position.asc'),
       supabaseRequest('tasks?select=id,column_id,project_id,module_id,cycle_id,title,description,assignee,priority,due_date,labels,estimate_minutes,completed_at,expires_at,position,created_at,updated_at&order=position.asc'),
-      supabaseRequest('task_projects?select=id,title,color,is_active&order=title.asc'),
-      supabaseRequest('task_modules?select=id,project_id,title&order=title.asc'),
-      supabaseRequest('task_cycles?select=id,project_id,title,starts_on,ends_on&order=starts_on.desc'),
       supabaseRequest('task_subtasks?select=id,task_id,title,is_done,position&order=position.asc'),
       supabaseRequest('task_comments?select=id,task_id,author,body,created_at&order=created_at.asc'),
       supabaseRequest('task_attachments?select=id,task_id,file_name,mime_type,size_bytes,created_at&order=created_at.asc'),
       supabaseRequest('task_activities?select=id,task_id,action,details,actor,created_at&order=created_at.desc&limit=500'),
       supabaseRequest('task_notifications?select=id,task_id,recipient_name,is_read,created_at&order=created_at.desc&limit=500')
-    ]).then(([columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities,notifications])=>{const payload={columns,tasks,projects,modules,cycles,subtasks,comments,attachments,activities,notifications};taskDataCache.payload=payload;taskDataCache.expiresAt=Date.now()+TASK_CACHE_TTL;jsonResponse(res,200,payload)}).catch(error=>jsonResponse(res,502,{error:error.message}));
+    ]).then(([columns,tasks,subtasks,comments,attachments,activities,notifications])=>{const payload={columns,tasks,projects:[],modules:[],cycles:[],subtasks,comments,attachments,activities,notifications};taskDataCache.payload=payload;taskDataCache.expiresAt=Date.now()+TASK_CACHE_TTL;jsonResponse(res,200,payload)}).catch(error=>jsonResponse(res,502,{error:error.message}));
     }
     if(req.method==='POST')return readBody(req,(error,payload)=>{
       if(error||!String(payload?.title||'').trim()||!payload?.column_id)return jsonResponse(res,400,{error:'Preencha o título e a etapa'});
@@ -305,7 +316,14 @@ function handleAuthorizedRequest(req,res,requestUrl){
     if(req.method==='DELETE'){const id=cleanUuid(requestUrl.searchParams.get('id'));if(!id)return jsonResponse(res,400,{error:'Etapa inválida'});return supabaseRequest(`tasks?column_id=eq.${id}&select=id&limit=1`).then(rows=>{if(rows?.length)throw new Error('Mova as tarefas antes de excluir esta etapa.');return supabaseRequest(`task_columns?id=eq.${id}`,{method:'DELETE'})}).then(()=>jsonResponse(res,200,{ok:true})).catch(error=>jsonResponse(res,409,{error:error.message}))}
   }
   if(requestUrl.pathname==='/api/task-order'&&req.method==='PUT')return readBody(req,async(error,payload)=>{const rows=Array.isArray(payload?.items)?payload.items.slice(0,500):[];if(error||!rows.length||rows.some(row=>!cleanUuid(row.id)||!cleanUuid(row.column_id)))return jsonResponse(res,400,{error:'Ordem das tarefas inválida'});try{const updates=rows.map(row=>()=>supabaseRequest(`tasks?id=eq.${cleanUuid(row.id)}`,{method:'PATCH',body:JSON.stringify({column_id:cleanUuid(row.column_id),position:Math.max(0,Number(row.position)||0),completed_at:row.completed_at||null})}));for(let index=0;index<updates.length;index+=12)await Promise.all(updates.slice(index,index+12).map(update=>update()));jsonResponse(res,200,{ok:true,updated:rows.length})}catch(dbError){jsonResponse(res,502,{error:dbError.message})}});
-  if(requestUrl.pathname==='/api/task-notifications'&&req.method==='POST')return readBody(req,(error,payload)=>{const taskId=cleanUuid(payload?.task_id),recipients=Array.isArray(payload?.recipients)?[...new Set(payload.recipients.map(value=>String(value).trim()).filter(Boolean))].slice(0,20):[];if(error||!taskId||!recipients.length)return jsonResponse(res,400,{error:'Menção inválida'});supabaseRequest('task_notifications?on_conflict=task_id,recipient_name',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(recipients.map(recipient_name=>({task_id:taskId,recipient_name}))) }).then(data=>jsonResponse(res,201,{created:data?.length||0})).catch(dbError=>jsonResponse(res,502,{error:dbError.message}))});
+  if(requestUrl.pathname==='/api/task-notifications'&&req.method==='POST')return readBody(req,(error,payload)=>{
+    const taskId=cleanUuid(payload?.task_id);
+    const recipients=Array.isArray(payload?.recipients)?[...new Set(payload.recipients.map(value=>String(value).trim()).filter(Boolean))].slice(0,20):[];
+    if(error||!taskId||!recipients.length)return jsonResponse(res,400,{error:'Menção inválida'});
+    supabaseRequest('task_notifications?on_conflict=task_id,recipient_name',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(recipients.map(recipient_name=>({task_id:taskId,recipient_name})))})
+      .then(data=>jsonResponse(res,201,{created:data?.length||0}))
+      .catch(dbError=>jsonResponse(res,502,{error:dbError.message}));
+  });
   if(['/api/task-projects','/api/task-modules','/api/task-cycles'].includes(requestUrl.pathname)){
     const table=requestUrl.pathname==='/api/task-projects'?'task_projects':requestUrl.pathname==='/api/task-modules'?'task_modules':'task_cycles';
     if(req.method==='POST')return readBody(req,(error,payload)=>{
