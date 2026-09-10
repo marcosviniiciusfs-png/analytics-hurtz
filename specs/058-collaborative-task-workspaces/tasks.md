@@ -25,5 +25,9 @@
 
 - [X] T013 Testar isolamento e matriz de autorização com dois usuários.
 - [X] T014 Testar regressão completa do quadro em navegador.
-- [ ] T015 Aplicar migração, implantar backend e publicar frontend.
-- [ ] T016 Executar convergência final.
+- [X] T015 Aplicar migração, implantar backend e publicar frontend.
+- [X] T016 Executar convergência final.
+
+## Phase 5: Convergence
+
+- [ ] T017 Implementar transferência de propriedade e exclusão de projeto, com operação atômica e confirmação reforçada, conforme a matriz de permissões da especificação (missing).
