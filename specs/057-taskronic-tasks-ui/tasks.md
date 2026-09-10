@@ -38,3 +38,11 @@
 - [x] T019 Simplificar o gerenciamento de etapas e separar a organização avançada.
 - [x] T020 Corrigir reordenação e estados inválidos de módulos e ciclos.
 - [x] T021 Cobrir a lógica revisada no teste de navegador e atualizar a convergência.
+
+## Simplificação final
+
+- [x] T022 Remover botão e modal redundantes de etapas.
+- [x] T023 Criar etapas diretamente no quadro.
+- [x] T024 Remover projetos, módulos e ciclos dos filtros e do formulário de tarefa.
+- [x] T025 Preservar silenciosamente vínculos antigos ao editar tarefas.
+- [x] T026 Atualizar teste e convergência do fluxo simplificado.

@@ -36,3 +36,12 @@ Nenhuma pendência obrigatória identificada para esta especificação.
 - Módulos e ciclos ficam desabilitados até existir um projeto.
 - Corrigido o erro de escopo que interrompia a reordenação de etapas.
 - O teste de navegador cobre as novas decisões e permanece sem erros JavaScript.
+
+## Simplificação final — 2026-09-10
+
+- Removidos o botão global de etapas e o modal redundante.
+- A engrenagem de cada coluna é o único lugar para renomear, definir função ou excluir aquela etapa.
+- A criação de etapa agora acontece diretamente no final do quadro.
+- Projetos, módulos e ciclos foram removidos dos filtros, da tarefa e da visualização em lista.
+- Vínculos antigos dessas estruturas são preservados silenciosamente durante uma edição.
+- O teste de navegador confirma a ausência da hierarquia antiga, criação direta de etapa e configuração pela coluna.

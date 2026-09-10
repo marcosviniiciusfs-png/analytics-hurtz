@@ -115,3 +115,11 @@ O usuário consegue operar a seção a partir de celular ou tablet sem controles
 - O modal deve abrir diretamente no gerenciamento de etapas. Projetos, módulos e ciclos são opcionais e ficam em uma área avançada separada.
 - Módulos e ciclos só podem ser criados quando existir um projeto, com estado desabilitado e explicação clara caso contrário.
 - Reordenar, editar e excluir etapas deve usar a configuração própria da etapa, sem ações duplicadas ou prompts improvisados.
+
+## Simplificação do fluxo — 2026-09-10
+
+- O botão global **Etapas** e seu modal serão removidos porque cada coluna já possui configuração própria.
+- A criação de uma etapa acontecerá diretamente no final do quadro, sem abrir outro gerenciador.
+- Projetos, módulos e ciclos sairão da interface principal por não fazerem parte do fluxo real utilizado hoje.
+- Dados antigos dessas estruturas não serão apagados do banco; apenas deixarão de interferir na experiência.
+- O produto passa a ter uma hierarquia simples: quadro → etapas → tarefas.

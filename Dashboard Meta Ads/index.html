@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260823-2" />
-  <link rel="stylesheet" href="brand-overrides.css?v=20260910-task-logic" />
+  <link rel="stylesheet" href="brand-overrides.css?v=20260910-task-simplified" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -160,7 +160,7 @@
       <section class="tasks-view" id="tasks" hidden>
         <header class="tasks-heading">
           <div class="tasks-title-block"><p class="eyebrow">WORKSPACE DA EQUIPE</p><div><h2>Tarefas</h2><span class="tasks-live-dot">Sincronizado</span></div><p>Planeje, acompanhe e conclua o trabalho da equipe em um só lugar.</p></div>
-          <div class="tasks-heading-actions"><button class="task-icon-button task-notification-button" id="taskNotificationsButton" type="button" aria-label="Abrir menções"><b>Menções</b><i id="taskNotificationCount">0</i></button><button class="task-secondary-button" id="taskStructureButton" type="button"><span aria-hidden="true">⚙</span> Etapas</button></div>
+          <div class="tasks-heading-actions"><button class="task-icon-button task-notification-button" id="taskNotificationsButton" type="button" aria-label="Abrir menções"><b>Menções</b><i id="taskNotificationCount">0</i></button></div>
         </header>
         <div class="task-retention-notice" role="alert"><span class="task-retention-icon" aria-hidden="true">⌛</span><div><strong>As tarefas são temporárias</strong><span>Tarefas e arquivos são apagados permanentemente 72 horas após a criação.</span></div><button type="button" id="taskRetentionDetails" aria-label="Entender a retenção de tarefas">Entender</button></div>
         <div class="task-workspace-shell">
@@ -169,7 +169,7 @@
             <div class="task-workspace-actions"><label class="task-search"><span aria-hidden="true">⌕</span><input id="taskSearch" type="search" placeholder="Buscar tarefas" autocomplete="off" /></label><button class="task-filter-button" id="taskFilterToggle" type="button" aria-expanded="false" aria-controls="taskFilterPanel"><span aria-hidden="true">☷</span> Filtros <i id="taskActiveFilterCount" hidden>0</i></button><div class="task-view-switch" aria-label="Modo de visualização"><button class="active" type="button" data-task-view="board">Quadro</button><button type="button" data-task-view="list">Lista</button><button type="button" data-task-view="calendar">Calendário</button><button type="button" data-task-view="analytics">Resumo</button></div><button class="task-refresh-button" id="refreshTasks" type="button" aria-label="Atualizar tarefas" title="Atualizar tarefas">↻</button></div>
           </header>
           <div class="task-filter-panel" id="taskFilterPanel" hidden>
-            <div><label><span>Projeto</span><select id="taskProjectFilter"><option value="">Todos os projetos</option></select></label><label><span>Módulo</span><select id="taskModuleFilter"><option value="">Todos os módulos</option></select></label><label><span>Ciclo</span><select id="taskCycleFilter"><option value="">Todos os ciclos</option></select></label><label><span>Prioridade</span><select id="taskPriorityFilter"><option value="">Todas as prioridades</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select></label><label><span>Responsável</span><select id="taskAssigneeFilter"><option value="">Todos os responsáveis</option></select></label></div>
+            <div><label><span>Prioridade</span><select id="taskPriorityFilter"><option value="">Todas as prioridades</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select></label><label><span>Responsável</span><select id="taskAssigneeFilter"><option value="">Todos os responsáveis</option></select></label></div>
             <button type="button" id="taskClearFilters">Limpar filtros</button>
           </div>
           <div class="task-deadline-alerts" id="taskDeadlineAlerts" hidden></div>
@@ -215,9 +215,6 @@
             <label>PRIORIDADE<select id="taskPriority"><option value="low">Baixa</option><option value="medium" selected>Média</option><option value="high">Alta</option></select></label>
             <label>PRAZO<input id="taskDueDate" type="date" /></label>
             <label>ETAPA<select id="taskColumn"></select></label>
-            <label>PROJETO<select id="taskProject"></select></label>
-            <label>MÓDULO<select id="taskModule"><option value="">Sem módulo</option></select></label>
-            <label>CICLO<select id="taskCycle"><option value="">Sem ciclo</option></select></label>
             <label>ESTIMATIVA (MINUTOS)<input id="taskEstimate" type="number" min="0" max="100000" placeholder="Ex.: 60" /></label>
           </div>
           <div class="task-form-actions"><button class="task-delete-button" id="deleteTask" type="button" hidden>Excluir</button><button class="task-primary-button" type="submit">Salvar tarefa</button></div>
@@ -226,29 +223,6 @@
             <div class="task-detail-tabs"><button class="active" type="button" data-task-detail="checklist">Checklist</button><button type="button" data-task-detail="comments">Comentários</button><button type="button" data-task-detail="attachments">Anexos</button><button type="button" data-task-detail="activity">Histórico</button></div>
             <div class="task-detail-panel" id="taskDetailPanel"></div>
           </section>
-        </form>
-      </div>
-
-      <div class="task-modal" id="taskStructureModal" hidden>
-        <form class="task-dialog task-structure-dialog" id="taskStructureForm">
-          <button class="task-modal-close" type="button" id="closeTaskStructure" aria-label="Fechar">×</button>
-          <p class="eyebrow">CONFIGURAÇÃO DO QUADRO</p><h3>Etapas e organização</h3><p class="task-structure-intro">Ajuste primeiro o fluxo do quadro. Os recursos de projeto são opcionais.</p>
-          <div class="task-structure-tabs" role="tablist" aria-label="Configurações do quadro"><button class="active" type="button" role="tab" aria-selected="true" data-structure-tab="stages">Etapas</button><button type="button" role="tab" aria-selected="false" data-structure-tab="advanced">Projetos e ciclos <span>Opcional</span></button></div>
-          <section class="task-structure-panel" data-structure-panel="stages">
-            <div class="task-stage-create"><div><b>Nova etapa</b><small>Adicione uma coluna ao final do quadro.</small></div><input id="newTaskColumnTitle" maxlength="80" placeholder="Nome da etapa" /><select id="newTaskColumnRole" aria-label="Função da nova etapa"><option value="standard">Etapa normal</option><option value="in_progress">Em andamento</option><option value="review">Revisão</option><option value="blocked">Bloqueada</option><option value="completed">Tarefa concluída</option></select><button type="button" data-create-structure="column">Adicionar etapa</button></div>
-            <div class="task-stage-list-head"><div><b>Etapas do quadro</b><small>Arraste tarefas entre elas. Use as setas para mudar a ordem.</small></div></div>
-            <div class="task-structure-existing" id="taskStructureExisting"></div>
-          </section>
-          <section class="task-structure-panel" data-structure-panel="advanced" hidden>
-            <div class="task-advanced-notice"><b>Organização opcional</b><span>Use projetos somente se precisar agrupar tarefas. Módulos e ciclos dependem de um projeto.</span></div>
-            <div class="task-structure-grid task-advanced-grid">
-              <label>NOVO PROJETO<input id="newTaskProjectTitle" maxlength="100" placeholder="Nome do projeto" /><button type="button" data-create-structure="project">Criar projeto</button></label>
-              <label>NOVO MÓDULO<select id="newTaskModuleProject" aria-label="Projeto do módulo"></select><input id="newTaskModuleTitle" maxlength="100" placeholder="Nome do módulo" /><small class="task-project-required">Crie um projeto antes de adicionar módulos.</small><button type="button" data-create-structure="module">Criar módulo</button></label>
-              <label>NOVO CICLO<select id="newTaskCycleProject" aria-label="Projeto do ciclo"></select><input id="newTaskCycleTitle" maxlength="100" placeholder="Nome do ciclo" /><div><input id="newTaskCycleStart" type="date" aria-label="Início do ciclo" /><input id="newTaskCycleEnd" type="date" aria-label="Fim do ciclo" /></div><small class="task-project-required">Crie um projeto antes de adicionar ciclos.</small><button type="button" data-create-structure="cycle">Criar ciclo</button></label>
-            </div>
-            <div class="task-advanced-existing" id="taskAdvancedStructures"></div>
-          </section>
-          <span class="task-form-status" id="taskStructureStatus"></span>
         </form>
       </div>
 
@@ -399,6 +373,6 @@
       <div class="campaign-section"><div class="campaign-title"><div><h3>Campanhas com veiculação</h3><p id="campaignPeriod"></p></div><span id="campaignCount"></span></div><form class="campaign-goal-panel" id="campaignGoalPanel" hidden><div><strong id="campaignGoalTitle">Configurar coluna</strong><small>Metas diárias desta conta para definir as cores.</small></div><div class="campaign-goal-fields" id="campaignGoalFields"></div><button type="submit">Salvar metas</button><button type="button" class="clear-goal-button" id="clearCampaignGoal">Limpar</button><button type="button" class="close-goal-button" id="closeCampaignGoal">×</button></form><div class="campaign-table-wrap"><table class="campaign-table"><thead><tr><th>Campanha</th><th>Objetivo</th><th>Status</th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="investment">Investimento <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="results">Resultados <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="cost">Custo/resultado <span>⚙</span></button></th></tr></thead><tbody id="campaignBody"></tbody><tfoot id="campaignFoot"></tfoot></table></div></div>
     </section>
   </div>
-  <script src="app.js?v=20260910-task-logic"></script>
+  <script src="app.js?v=20260910-task-simplified"></script>
 </body>
 </html>
