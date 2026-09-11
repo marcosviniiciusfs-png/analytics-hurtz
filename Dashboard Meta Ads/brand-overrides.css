@@ -422,6 +422,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 #cmQuickForm textarea[name="description"]::placeholder{color:var(--comment-muted);opacity:1}
 #cmQuickForm label small{display:block;color:var(--comment-muted);font:400 12px/1.55 "DM Sans",sans-serif}
 #cmQuickForm #cmQuickStatus{min-height:20px;margin:0;color:var(--comment-muted);font-size:13px;line-height:1.5}
+#cmQuickForm #cmQuickStatus:not(:empty){padding:14px 16px;border:1px dashed #c38a16;border-radius:10px;background:#fff7d9;color:#624300;font-weight:600}
 #cmQuickForm>.cm-primary{justify-self:start;min-width:218px}
 #cmQuickForm[aria-busy="true"] textarea{opacity:.72;cursor:wait}
 @media(max-width:600px){.cm-choice{padding:20px}.cm-choice .cm-heading{gap:12px}.cm-choice .cm-heading h3{font-size:21px}#cmQuickForm{gap:14px;margin-top:18px}#cmQuickForm textarea[name="description"]{min-height:170px;font-size:16px}#cmQuickForm>.cm-primary{width:100%;justify-self:stretch}}
