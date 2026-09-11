@@ -152,3 +152,10 @@ test('long-lived connection survives logout, a new session and server restart wi
  await f.request(f.sessionA,'/api/session','DELETE');assert.ok(f.api.read('connection','user-a'));
  const restarted=createPersonalMeta({directory:f.directory,oauthConfig:null}),session=restarted.issueSession({id:'user-a',email:'a@example.test'});const req=Object.assign(Readable.from([]),{method:'GET'});let result;await restarted.handle(req,{},restarted.session(session),new URL('https://test/api/meta/connection'),(_,status,payload)=>result=payload);assert.equal(result.connected,true);assert.ok(!JSON.stringify(result).includes(stored.token));assert.equal(f.api.read('connection','user-b'),null);
 });
+
+test('an expired local hint is renewed when Meta still accepts the saved token',async t=>{
+ const f=fixture(t,null,{oauthConfig:{appId:'2093320124537661',secret:'test-app-secret'}});await f.connect(f.sessionA,f.tokens.a);
+ const initial=f.api.read('connection','user-a');f.api.write('connection','user-a',{...initial,expiresAt:Date.now()-60000,longLived:true,exchangeAttemptAt:0});
+ const result=await f.request(f.sessionA,'/api/meta/connection');const renewed=f.api.read('connection','user-a');
+ assert.equal(result.body.connected,true);assert.ok(renewed.expiresAt>Date.now()+59*86400000);assert.ok(renewed.token.endsWith('-long'));
+});

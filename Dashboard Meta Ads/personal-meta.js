@@ -50,7 +50,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   const exchanges=new Map();
   const tokenService=require('./facebook-token');
   const exchangeToken=token=>tokenService.exchange(token,{fetchImpl,...(oauthConfig!==undefined?{config:oauthConfig}:{})});
-  async function upgradeConnection(user){const conn=read('connection',user.id),renewBefore=14*86400000;if(!conn||(conn.expiresAt&&conn.expiresAt<=Date.now())||(conn.dataExpiresAt&&conn.dataExpiresAt<=Date.now())||(conn.expiresAt&&conn.expiresAt>Date.now()+renewBefore))return conn;
+  async function upgradeConnection(user){const conn=read('connection',user.id),renewBefore=14*86400000;if(!conn||(conn.dataExpiresAt&&conn.dataExpiresAt<=Date.now())||(conn.expiresAt&&conn.expiresAt>Date.now()+renewBefore))return conn;
     if(exchanges.has(user.id))return exchanges.get(user.id);
     if(conn.exchangeAttemptAt&&Date.now()-conn.exchangeAttemptAt<3600000)return conn;
     if(!(oauthConfig===undefined?tokenService.configuration():oauthConfig))return conn;
