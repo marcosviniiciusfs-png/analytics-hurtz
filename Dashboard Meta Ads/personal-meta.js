@@ -141,7 +141,9 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (route === '/api/meta/connection' && req.method === 'GET') {
       const conn = await upgradeConnection(user);
       const expired = Boolean(conn && ((conn.expiresAt && conn.expiresAt <= Date.now()) || (conn.dataExpiresAt && conn.dataExpiresAt <= Date.now())));
-      return send(res, 200, {appId: APP_ID, version: VERSION, connected: Boolean(conn) && !expired, expired, name: conn?.name || '', expiresAt: conn?.expiresAt || null});
+      if(!conn||expired||url.searchParams.get('verify')!=='1')return send(res,200,{appId:APP_ID,version:VERSION,connected:Boolean(conn)&&!expired,expired,name:conn?.name||'',expiresAt:conn?.expiresAt||null});
+      try{await graph(conn.token,'me',{fields:'id'});return send(res,200,{appId:APP_ID,version:VERSION,connected:true,expired:false,name:conn.name||'',expiresAt:conn.expiresAt||null});}
+      catch(error){if(error.status===409)return send(res,200,{appId:APP_ID,version:VERSION,connected:false,expired:false,rejected:true,name:conn.name||'',expiresAt:conn.expiresAt||null});throw error}
     }
     if (route === '/api/meta/challenge' && req.method === 'POST') {
       for (const [id, item] of challenges) if (item.expires <= Date.now()) challenges.delete(id);

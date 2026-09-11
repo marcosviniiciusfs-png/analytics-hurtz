@@ -1761,7 +1761,7 @@ facebookConnect.onclick=()=>{
   if(!window.FB||!facebookNonce)return;
   if(Date.now()-facebookNonceAt>8*60000){reconnectingComments=false;reconnectingInstagram=false;reconnectingAds=false;void prepareFacebookLogin().then(()=>{facebookStatus.textContent='Autorização preparada. Clique novamente para continuar.'}).catch(e=>{facebookStatus.textContent=e.message});return}
   const requestedAds=reconnectingAds;reconnectingAds=false;const requestedComments=reconnectingComments,requestedInstagram=reconnectingInstagram;reconnectingComments=false;reconnectingInstagram=false;facebookLoginBusy=true;
-  const loginScopes=requestedAds?'ads_read,ads_management,business_management,pages_show_list,pages_read_engagement,pages_manage_ads':requestedInstagram?'ads_read,business_management,pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_engagement,instagram_basic,instagram_manage_comments':requestedComments?'ads_read,business_management,pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_engagement':'ads_read,business_management';
+  const loginScopes=requestedAds?'ads_read,ads_management,business_management,pages_show_list,pages_read_engagement,pages_manage_ads,leads_retrieval':requestedInstagram?'ads_read,business_management,pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_engagement,instagram_basic,instagram_manage_comments':requestedComments?'ads_read,business_management,pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_engagement':'ads_read,business_management';
   facebookConnect.disabled=true;facebookStatus.textContent='Autorize o acesso na janela do Facebook.';
   try{window.FB.login(response=>{void(async()=>{
     if(!response.authResponse?.accessToken){facebookLoginBusy=false;renderFacebookConnection();facebookStatus.textContent=facebookSettings?.connected?'Autorização cancelada ou recusada. Sua conexão salva foi mantida.':'Conexão cancelada ou recusada. Você pode tentar novamente.';try{await prepareFacebookLogin()}catch(error){facebookStatus.textContent=error.message}return}
@@ -1790,8 +1790,8 @@ if(personalIdentity?.personal){
   if(!window.HURTZ_LOCAL&&!personalIdentity?.tools)['alertsNav','tasksNav','creativeNav','creativeLibraryNav','creativeSearchNav','commentsNav','settingsNav'].forEach(id=>{const element=document.getElementById(id);if(element)element.hidden=true});
   document.querySelector('#facebookConnectionTitle').textContent='Seu Facebook no Traffic pocket';
   void (async()=>{try{
-    facebookSettings=await personalRequest('/api/meta/connection');
-    facebookStatus.textContent=facebookSettings.connected?`Conectado como ${facebookSettings.name}. Sua conexão está salva para os próximos acessos.`:facebookSettings.expired?'Sua autorização expirou. Conecte o Facebook novamente.':'Conecte seu Facebook e autorize a leitura das contas que deseja acompanhar.';
+    facebookSettings=await personalRequest('/api/meta/connection?verify=1');
+    facebookStatus.textContent=facebookSettings.connected?`Conectado como ${facebookSettings.name}. Sua conexão está salva para os próximos acessos.`:facebookSettings.rejected?'A Meta recusou a autorização salva para este aplicativo. Conecte novamente para atualizá-la.':facebookSettings.expired?'Sua autorização expirou. Conecte o Facebook novamente.':'Conecte seu Facebook e autorize a leitura das contas que deseja acompanhar.';
     renderFacebookConnection();
     facebookDisconnect.hidden=!facebookSettings.connected;
     if(facebookSettings.connected){facebookConnect.disabled=false;void(async()=>{const found=await findMetaAccounts(false);if(found){await loadAccountProfiles();loadPlans();await hydrateAlertPlans();if(selectedAccountIds.size){loadAuditedPeriod(globalPeriod.from,globalPeriod.to);loadLastThreeDays();loadRealControlData(globalPeriod.to)}}})().catch(error=>{facebookStatus.textContent='Facebook conectado. Não foi possível atualizar as contas: '+error.message})}
