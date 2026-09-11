@@ -6,7 +6,7 @@ const text=(value,max=200)=>{if(typeof value!=='string'||!value.trim()||value.le
 const link=value=>{try{const u=new URL(value);if(u.protocol==='https:'&&!u.username&&!u.password)return u.href}catch{}throw fail(400,'Informe um endereço HTTPS válido.')};
 async function body(req){let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>29*1024*1024)throw fail(413,'Arquivo acima do limite de 20 MB.');chunks.push(chunk)}try{return JSON.parse(Buffer.concat(chunks).toString())}catch{throw fail(400,'Dados inválidos.')}}
 
-function createCampaignManager({graph,rows,authorizeAccounts,connection,read,write,fetchImpl,planCampaign=require("./campaign-planner").plan}){
+function createCampaignManager({graph,rows,authorizeAccounts,connection,read,write,fetchImpl,planCampaign=require("./campaign-planner").plan,requiredDetails=require("./campaign-planner").missingRequiredDetails}){
   const locks=new Set(), planning=new Set();
   const current=(user,conn)=>{if(connection(user).revision!==conn.revision)throw fail(409,'A conexão mudou. Reabra esta conta antes de continuar.')};
   async function access(user,account,manage=false){const {conn,accounts}=await authorizeAccounts(user,[account]);if(manage&&!conn.scopes?.includes('ads_management'))throw fail(403,'Autorize o gerenciamento de anúncios. O app precisa ter ads_management aprovado para seu acesso.');return {conn,account:accounts.find(a=>a.id===account)}}
@@ -38,6 +38,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       if(planning.has(user.id))throw fail(409,'Já existe uma campanha sendo preparada. Aguarde.');
       const last=read('ads-plan-time',user.id);if(last&&Date.now()-last<15000)throw fail(429,'Aguarde alguns segundos antes de gerar novamente.');
       if(typeof p.description!=='string'||p.description.trim().length<12||p.description.length>1500)throw fail(400,'Descreva a campanha em 12 a 1500 caracteres.');
+      const missing=requiredDetails(p.description);if(missing.length)throw fail(400,'Antes de montar a campanha, informe '+missing.join(', ') + '.');
       const available=await pages(conn,account);if(!available.length)throw fail(403,'Esta conta não possui uma Página disponível para anunciar.');
       const page=available.find(x=>x.id===p.page)||available[0];
       planning.add(user.id);try{

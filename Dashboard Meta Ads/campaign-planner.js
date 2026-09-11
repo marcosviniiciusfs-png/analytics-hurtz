@@ -11,6 +11,13 @@ function configuration(){
   const key=process.env.GROQ_API_KEY||values.GROQ_API_KEY;
   return {provider:'groq',key,model:process.env.CAMPAIGN_AI_MODEL||values.CAMPAIGN_AI_MODEL||'openai/gpt-oss-20b',url:'https://api.groq.com/openai/v1/chat/completions'};
 }
+function missingRequiredDetails(description){
+  const value=String(description||'');
+  const hasBudget=/(?:r\$\s*\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)?\s*(?:reais?|brl)|(?:orçamento|invest(?:ir|imento)?)[^.\n]{0,48}\d+)/i.test(value);
+  const hasAge=/\b(?:1[89]|[2-5]\d|6[0-5])\s*(?:a|até|[-–])\s*(?:1[89]|[2-5]\d|6[0-5])\s*anos?\b/i.test(value);
+  const hasDestination=/\b(?:whats(?:app)?|formul[aá]rio(?:\s+de\s+leads?)?|site|website|landing\s*page)\b/i.test(value);
+  return [!hasBudget&&'o orçamento diário (ex.: R$ 40 por dia)',!hasAge&&'a faixa etária (ex.: 25 a 45 anos)',!hasDestination&&'o destino dos leads (WhatsApp, formulário ou site)'].filter(Boolean);
+}
 function normalize(result){
   if(!result||typeof result!=='object'||Array.isArray(result))return result;
   const value={...result},placements=Array.isArray(value.placements)?value.placements.join(' '):String(value.placements||'').toLowerCase();
@@ -46,4 +53,4 @@ async function plan(context,{fetchImpl=fetch,config=configuration()}={}){
   }
   throw fail(502,'A IA retornou configurações inválidas. Gere novamente.');
 }
-module.exports={plan,configuration,valid,normalize};
+module.exports={plan,configuration,valid,normalize,missingRequiredDetails};
