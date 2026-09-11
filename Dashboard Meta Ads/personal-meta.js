@@ -168,12 +168,16 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const scopes=permissionRows.filter(item=>item.status==='granted').map(item=>item.permission);
       if(application.id!==APP_ID)throw fail(403,'Conecte o Facebook pelo aplicativo Tryv CRM.');
       if(!me.id||!scopes.some(scope=>['ads_read','ads_management'].includes(scope)))throw fail(403,'Autorize a leitura de anúncios pelo Tryv CRM em Editar configurações no Facebook.');
-      const accounts = await rows(token, 'me/adaccounts', {fields: 'id,name'});
+      const [accounts,pageRows] = await Promise.all([
+        rows(token, 'me/adaccounts', {fields: 'id,name'}),
+        rows(token, 'me/accounts', {fields: 'id,name,access_token'}),
+      ]);
       // SDK expiry is only a conservative UI hint, never an authorization decision:
       // every catalog/report is checked live against Meta with this user's token.
       const seconds=Number(payload.expiresIn),shortExpiry=Number.isFinite(seconds)&&seconds>0?Date.now()+Math.min(seconds,60*86400)*1000:0;
       const upgraded=await exchangeToken(token);if(upgraded)token=upgraded.token;
-      write('connection', user.id, {token, facebookId: me.id, name: me.name, scopes, revision: crypto.randomUUID(), expiresAt:upgraded?.expiresAt||shortExpiry, longLived:Boolean(upgraded), dataExpiresAt: 0});
+      const pageTokens=Object.fromEntries(pageRows.filter(page=>page.id&&typeof page.access_token==='string').map(page=>[String(page.id),page.access_token]));
+      write('connection', user.id, {token, pageTokens, facebookId: me.id, name: me.name, scopes, revision: crypto.randomUUID(), expiresAt:upgraded?.expiresAt||shortExpiry, longLived:Boolean(upgraded), dataExpiresAt: 0});
       return send(res, 200, {connected: true, name: me.name, accountCount: accounts.length});
     }
     if (route === '/api/meta/connection' && req.method === 'DELETE') {
