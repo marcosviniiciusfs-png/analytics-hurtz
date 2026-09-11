@@ -1789,7 +1789,7 @@ function forgetPersonalCache(){
   Object.keys(window.localStorage).filter(key=>key.startsWith(prefix)).forEach(key=>window.localStorage.removeItem(key));
 }
 let facebookNonce='',facebookSettings=null,facebookNonceAt=0,facebookLoginBusy=false;
-function renderFacebookConnection(){facebookConnect.textContent=facebookSettings?.connected?'Conectado ao Facebook':'Conectar Facebook';facebookConnect.dataset.connected=String(Boolean(facebookSettings?.connected));facebookDisconnect.hidden=!facebookSettings?.connected&&!facebookSettings?.expired;facebookConnect.title=facebookSettings?.connected?'Sua conexão está salva. Revise permissões na seção Comentários.':'Conectar sua conta do Facebook'}
+function renderFacebookConnection(){facebookConnect.textContent=facebookSettings?.connected?'Conectado ao Facebook':'Conectar Facebook';facebookConnect.dataset.connected=String(Boolean(facebookSettings?.connected));facebookDisconnect.hidden=!facebookSettings?.connected;facebookConnect.title=facebookSettings?.connected?'Sua conexão está salva. Revise permissões na seção Comentários.':'Conectar sua conta do Facebook'}
 async function prepareFacebookLogin(){
   if(!facebookSettings?.connected)facebookConnect.disabled=true;
   const result=await personalRequest('/api/meta/challenge',{method:'POST'});
@@ -1848,14 +1848,14 @@ if(personalIdentity?.personal){
     facebookSettings=await personalRequest('/api/meta/connection');
     facebookStatus.textContent=facebookSettings.connected?`Conectado como ${facebookSettings.name}. Sua conexão está salva para os próximos acessos.`:facebookSettings.expired?'Sua autorização expirou. Conecte o Facebook novamente.':'Conecte seu Facebook e autorize a leitura das contas que deseja acompanhar.';
     renderFacebookConnection();
-    facebookDisconnect.hidden=!facebookSettings.connected&&!facebookSettings.expired;
+    facebookDisconnect.hidden=!facebookSettings.connected;
     if(facebookSettings.connected){facebookConnect.disabled=false;void(async()=>{const found=await findMetaAccounts(false);if(found){await loadAccountProfiles();loadPlans();await hydrateAlertPlans();if(selectedAccountIds.size){loadAuditedPeriod(globalPeriod.from,globalPeriod.to);loadLastThreeDays();loadRealControlData(globalPeriod.to)}}})().catch(error=>{facebookStatus.textContent='Facebook conectado. Não foi possível atualizar as contas: '+error.message})}
     await loadFacebookSdk(facebookSettings);await prepareFacebookLogin();
   }catch(error){facebookStatus.textContent=error.message}})();
 }
 setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date.now()-facebookNonceAt>5*60000)void prepareFacebookLogin().catch(()=>{})},60000);
 if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260909-traffic-pocket');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
-const campaignModule=await import('./campaign-manager-ui.js?v=20260911-intelligent-campaign');
+const campaignModule=await import('./campaign-manager-ui.js?v=20260911-facebook-renewal');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);
 const priorAccountTab=setAccountTab;setAccountTab=function(tab){campaignManagerUI.panel.hidden=tab!=='manage';document.querySelectorAll('#accountModal .modal-toolbar,#modalSummary,#planStrip').forEach(el=>el.hidden=tab==='manage');if(tab==='manage'){activeAccountTab=tab;document.querySelectorAll('[data-account-tab]').forEach(b=>b.classList.toggle('active',b.dataset.accountTab===tab));document.querySelector('#campaignTabPanel').hidden=true;document.querySelector('#accountAnalysisPanel').hidden=true;campaignManagerUI.open()}else{priorAccountTab(tab);renderModal();loadSelectedAccountAudit()}};campaignTab.onclick=()=>setAccountTab('manage');
