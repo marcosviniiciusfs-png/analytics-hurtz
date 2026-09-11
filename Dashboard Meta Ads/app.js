@@ -1874,5 +1874,21 @@ window.addEventListener('popstate',()=>{if(campaignManagerUI.busy()){history.rep
 document.querySelector('.sidebar nav').addEventListener('click',event=>{if(event.target.closest('a')){if(campaignManagerUI.busy()){event.preventDefault();event.stopImmediatePropagation();return}const link=event.target.closest('a'),target=new URL(link.href,location.href);if(target.origin===location.origin){event.preventDefault();event.stopImmediatePropagation();const view=target.searchParams.get('view')||(target.hash==='#accounts'?'accounts':'overview');history.pushState(null,'','?view='+encodeURIComponent(view));showDashboardView(view)}else hideAccountPage()}},true);
 routeAccount();
 window.addEventListener('storage',event=>{if(event.key===MONITOR_SESSION_KEY)location.reload()});
+/* Keep the overview for aggregate metrics and reserve the account catalog for its own view. */
+const trafficViewRouter=showDashboardView;
+showDashboardView=function(view){
+  trafficViewRouter(view);
+  if(view!=='overview'&&view!=='accounts')return;
+  const summary=document.querySelector('#summaryCards'),catalog=document.querySelector('#accounts'),header=document.querySelector('main>header');
+  const title=header.querySelector('h1'),subtitle=header.querySelector('.subtitle'),eyebrow=header.querySelector('.eyebrow');
+  const accountsView=view==='accounts';
+  summary.hidden=accountsView;
+  catalog.hidden=!accountsView;
+  eyebrow.textContent=accountsView?'CONTAS META ADS':'CENTRAL DE MONITORAMENTO';
+  title.textContent=accountsView?'Contas de anúncio':'Visão geral';
+  subtitle.textContent=accountsView?'Consulte, filtre e abra cada conta de anúncio autorizada.':'Acompanhe os indicadores consolidados das contas selecionadas.';
+};
+const trafficInitialView=new URLSearchParams(location.search).get('view')||'overview';
+if(trafficInitialView!=='account')showDashboardView(trafficInitialView);
 
 })().catch(error=>{console.error("Falha ao iniciar o Traffic pocket");const status=document.querySelector("#accountSearchStatus");if(status)status.textContent="Não foi possível iniciar. Atualize a página."});
