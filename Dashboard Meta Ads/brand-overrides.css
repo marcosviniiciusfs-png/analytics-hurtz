@@ -480,3 +480,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 /* Navigation contrast and the lime-to-forest wordmark. */
 .sidebar{--side-bg:#0b2d1c;--side-elevated:#123c25;--side-muted:#c6d2c5;--side-text:#f8fcf7;--side-accent:#88ca3d;--side-border:rgba(230,246,225,.13);background:var(--side-bg)!important}.sidebar .brand-name{background:linear-gradient(90deg,#b5e84c 0%,#71b633 48%,#1f632f 100%);-webkit-background-clip:text;background-clip:text;color:transparent!important;font-weight:800!important}.sidebar nav a{color:var(--side-muted)!important;font-weight:600}.sidebar nav a:hover{background:#123c25!important;color:var(--side-text)!important}.sidebar nav a.active{background:linear-gradient(90deg,rgba(136,202,61,.25),rgba(31,99,47,.36))!important;color:var(--side-text)!important;box-shadow:inset 0 0 0 1px rgba(181,232,76,.42)!important}.sidebar nav a.active .nav-icon{color:#b5e84c!important}.sidebar nav a.active::before{background:#88ca3d!important;box-shadow:0 0 10px rgba(136,202,61,.5)!important}.sidebar nav a:focus-visible{outline-color:#b5e84c!important}.sidebar .sidebar-foot{background:#123c25!important}.sidebar .sidebar-foot small{color:#c6d2c5!important}
++/* Intelligent campaign form: keep the prompt, editor and help text in their own rows. */
+#cmQuickForm{display:grid;gap:16px;max-width:760px;margin-top:22px}
+#cmQuickForm>label{display:grid;gap:8px;color:var(--ink);font:700 14px "DM Sans",sans-serif}
+#cmQuickForm textarea[name="description"]{display:block;box-sizing:border-box;width:100%;min-height:184px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--white);color:var(--ink);font:400 15px/1.5 "DM Sans",sans-serif}
+#cmQuickForm textarea[name="description"]::placeholder{color:var(--comment-muted);opacity:1}
+#cmQuickForm label small{display:block;color:var(--comment-muted);font:400 12px/1.55 "DM Sans",sans-serif}
+#cmQuickForm #cmQuickStatus{min-height:20px;margin:0;color:var(--comment-muted);font-size:13px;line-height:1.5}
+#cmQuickForm>.cm-primary{justify-self:start;min-width:218px}
+#cmQuickForm[aria-busy="true"] textarea{opacity:.72;cursor:wait}
+@media(max-width:600px){.cm-choice{padding:20px}.cm-choice .cm-heading{gap:12px}.cm-choice .cm-heading h3{font-size:21px}#cmQuickForm{gap:14px;margin-top:18px}#cmQuickForm textarea[name="description"]{min-height:170px;font-size:16px}#cmQuickForm>.cm-primary{width:100%;justify-self:stretch}}
