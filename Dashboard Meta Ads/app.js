@@ -964,7 +964,7 @@ drawPngReport=async function(accountId,displayName){
 
   ctx.fillStyle=bg;ctx.fillRect(776,305,650,44);ctx.fillStyle=navy;const groupTitleSize=fitCanvasText(ctx,edit.groupTitle,620,20,'800');ctx.font=`800 ${groupTitleSize}px Arial`;ctx.fillText(edit.groupTitle,783,334);
   ctx.fillStyle='#fff';ctx.fillRect(740,392,220,202);ctx.fillStyle=navy;ctx.font='800 15px Arial';ctx.fillText(edit.confirmedLabel,748,414);
-  ctx.fillStyle=orange;const confirmedSize=fitCanvasText(ctx,edit.confirmedValue,110,46,'800');ctx.font=`800 ${confirmedSize}px Arial`;ctx.fillText(edit.confirmedValue,748,488);ctx.font='700 17px Arial';ctx.fillText(edit.confirmedUnit,835,488);
+  ctx.fillStyle=orange;const confirmedSize=fitCanvasText(ctx,edit.confirmedValue,110,46,'800');ctx.font=`800 ${confirmedSize}px Arial`;ctx.fillText(edit.confirmedValue,748,488);ctx.font='700 17px Arial';ctx.fillText(edit.confirmedUnit,860,488);
   ctx.strokeStyle='#ffac91';ctx.beginPath();ctx.moveTo(748,511);ctx.lineTo(950,511);ctx.stroke();ctx.fillStyle=ink;ctx.font='400 15px Arial';wrapCanvasText(ctx,edit.investmentText,748,555,190,20,3);
 
   const groups=edit.groups||[],gridX=992,gridY=370,gridW=558,gridH=256,headerH=36,campaignCol=340,leadsCol=105;
