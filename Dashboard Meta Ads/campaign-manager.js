@@ -4,7 +4,7 @@ const fail=(status,message)=>Object.assign(new Error(message),{status});
 const id=value=>{if(!/^\d+$/.test(String(value||'')))throw fail(400,'Identificador inválido.');return String(value)};
 const text=(value,max=200)=>{if(typeof value!=='string'||!value.trim()||value.length>max)throw fail(400,'Preencha os textos dentro do limite indicado.');return value.trim()};
 const link=value=>{try{const u=new URL(value);if(u.protocol==='https:'&&!u.username&&!u.password)return u.href}catch{}throw fail(400,'Informe um endereço HTTPS válido.')};
-async function body(req){let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>140*1024*1024)throw fail(413,'Arquivo acima do limite de 100 MB.');chunks.push(chunk)}try{return JSON.parse(Buffer.concat(chunks).toString())}catch{throw fail(400,'Dados inválidos.')}}
+async function body(req){let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>140*1024*1024)throw fail(413,'Arquivo acima do limite de 100 MB.');chunks.push(chunk)}const raw=Buffer.concat(chunks),type=String(req.headers?.['content-type']||'');if(!type.startsWith('multipart/form-data'))try{return JSON.parse(raw.toString())}catch{throw fail(400,'Dados inválidos.')}const boundary=type.match(/boundary=([^;]+)/)?.[1];if(!boundary)throw fail(400,'Upload inválido.');const parts=raw.toString('latin1').split('--'+boundary).slice(1,-1),result={};for(const part of parts){const cut=part.indexOf('\r\n\r\n');if(cut<0)continue;const header=part.slice(0,cut),name=header.match(/name="([^"]+)"/)?.[1],filename=header.match(/filename="([^"]*)"/)?.[1];if(!name)continue;const value=Buffer.from(part.slice(cut+4).replace(/\r\n$/,''),'latin1');result[name]=filename?{name:filename,type:header.match(/Content-Type: ([^\r]+)/i)?.[1]||'',data:value}:value.toString()}return result}
 
 function createCampaignManager({graph,rows,authorizeAccounts,connection,read,write,fetchImpl,planCampaign=require("./campaign-planner").plan,requiredDetails=require("./campaign-planner").missingRequiredDetails}){
   const locks=new Set(), planning=new Set();
@@ -51,10 +51,10 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       }finally{planning.delete(user.id)}
     }
     if(action==='upload'){
-      if(!['image/jpeg','image/png','video/mp4'].includes(p.type)||typeof p.data!=='string'||!/^[A-Za-z0-9+/]+={0,2}$/.test(p.data))throw fail(400,'Envie uma imagem JPG/PNG ou um vídeo MP4.');
-      const bytes=Buffer.from(p.data,'base64');if(!bytes.length||bytes.length>100*1024*1024)throw fail(413,'Use um arquivo de até 100 MB.');
-      const image=p.type.startsWith('image/');const valid=p.type==='image/png'?bytes.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')):p.type==='image/jpeg'?bytes[0]===255&&bytes[1]===216:bytes.toString('ascii',4,8)==='ftyp';if(!valid)throw fail(400,'O conteúdo não corresponde ao formato do arquivo.');
-      let result;if(image)result=await post(user,conn,account+'/adimages',{bytes:p.data});else{const form=new FormData();form.append('source',new Blob([bytes],{type:p.type}),'creative.mp4');result=await post(user,conn,account+'/advideos',form)}
+      const file=p.file&&Buffer.isBuffer(p.file.data)?p.file:null,mediaType=file?.type||p.type;if(!['image/jpeg','image/png','video/mp4'].includes(mediaType)||(!file&&(typeof p.data!=='string'||!/^[A-Za-z0-9+/]+={0,2}$/.test(p.data))))throw fail(400,'Envie uma imagem JPG/PNG ou um vídeo MP4.');
+      const bytes=file?.data||Buffer.from(p.data,'base64');if(!bytes.length||bytes.length>100*1024*1024)throw fail(413,'Use um arquivo de até 100 MB.');
+      const image=mediaType.startsWith('image/');const valid=mediaType==='image/png'?bytes.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')):mediaType==='image/jpeg'?bytes[0]===255&&bytes[1]===216:bytes.toString('ascii',4,8)==='ftyp';if(!valid)throw fail(400,'O conteúdo não corresponde ao formato do arquivo.');
+      let result;if(image)result=await post(user,conn,account+'/adimages',{bytes:bytes.toString('base64')});else{const form=new FormData();form.append('source',new Blob([bytes],{type:mediaType}),'creative.mp4');result=await post(user,conn,account+'/advideos',form)}
       const value=image?Object.values(result.images||{})[0]?.hash:result.id;if(!value)throw fail(502,'A Meta não retornou o identificador do criativo.');const media={key:crypto.randomUUID(),account,kind:image?'image':'video',value,created:Date.now()};write('ads-media',user.id,[...(read('ads-media',user.id)||[]).slice(-199),media]);return {key:media.key,kind:media.kind};
     }
     if(action==='status'){
