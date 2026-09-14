@@ -13,9 +13,9 @@ function fixture(t, runner, overrides = {}) {
   const fetchImpl = async (url, options) => {
     const who = options.headers?.Authorization?.endsWith(tokens.a) ? 'a' : 'b';
     const endpoint = new URL(url).pathname;
-    assert.ok(!endpoint.endsWith('/debug_token'), 'ordinary users must not require a developer credential');
+    if(endpoint.endsWith('/debug_token')){assert.ok(overrides.oauthConfig,'only server credentials can inspect exchanged tokens');return {ok:true,json:async()=>({data:{is_valid:true,type:'USER',app_id:'2093320124537661',user_id:'a',expires_at:Math.floor(Date.now()/1000)+5184000,data_access_expires_at:Math.floor(Date.now()/1000)+7776000}})}}
     overrides.requests?.push(new URL(url).searchParams.get('fields'));
-    if(endpoint.endsWith('/oauth/access_token')){assert.equal(new URL(url).search,'');assert.equal(options.method,'POST');return {ok:true,json:async()=>({access_token:tokens.a+'-long',expires_in:5184000})}}
+    if(endpoint.endsWith('/oauth/access_token')){assert.equal(options.method,'GET');if(overrides.exchangeFailure)return {ok:false,status:400,json:async()=>({error:{code:190}})};return {ok:true,json:async()=>({access_token:tokens.a+'-long',...(overrides.missingExpiry?{}:{expires_in:5184000})})}}
     const payload = overrides.pictureError && new URL(url).searchParams.get('fields')?.includes('profile_picture_uri') ? {error:{code:100,message:'Photo unavailable'}} : overrides.error ? {error: overrides.error}
       : endpoint.endsWith('/app') ? {id: overrides.app_id || '2093320124537661', name: 'Tryv CRM'}
       : endpoint.endsWith('/me/permissions') ? {data: (overrides.scopes || ['ads_read']).map(permission=>({permission,status:'granted'}))}
@@ -158,4 +158,20 @@ test('an expired local hint is renewed when Meta still accepts the saved token',
  const initial=f.api.read('connection','user-a');f.api.write('connection','user-a',{...initial,expiresAt:Date.now()-60000,longLived:true,exchangeAttemptAt:0});
  const result=await f.request(f.sessionA,'/api/meta/connection');const renewed=f.api.read('connection','user-a');
  assert.equal(result.body.connected,true);assert.ok(renewed.expiresAt>Date.now()+59*86400000);assert.ok(renewed.token.endsWith('-long'));
+});
+
+test('HTTP 200 without expires_in persists the inspected token beyond SDK expiration and restart',async t=>{
+ const f=fixture(t,null,{missingExpiry:true,oauthConfig:{appId:'2093320124537661',secret:'test-app-secret'}});
+ const nonce=(await f.request(f.sessionA,'/api/meta/challenge','POST')).body.nonce;
+ const result=await f.request(f.sessionA,'/api/meta/connection','POST',{nonce,accessToken:f.tokens.a,expiresIn:3600});
+ assert.equal(result.status,200);const stored=f.api.read('connection','user-a');assert.ok(stored.expiresAt>Date.now()+59*86400000);assert.ok(stored.dataExpiresAt>Date.now()+89*86400000);
+ t.mock.timers.enable({apis:['Date'],now:Date.now()+2*86400000});
+ const restarted=createPersonalMeta({directory:f.directory,oauthConfig:null});assert.equal(restarted.connection(restarted.session(f.sessionA)).token,stored.token);
+ assert.equal(restarted.connection(restarted.session(f.sessionA)).longLived,true);
+});
+test('failed exchange never replaces a saved connection with a short SDK token',async t=>{
+ const options={oauthConfig:{appId:'2093320124537661',secret:'test-app-secret'}},f=fixture(t,null,options);
+ assert.equal((await f.connect(f.sessionA,f.tokens.a)).status,200);const before=f.api.read('connection','user-a');options.exchangeFailure=true;
+ const result=await f.connect(f.sessionA,f.tokens.a);assert.equal(result.status,502);assert.deepEqual(f.api.read('connection','user-a'),before);
+ assert.equal((await f.connect(f.sessionB,f.tokens.b)).status,502);assert.equal(f.api.read('connection','user-b'),null);
 });
