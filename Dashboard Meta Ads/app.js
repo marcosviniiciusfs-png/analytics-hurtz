@@ -957,7 +957,7 @@ function drawReportCellText(ctx,text,x,y,width,size,color,align='left',truncate=
 function drawEditableReportBlocks(ctx,edit){
   const orange='#ff4b22',navy='#062b70',ink='#030316';
   const {groupX,groupW,cardW}=pngReportLayout(edit);
-  const metrics=[{label:edit.leadsLabel,value:edit.leadsValue,icon:'people'},{label:edit.cplLabel,value:edit.cplValue,icon:'target'},{label:edit.spendLabel,value:edit.spendValue,icon:'money'},...(edit.extraMetrics||[])];
+  const metrics=[{label:edit.leadsLabel,value:edit.leadsValue,icon:edit.leadsIcon||'people'},{label:edit.cplLabel,value:edit.cplValue,icon:edit.cplIcon||'target'},{label:edit.spendLabel,value:edit.spendValue,icon:edit.spendIcon||'money'},...(edit.extraMetrics||[])];
   // Clear the entire previous layout, including text that extended past its cards.
   ctx.save();ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#f8f9fc';ctx.fillRect(0,270,1600,390);
   metrics.forEach((metric,index)=>{
@@ -1183,6 +1183,11 @@ function currentPngEdit(accountId=currentPngAccountId){
   const groups=reportGroupsForRow(row),insights=pngInsights(row,analysisRow,groups),displayName=reportDisplayNameOverrides.get(accountId)||row.name||row.id;
   return pngReportEdit(accountId,displayName,row,groups,insights,context);
 }
+function pngMetricIconControl(number,value,field,index){
+  const icons=[['people','Pessoas'],['target','Alvo'],['money','Dinheiro'],['trend','Crescimento'],['bank','Banco'],['document','Documento'],['clipboard','Prancheta'],['calendar','Calendário'],['campaign','Campanha']];
+  const attributes=field?`data-png-field="${field}"`:`data-png-metric-index="${index}" data-png-metric-field="icon"`;
+  return `<label class="png-edit-control wide"><span>Ícone da métrica ${number}</span><select ${attributes}>${icons.map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${label}</option>`).join('')}</select></label>`;
+}
 function pngEditorControl(label,field,value,{wide=false,multiline=false}={}){
   const tag=multiline?`<textarea rows="3" data-png-field="${field}">${escapeHtml(value)}</textarea>`:`<input data-png-field="${field}" value="${escapeHtml(value)}" />`;
   return `<label class="png-edit-control${wide?' wide':''}"><span>${label}</span>${tag}</label>`;
@@ -1198,10 +1203,10 @@ function renderPngReportFields(accountId=currentPngAccountId){
       ${pngEditorControl('Produtos / campanhas reconhecidas','products',edit.products,{wide:true})}
     </div></fieldset>
     <fieldset><legend>Métricas principais</legend><div class="png-edit-grid metrics">
-      ${pngEditorControl('Nome da métrica 1','leadsLabel',edit.leadsLabel)}${pngEditorControl('Valor da métrica 1','leadsValue',edit.leadsValue)}
-      ${pngEditorControl('Nome da métrica 2','cplLabel',edit.cplLabel)}${pngEditorControl('Valor da métrica 2','cplValue',edit.cplValue)}
-      ${pngEditorControl('Nome da métrica 3','spendLabel',edit.spendLabel)}${pngEditorControl('Valor da métrica 3','spendValue',edit.spendValue)}
-      ${(edit.extraMetrics||[]).map((metric,index)=>`<label class="png-edit-control"><span>Nome da métrica ${index+4}</span><input data-png-metric-index="${index}" data-png-metric-field="label" value="${escapeHtml(metric.label)}"></label><label class="png-edit-control"><span>Valor da métrica ${index+4}</span><input data-png-metric-index="${index}" data-png-metric-field="value" value="${escapeHtml(metric.value)}"></label><button type="button" class="png-group-add" data-remove-png-metric="${index}">Remover métrica ${index+4}</button>`).join('')}
+      ${pngEditorControl('Nome da métrica 1','leadsLabel',edit.leadsLabel)}${pngEditorControl('Valor da métrica 1','leadsValue',edit.leadsValue)}${pngMetricIconControl(1,edit.leadsIcon||'people','leadsIcon')}
+      ${pngEditorControl('Nome da métrica 2','cplLabel',edit.cplLabel)}${pngEditorControl('Valor da métrica 2','cplValue',edit.cplValue)}${pngMetricIconControl(2,edit.cplIcon||'target','cplIcon')}
+      ${pngEditorControl('Nome da métrica 3','spendLabel',edit.spendLabel)}${pngEditorControl('Valor da métrica 3','spendValue',edit.spendValue)}${pngMetricIconControl(3,edit.spendIcon||'money','spendIcon')}
+      ${(edit.extraMetrics||[]).map((metric,index)=>`<label class="png-edit-control"><span>Nome da métrica ${index+4}</span><input data-png-metric-index="${index}" data-png-metric-field="label" value="${escapeHtml(metric.label)}"></label><label class="png-edit-control"><span>Valor da métrica ${index+4}</span><input data-png-metric-index="${index}" data-png-metric-field="value" value="${escapeHtml(metric.value)}"></label>${pngMetricIconControl(index+4,metric.icon||'trend',null,index)}<button type="button" class="png-group-add" data-remove-png-metric="${index}">Remover métrica ${index+4}</button>`).join('')}
       <button type="button" class="png-group-add" data-add-png-metric ${(edit.extraMetrics||[]).length>=3?'disabled':''}>+ Adicionar métrica</button>
     </div></fieldset>
     <fieldset><legend>Layout do relatório</legend><label class="png-edit-control"><span>Largura do bloco de campanhas: <output id="pngGroupWidthValue">${pngReportLayout(edit).groupPercent}%</output></span><input type="range" min="35" max="60" step="1" value="${pngReportLayout(edit).groupPercent}" data-png-field="groupWidth" aria-label="Largura do bloco de campanhas"></label></fieldset>

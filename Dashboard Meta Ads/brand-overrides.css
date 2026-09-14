@@ -474,3 +474,5 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @keyframes cm-publish-spin{to{transform:rotate(360deg)}}@keyframes cm-publish-progress{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
 @media(max-height:650px){.cm-publish-loader{gap:12px;padding:16px}.cm-publish-deck{width:210px;height:245px;margin-bottom:20px}.cm-publish-card{padding:14px}.cm-publish-card-body strong{font-size:21px}.cm-publish-spin{width:40px;height:40px}}
 @media(prefers-reduced-motion:reduce){.cm-publish-card{transition:none}.cm-publish-spin,.cm-publish-track span{animation:none}.cm-publish-track span{width:100%;opacity:.5}}
+
+.png-edit-control select{width:100%;box-sizing:border-box;min-height:40px;border:1px solid #ded4ce;border-radius:8px;background:#fff;padding:9px 10px;color:#251e1a;font:600 12px "DM Sans",sans-serif}.png-edit-control select:focus-visible{outline:2px solid #f27722;outline-offset:2px}

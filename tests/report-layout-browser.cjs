@@ -14,7 +14,7 @@ const slice=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,s
       const drawPngReport=()=>drawEditableReportBlocks(document.querySelector('canvas').getContext('2d'),edit);
       ${slice('function roundRect(', 'const loadCanvasImage=')}
       ${slice('function pngReportLayout(', 'const drawPngReportWithReferenceLayout=')}
-      ${slice('function pngEditorControl(', "document.querySelector('#resetPngReportEdits').onclick")}
+      ${slice('function pngMetricIconControl(', "document.querySelector('#resetPngReportEdits').onclick")}
       renderPngReportFields();drawPngReport();
     `});
     const header=await page.evaluate(()=>{
@@ -29,7 +29,16 @@ const slice=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,s
     });
     assert.deepEqual(header,{empty:true,bounded:true,visible:true,shortened:true,clearedAgain:true},'Header must erase old names and keep long names inside its bounds');
     assert.equal(await page.locator('[data-png-metric-index]').count(),0);
+    const originalIcon=await page.locator('canvas').evaluate(c=>c.toDataURL());
+    await page.locator('[data-png-field="leadsIcon"]').selectOption('bank');await page.waitForTimeout(200);
+    assert.equal(await page.evaluate(()=>edit.leadsIcon),'bank');
+    assert.notEqual(await page.locator('canvas').evaluate(c=>c.toDataURL()),originalIcon);
     await page.locator('[data-add-png-metric]').click();
+    await page.locator('[data-png-metric-field="icon"]').selectOption('calendar');await page.waitForTimeout(200);
+    assert.equal(await page.evaluate(()=>edit.extraMetrics[0].icon),'calendar');
+    await page.evaluate(()=>renderPngReportFields());
+    assert.equal(await page.locator('[data-png-field="leadsIcon"]').inputValue(),'bank');
+    assert.equal(await page.locator('[data-png-metric-field="icon"]').inputValue(),'calendar');
     await page.locator('[data-png-metric-field="label"]').fill('IMPRESSÕES');
     await page.locator('[data-png-metric-field="value"]').fill('25.000');
     await page.locator('[data-png-field="groupWidth"]').fill('40');
