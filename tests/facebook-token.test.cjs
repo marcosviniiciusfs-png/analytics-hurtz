@@ -16,9 +16,13 @@ test('successful exchange without expiry resolves actual USER token metadata',as
 });
 test('metadata fallback rejects wrong identity, app tokens, unknown and expired lifetimes',async()=>{
  const valid={is_valid:true,type:'USER',app_id:config.appId,user_id:'fb-user',expires_at:Math.floor(Date.now()/1000)+5184000};
- for(const changes of [{is_valid:false},{type:'APP'},{app_id:'wrong'},{user_id:'another'},{expires_at:0},{expires_at:1},{expires_at:undefined},{data_access_expires_at:1}]){
+ for(const changes of [{is_valid:false},{type:'APP'},{app_id:'wrong'},{user_id:'another'},{expires_at:null},{expires_at:1},{expires_at:undefined},{data_access_expires_at:1}]){
   assert.equal(await exchange('short-token',{config,facebookId:'fb-user',fetchImpl:async url=>({ok:true,json:async()=>url.pathname.endsWith('/oauth/access_token')?{access_token:'exchanged-user-token-0000000'}:{data:{...valid,...changes}}})}),null);
  }
+});
+test('only a validated explicit zero expiry represents a token without a fixed expiration',async()=>{
+ const result=await exchange('short-token',{config,facebookId:'fb-user',fetchImpl:async url=>({ok:true,json:async()=>url.pathname.endsWith('/oauth/access_token')?{access_token:'exchanged-user-token-0000000'}:{data:{is_valid:true,type:'USER',app_id:config.appId,user_id:'fb-user',expires_at:0,data_access_expires_at:Math.floor(Date.now()/1000)+7776000}}})});
+ assert.equal(result.expiresAt,0);assert.equal(result.noFixedExpiry,true);assert.equal(result.longLived,true);assert.ok(result.dataExpiresAt>Date.now());
 });
 test('transport exceptions never log credentials or request URLs',async()=>{
  const messages=[],original=console.warn;console.warn=value=>messages.push(value);

@@ -50,11 +50,11 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   const exchanges=new Map();
   const tokenService=require('./facebook-token');
   const exchangeToken=(token,facebookId)=>tokenService.exchange(token,{fetchImpl,facebookId,...(oauthConfig!==undefined?{config:oauthConfig}:{})});
-  async function upgradeConnection(user){const conn=read('connection',user.id),renewBefore=14*86400000;if(!conn||(conn.dataExpiresAt&&conn.dataExpiresAt<=Date.now())||(conn.expiresAt&&conn.expiresAt>Date.now()+renewBefore))return conn;
+  async function upgradeConnection(user){const conn=read('connection',user.id),renewBefore=14*86400000;if(!conn||conn.noFixedExpiry||(conn.dataExpiresAt&&conn.dataExpiresAt<=Date.now())||(conn.expiresAt&&conn.expiresAt>Date.now()+renewBefore))return conn;
     if(exchanges.has(user.id))return exchanges.get(user.id);
     if(conn.exchangeAttemptAt&&Date.now()-conn.exchangeAttemptAt<3600000)return conn;
     if(!(oauthConfig===undefined?tokenService.configuration():oauthConfig))return conn;
-    const promise=(async()=>{const upgraded=await exchangeToken(conn.token,conn.facebookId);const latest=read('connection',user.id);if(!latest||latest.revision!==conn.revision)return latest;const improves=upgraded&&(!latest.expiresAt||upgraded.expiresAt>latest.expiresAt);const result={...latest,...(improves?upgraded:{}),exchangeAttemptAt:Date.now()};write('connection',user.id,result);return result})().finally(()=>exchanges.delete(user.id));exchanges.set(user.id,promise);return promise;
+    const promise=(async()=>{const upgraded=await exchangeToken(conn.token,conn.facebookId);const latest=read('connection',user.id);if(!latest||latest.revision!==conn.revision)return latest;const improves=upgraded&&(upgraded.noFixedExpiry||!latest.expiresAt||upgraded.expiresAt>latest.expiresAt);const result={...latest,...(improves?upgraded:{}),exchangeAttemptAt:Date.now()};write('connection',user.id,result);return result})().finally(()=>exchanges.delete(user.id));exchanges.set(user.id,promise);return promise;
   }
   async function graph(token, endpoint, params = {}) {
     const url = new URL(`https://graph.facebook.com/${VERSION}/${endpoint}`);
@@ -179,7 +179,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       // every catalog/report is checked live against Meta with this user's token.
       const seconds=Number(payload.expiresIn),shortExpiry=Number.isFinite(seconds)&&seconds>0?Date.now()+Math.min(seconds,60*86400)*1000:0;
       const pageTokens=Object.fromEntries(pageRows.filter(page=>page.id&&typeof page.access_token==='string').map(page=>[String(page.id),page.access_token]));
-      write('connection', user.id, {token, pageTokens, facebookId: me.id, name: me.name, scopes, revision: crypto.randomUUID(), expiresAt:upgraded?.expiresAt||shortExpiry, longLived:Boolean(upgraded), dataExpiresAt:upgraded?.dataExpiresAt||0});
+      write('connection', user.id, {token, pageTokens, facebookId: me.id, name: me.name, scopes, revision: crypto.randomUUID(), expiresAt:upgraded?upgraded.expiresAt:shortExpiry, longLived:Boolean(upgraded), noFixedExpiry:Boolean(upgraded?.noFixedExpiry), dataExpiresAt:upgraded?.dataExpiresAt||0});
       return send(res, 200, {connected: true, name: me.name, accountCount: accounts.length});
     }
     if (route === '/api/meta/connection' && req.method === 'DELETE') {

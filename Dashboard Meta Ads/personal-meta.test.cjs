@@ -13,7 +13,7 @@ function fixture(t, runner, overrides = {}) {
   const fetchImpl = async (url, options) => {
     const who = options.headers?.Authorization?.endsWith(tokens.a) ? 'a' : 'b';
     const endpoint = new URL(url).pathname;
-    if(endpoint.endsWith('/debug_token')){assert.ok(overrides.oauthConfig,'only server credentials can inspect exchanged tokens');return {ok:true,json:async()=>({data:{is_valid:true,type:'USER',app_id:'2093320124537661',user_id:'a',expires_at:Math.floor(Date.now()/1000)+5184000,data_access_expires_at:Math.floor(Date.now()/1000)+7776000}})}}
+    if(endpoint.endsWith('/debug_token')){assert.ok(overrides.oauthConfig,'only server credentials can inspect exchanged tokens');return {ok:true,json:async()=>({data:{is_valid:true,type:'USER',app_id:'2093320124537661',user_id:'a',expires_at:overrides.noFixedExpiry?0:Math.floor(Date.now()/1000)+5184000,data_access_expires_at:Math.floor(Date.now()/1000)+7776000}})}}
     overrides.requests?.push(new URL(url).searchParams.get('fields'));
     if(endpoint.endsWith('/oauth/access_token')){assert.equal(options.method,'GET');if(overrides.exchangeFailure)return {ok:false,status:400,json:async()=>({error:{code:190}})};return {ok:true,json:async()=>({access_token:tokens.a+'-long',...(overrides.missingExpiry?{}:{expires_in:5184000})})}}
     const payload = overrides.pictureError && new URL(url).searchParams.get('fields')?.includes('profile_picture_uri') ? {error:{code:100,message:'Photo unavailable'}} : overrides.error ? {error: overrides.error}
@@ -174,4 +174,14 @@ test('failed exchange never replaces a saved connection with a short SDK token',
  assert.equal((await f.connect(f.sessionA,f.tokens.a)).status,200);const before=f.api.read('connection','user-a');options.exchangeFailure=true;
  const result=await f.connect(f.sessionA,f.tokens.a);assert.equal(result.status,502);assert.deepEqual(f.api.read('connection','user-a'),before);
  assert.equal((await f.connect(f.sessionB,f.tokens.b)).status,502);assert.equal(f.api.read('connection','user-b'),null);
+});
+test('verified zero expiry is not replaced with the SDK one-hour hint and survives restart',async t=>{
+ const options={missingExpiry:true,noFixedExpiry:true,oauthConfig:{appId:'2093320124537661',secret:'test-app-secret'}},f=fixture(t,null,options);
+ const nonce=(await f.request(f.sessionA,'/api/meta/challenge','POST')).body.nonce;
+ assert.equal((await f.request(f.sessionA,'/api/meta/connection','POST',{nonce,accessToken:f.tokens.a,expiresIn:3600})).status,200);
+ const stored=f.api.read('connection','user-a');assert.equal(stored.expiresAt,0);assert.equal(stored.noFixedExpiry,true);
+ t.mock.timers.enable({apis:['Date'],now:Date.now()+2*86400000});options.exchangeFailure=true;
+ assert.equal((await f.request(f.sessionA,'/api/meta/connection')).body.connected,true);
+ const restarted=createPersonalMeta({directory:f.directory,oauthConfig:null});assert.equal(restarted.connection(restarted.session(f.sessionA)).token,stored.token);
+ restarted.write('connection','user-a',{...stored,dataExpiresAt:Date.now()-1});assert.throws(()=>restarted.connection(restarted.session(f.sessionA)),/expirou/);
 });
