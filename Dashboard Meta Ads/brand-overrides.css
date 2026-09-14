@@ -459,3 +459,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .cm-editor-dialog button.cm-review-media{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:var(--cm-media-width,198px);max-width:100%;height:auto;min-height:140px;margin:0 0 20px;padding:16px;border:2px dashed var(--line);background:var(--bg);cursor:pointer;overflow-wrap:anywhere}
 .cm-review-media strong,.cm-review-media small{max-width:100%}
 .cm-review-media img,.cm-review-media video{display:block;width:100%;height:auto;max-height:280px;object-fit:contain}
+/* Publication deck: native adaptation of the supplied animated card loader. */
+.cm-editor-dialog{position:relative}
+.cm-publish-loader{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:32px 24px;background-color:#f4f4f5;background-image:radial-gradient(#ccc 1px,transparent 1px);background-size:20px 20px;color:#111;overflow:auto;outline:none}
+.cm-publish-deck{position:relative;width:256px;height:320px;flex-shrink:0;perspective:1200px;margin:0 20px 24px 0}
+.cm-publish-card{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;padding:20px;border:3px solid #111;box-shadow:8px 8px 0 #111;transform:translate(var(--deck-x),var(--deck-y)) rotate(var(--deck-angle)) scale(var(--deck-scale));transition:transform .65s cubic-bezier(.22,1,.36,1);transform-origin:center;user-select:none}
+.cm-publish-card-0{background:#fde047}.cm-publish-card-1{background:#93c5fd}.cm-publish-card-2{background:#86efac}.cm-publish-card-3{background:#d8b4fe}
+.cm-publish-card-top{display:flex;justify-content:space-between;align-items:center;font:900 10px monospace}.cm-publish-card-top>span:last-child{padding:3px 8px;border:2px solid #111;background:#fff;box-shadow:2px 2px 0 #111}
+.cm-publish-dot{width:24px;height:24px;border:2px solid #111;border-radius:50%;background:radial-gradient(#111 4px,#fff 5px)}
+.cm-publish-card-body{display:flex;flex-direction:column;align-items:center;gap:16px}.cm-publish-card-body strong{font:900 24px/1.1 Arial,sans-serif;text-transform:uppercase;letter-spacing:-1px}
+.cm-publish-spin{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:#111;color:white;font:36px/1 Arial,sans-serif;animation:cm-publish-spin 3s linear infinite}
+.cm-publish-card-bottom{font:700 10px monospace}.cm-publish-track{height:16px;border:2px solid #111;background:#fff;padding:2px;margin-top:6px;box-shadow:2px 2px 0 #111;overflow:hidden}.cm-publish-track span{display:block;width:40%;height:100%;background:#111;animation:cm-publish-progress 1.5s ease-in-out infinite alternate}
+.cm-publish-caption{padding:10px 18px;background:#111;color:#fff;box-shadow:4px 4px 0 #111;font:700 12px monospace;text-transform:uppercase}.cm-publish-loader p{margin:0;text-align:center;font-size:14px;line-height:1.5;color:#3f3f46}
+@keyframes cm-publish-spin{to{transform:rotate(360deg)}}@keyframes cm-publish-progress{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+@media(max-height:650px){.cm-publish-loader{gap:12px;padding:16px}.cm-publish-deck{width:210px;height:245px;margin-bottom:20px}.cm-publish-card{padding:14px}.cm-publish-card-body strong{font-size:21px}.cm-publish-spin{width:40px;height:40px}}
+@media(prefers-reduced-motion:reduce){.cm-publish-card{transition:none}.cm-publish-spin,.cm-publish-track span{animation:none}.cm-publish-track span{width:100%;opacity:.5}}
