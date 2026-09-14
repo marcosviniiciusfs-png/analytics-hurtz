@@ -41,6 +41,15 @@ const slice=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,s
     assert.equal(await page.locator('[data-png-metric-field="icon"]').inputValue(),'calendar');
     await page.locator('[data-png-field="leadsIcon"]').selectOption('eye');
     assert.equal(await page.evaluate(()=>edit.leadsIcon),'eye');
+    assert.equal(await page.getByText('Card “Total confirmado”',{exact:true}).count(),1);
+    const totalBefore=await page.locator('canvas').evaluate(c=>c.toDataURL());
+    await page.locator('[data-png-field="confirmedLabel"]').fill('LEADS QUALIFICADOS');
+    await page.locator('[data-png-field="confirmedValue"]').fill('200');
+    await page.locator('[data-png-field="confirmedUnit"]').fill('contatos');
+    await page.locator('[data-png-field="investmentText"]').fill('Texto do card total confirmado.');
+    await page.waitForTimeout(200);
+    assert.deepEqual(await page.evaluate(()=>[edit.confirmedLabel,edit.confirmedValue,edit.confirmedUnit,edit.investmentText]),['LEADS QUALIFICADOS','200','contatos','Texto do card total confirmado.']);
+    assert.notEqual(await page.locator('canvas').evaluate(c=>c.toDataURL()),totalBefore);
     assert.equal(await page.locator('[data-png-lower-card-index]').count(),9);
     await page.locator('[data-add-png-lower-card]').click();
     assert.equal(await page.evaluate(()=>edit.lowerCards.length),4);
