@@ -61,6 +61,18 @@ test('sessions and encrypted connections remain isolated across users', async t 
   const freshSession=restored.issueSession({id:'user-a',email:'a@example.test'});assert.equal(restored.connection(restored.session(freshSession)).token,f.tokens.a);
 });
 
+test('upload parts share a short account authorization cache isolated by user and connection',async t=>{
+ const requests=[],f=fixture(t,undefined,{requests});await f.connect(f.sessionA,f.tokens.a);await f.connect(f.sessionB,f.tokens.b);requests.length=0;
+ await Promise.all(Array.from({length:50},()=>f.api.authorizeAccounts(f.api.session(f.sessionA),['act_111'])));
+ assert.equal(requests.filter(fields=>fields?.includes('account_status')).length,1);
+ await f.api.authorizeAccounts(f.api.session(f.sessionB),['act_222']);assert.equal(requests.filter(fields=>fields?.includes('account_status')).length,2);
+ await assert.rejects(f.api.authorizeAccounts(f.api.session(f.sessionA),['act_222']),{status:403});
+ await f.connect(f.sessionA,f.tokens.a);await f.api.authorizeAccounts(f.api.session(f.sessionA),['act_111']);assert.equal(requests.filter(fields=>fields?.includes('account_status')).length,3);
+});
+test('Meta throttling preserves connection and does not retry the optional photo request',async t=>{
+ const overrides={requests:[]},f=fixture(t,undefined,overrides);await f.connect(f.sessionA,f.tokens.a);const before=f.api.connection(f.api.session(f.sessionA)).revision;overrides.error={code:80004,error_subcode:2446079};overrides.requests.length=0;
+ const result=await f.request(f.sessionA,'/api/meta-accounts');assert.equal(result.status,429);assert.match(result.body.error,/limitou temporariamente/);assert.equal(overrides.requests.length,1);assert.equal(f.api.connection(f.api.session(f.sessionA)).revision,before);
+});
 test('challenge belongs to one session and cannot be replayed', async t => {
   const f = fixture(t);
   const nonce = (await f.request(f.sessionA, '/api/meta/challenge', 'POST')).body.nonce;

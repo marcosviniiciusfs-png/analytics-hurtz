@@ -1,6 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'../Dashboard Meta Ads/app.js'),'utf8');
 const functionLine=name=>source.split('\n').find(line=>line.startsWith('function '+name+'('));
+test('long campaign names keep their beginning and fit the available width',()=>{const context=vm.createContext({});vm.runInContext(functionLine('reportFittedName'),context);const canvas={measureText:text=>({width:Array.from(text).length*10})};assert.equal(context.reportFittedName(canvas,'Oferta curta',200),'Oferta curta');assert.equal(context.reportFittedName(canvas,'Oferta Procedimento | Canaã - Campanha de setembro',200),'Oferta Procedimento…');assert.equal(context.reportFittedName(canvas,'😀😀😀😀😀',30),'😀😀…');});
 test('only unidentified report campaigns use their full original names',()=>{
  const context=vm.createContext({inferredProduct:name=>name.includes('Imóvel')?'Imóvel':'Não identificado'});
  vm.runInContext(source.slice(source.indexOf('function reportGroupName('),source.indexOf('let currentReportContext=null')),context);

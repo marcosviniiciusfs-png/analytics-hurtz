@@ -67,6 +67,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (!response.ok || payload.error) {
       console.warn(JSON.stringify({event:'meta_graph_error',endpoint,status:response.status,code:payload.error?.code,subcode:payload.error?.error_subcode,trace:payload.error?.fbtrace_id}));
       if (payload.error?.code === 190) throw fail(409, 'Sua conexão com o Facebook expirou. Conecte novamente.');
+      if(response.status===429||[4,17,613,80004].includes(payload.error?.code))throw fail(429,'A Meta limitou temporariamente as consultas. Aguarde alguns minutos e tente novamente. Sua conexão foi mantida.');
       if ([10,200,294].includes(payload.error?.code)) throw fail(403, 'O Facebook não liberou a leitura dos anúncios. Reconecte e autorize as contas nas configurações do Tryv CRM.');
       throw fail(502, 'A Meta não autorizou esta consulta. Verifique as permissões da conexão.');
     }
@@ -92,14 +93,19 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   async function catalog(user, pictures = false) {
     const conn = connection(user);
     let accounts;
-    if (pictures) {try {accounts = await rows(conn.token, 'me/adaccounts', {fields: 'id,name,account_status,currency,business{id,name,profile_picture_uri},is_prepay_account'});} catch { /* Optional business photo must not block the account catalog. */ }}
+    if (pictures) {try {accounts = await rows(conn.token, 'me/adaccounts', {fields: 'id,name,account_status,currency,business{id,name,profile_picture_uri},is_prepay_account'});} catch(error) {if([403,409,429].includes(error.status))throw error; /* Optional business photo must not block the account catalog. */ }}
     if (!accounts) accounts = await rows(conn.token, 'me/adaccounts', {fields: 'id,name,account_status,currency,business,is_prepay_account'});
     if (read('connection', user.id)?.revision !== conn.revision) throw fail(409, 'A conexão mudou. Atualize a consulta.');
     return {conn, accounts};
   }
+  const accountAuthorizations=new Map(),pendingAccountAuthorizations=new Map();
   async function authorizeAccounts(user, ids) {
     if (!ids.length || ids.length > 100 || ids.some(id => !/^act_\d+$/.test(id))) throw fail(400, 'Selecione contas válidas.');
-    const result = await catalog(user), allowed = new Set(result.accounts.map(a => a.id));
+    const conn=connection(user),key=user.id+':'+conn.revision,hit=accountAuthorizations.get(user.id);
+    let result=hit?.revision===conn.revision&&hit.expires>Date.now()?hit.result:null;
+    if(!result){let pending=pendingAccountAuthorizations.get(key);if(!pending){pending=catalog(user).then(result=>{accountAuthorizations.set(user.id,{revision:conn.revision,expires:Date.now()+60000,result});return result}).finally(()=>pendingAccountAuthorizations.delete(key));pendingAccountAuthorizations.set(key,pending)}result=await pending}
+    if(connection(user).revision!==conn.revision)throw fail(409,'A conexão mudou. Atualize a consulta.');
+    const allowed = new Set(result.accounts.map(a => a.id));
     if (ids.some(id => !allowed.has(id))) throw fail(403, 'Uma das contas não está autorizada para seu Facebook.');
     return result;
   }
@@ -188,10 +194,12 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       return send(res, 200, {ok: true});
     }
     if (route === '/api/meta-accounts' && req.method === 'GET') {
+      accountAuthorizations.delete(user.id);
       const {accounts} = await catalog(user, true);
       return send(res, 200, {account_count: accounts.length, business_count: new Set(accounts.map(a => a.business?.id).filter(Boolean)).size, accounts: accounts.map(a => ({...a, business_name: a.business?.name || '', business_id: a.business?.id || '', business_profile_picture_uri: a.business?.profile_picture_uri || ''}))});
     }
     if (route === '/api/meta-monitor-config' && req.method === 'GET') {
+      accountAuthorizations.delete(user.id);
       const {accounts} = await catalog(user);
       return send(res, 200, {accounts: accounts.map(({id, name}) => ({id, name}))});
     }

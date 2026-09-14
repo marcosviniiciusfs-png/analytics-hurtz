@@ -943,10 +943,11 @@ function pngReportLayout(edit){
   const groupW=1520*groupPercent/100,groupX=1560-groupW,metricsW=groupX-80;
   return {groupPercent,groupX,groupW,cardW:(metricsW-16*(count-1))/count};
 }
-function drawReportCellText(ctx,text,x,y,width,size,color,align='left'){
+function reportFittedName(ctx,value,width){const text=String(value??'');if(ctx.measureText(text).width<=width)return text;const chars=Array.from(text);while(chars.length&&ctx.measureText(chars.join('')+'…').width>width)chars.pop();return chars.length?chars.join('')+'…':''}
+function drawReportCellText(ctx,text,x,y,width,size,color,align='left',truncate=false){
   ctx.save();ctx.fillStyle=color;ctx.textAlign=align;
   fitCanvasText(ctx,text,width,size,'800');
-  ctx.fillText(String(text??''),x,y,width);ctx.restore();
+  ctx.fillText(truncate?reportFittedName(ctx,text,width):String(text??''),x,y,width);ctx.restore();
 }
 function drawEditableReportBlocks(ctx,edit){
   const orange='#ff4b22',navy='#062b70',ink='#030316';
@@ -984,7 +985,7 @@ function drawEditableReportBlocks(ctx,edit){
     const top=gridY+headerH+index*rowH,centerY=top+rowH/2,size=Math.min(14,Math.max(8,rowH*.28));
     ctx.save();ctx.beginPath();ctx.rect(gridX,top,gridW,rowH);ctx.clip();
     if(index){ctx.strokeStyle='#dfe4eb';ctx.beginPath();ctx.moveTo(gridX,top);ctx.lineTo(gridX+gridW,top);ctx.stroke()}
-    drawReportCellText(ctx,group.name,gridX+14,centerY+size*.35,campaignCol-28,size,ink);
+    drawReportCellText(ctx,group.name,gridX+14,centerY+size*.35,campaignCol-28,size,ink,'left',true);
     drawReportCellText(ctx,group.results,gridX+campaignCol+leadsCol/2,centerY+size*.35,leadsCol-12,size,orange,'center');
     drawReportCellText(ctx,group.cpl,gridX+gridW-cplCol/2,centerY+size*.35,cplCol-12,size,orange,'center');ctx.restore();
   });ctx.restore();
@@ -1006,7 +1007,7 @@ drawPngReport=async function(accountId,displayName){
 
   ctx.fillStyle=bg;ctx.fillRect(94,213,1120,48);
   ctx.fillStyle=ink;ctx.font='700 16px Arial';ctx.fillText('Período:',101,245);ctx.font='400 15px Arial';ctx.fillText(edit.period,178,245);
-  ctx.font='700 16px Arial';ctx.fillText(edit.campaignsLabel,468,245);ctx.fillStyle=orange;const productsSize=fitCanvasText(ctx,edit.products,625,16,'800');ctx.font=`800 ${productsSize}px Arial`;ctx.fillText(edit.products,578,245);
+  ctx.font='700 16px Arial';ctx.fillText(edit.campaignsLabel,468,245);ctx.fillStyle=orange;const productsSize=fitCanvasText(ctx,edit.products,625,16,'800');ctx.font=`800 ${productsSize}px Arial`;ctx.fillText(reportFittedName(ctx,edit.products,625),578,245);
 
   drawEditableReportBlocks(ctx,edit);
 
@@ -1853,7 +1854,7 @@ if(personalIdentity?.personal){
 }
 setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date.now()-facebookNonceAt>5*60000)void prepareFacebookLogin().catch(()=>{})},60000);
 if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260909-traffic-pocket');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
-const campaignModule=await import('./campaign-manager-ui.js?v=20260914-chunked-upload');
+const campaignModule=await import('./campaign-manager-ui.js?v=20260914-meta-publish');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);
 const priorAccountTab=setAccountTab;setAccountTab=function(tab){campaignManagerUI.panel.hidden=tab!=='manage';document.querySelectorAll('#accountModal .modal-toolbar,#modalSummary,#planStrip').forEach(el=>el.hidden=tab==='manage');if(tab==='manage'){activeAccountTab=tab;document.querySelectorAll('[data-account-tab]').forEach(b=>b.classList.toggle('active',b.dataset.accountTab===tab));document.querySelector('#campaignTabPanel').hidden=true;document.querySelector('#accountAnalysisPanel').hidden=true;campaignManagerUI.open()}else{priorAccountTab(tab);renderModal();loadSelectedAccountAudit()}};campaignTab.onclick=()=>setAccountTab('manage');
