@@ -1,0 +1,14 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'../dev/node_modules/playwright'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const source=fs.readFileSync(path.join(__dirname,'../Dashboard Meta Ads/app.js'),'utf8');
+const slice=(a,b)=>source.slice(source.indexOf(a),source.indexOf(b,source.indexOf(a)));
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});try{
+ for(const timezoneId of ['America/Sao_Paulo','UTC','Pacific/Kiritimati']){
+  const context=await browser.newContext({timezoneId}),page=await context.newPage();await page.setContent('<input type="date" id="from"><input type="date" id="to">');
+  await page.addScriptTag({content:`const parseDate=s=>new Date(s+'T12:00:00'),localIso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');let personalIdentity={user:{id:'user-a'}};const num=String,brl=n=>'R$ '+n;${slice('let currentReportContext=null','const reportMetric=')}${slice('async function fetchReportBatch(','async function createReportInBatches(')}window.calls=[];window.fetch=async input=>{const url=new URL(input,'https://test');calls.push(url.search);const since=url.searchParams.get('from'),until=url.searchParams.get('to'),value=Number(until.slice(-2))*100;return {ok:true,json:async()=>({since,until,accounts:Object.fromEntries(url.searchParams.get('accounts').split(',').map(id=>[id,{spend:value,reconciled:true}]))})}};window.runPeriod=async user=>{personalIdentity={user:{id:user}};const from=parseDate(document.querySelector('#from').value),to=parseDate(document.querySelector('#to').value),result=[];for(const batch of [['act_1','act_2','act_3'],['act_4','act_5','act_6'],['act_7']]){const data=await fetchReportBatch(batch,from,to);for(const id of batch){const row=data.spend.accounts[id],edit=pngReportEdit(id,id,row,[],{totalResults:row.spend/10,overallCpl:10,good:'good',improve:'improve'},{from,to});result.push({spend:edit.spendValue,period:edit.period,summary:edit.summaryText})}}return result;};`});
+  for(const user of ['user-a','user-b'])for(const [from,to] of [['2026-09-01','2026-09-07'],['2026-09-08','2026-09-14'],['2026-12-31','2027-01-02']]){
+   await page.locator('#from').fill(from);await page.locator('#to').fill(to);const result=await page.evaluate(user=>runPeriod(user),user);assert.equal(result.length,7);for(const row of result)assert.equal(row.spend,'R$ '+Number(to.slice(-2))*100);const urls=await page.evaluate(()=>calls.splice(0));for(const query of urls){const params=new URLSearchParams(query);assert.equal(params.get('from'),from);assert.equal(params.get('to'),to)}
+  }
+  await context.close();
+ }
+ console.log('Report periods: two users, seven accounts, three ranges and three time zones passed.');
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

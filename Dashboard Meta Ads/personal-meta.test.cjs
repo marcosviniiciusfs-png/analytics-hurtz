@@ -80,6 +80,16 @@ test('report account authorization precedes execution; caller identity cannot be
   assert.equal((await f.request(f.sessionA, '/api/tasks')).status, 403);
 });
 
+test('both user logins pass exact report periods and all selected accounts to the runner', async t => {
+  const inputs=[],ids=['act_111','act_222','act_333','act_444','act_555'];
+  const f=fixture(t,async input=>{inputs.push(input);return {since:input.from,until:input.to,accounts:{}}},{catalog:{data:ids.map(id=>({id,name:id}))}});
+  await f.connect(f.sessionA,f.tokens.a);await f.connect(f.sessionB,f.tokens.b);
+  for(const [session,token] of [[f.sessionA,f.tokens.a],[f.sessionB,f.tokens.b]])for(const [from,to] of [['2026-09-01','2026-09-07'],['2026-09-08','2026-09-14']])for(const kind of ['spend','analysis']){
+    const result=await f.request(session,`/api/meta-${kind}?from=${from}&to=${to}&accounts=${ids.join(',')}&report=1`);assert.equal(result.status,200);const input=inputs.at(-1);assert.equal(input.token,token);assert.equal(input.from,from);assert.equal(input.to,to);assert.equal(input.kind,kind);assert.deepEqual(input.ids,ids);assert.equal(input.reportOnly,true);
+  }
+  assert.equal(inputs.length,8);
+});
+
 test('settings cannot target another account; disconnect and logout revoke access', async t => {
   const f = fixture(t);
   await f.connect(f.sessionA, f.tokens.a);

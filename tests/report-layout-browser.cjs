@@ -1,4 +1,4 @@
-const {chromium}=require('../dev/node_modules/playwright');
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'../dev/node_modules/playwright');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const source=fs.readFileSync(path.join(__dirname,'../Dashboard Meta Ads/app.js'),'utf8');
 const slice=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,source.indexOf(start)));
