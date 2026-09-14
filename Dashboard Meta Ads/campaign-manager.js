@@ -1,13 +1,14 @@
 'use strict';
 const crypto=require('node:crypto');
+const {createUploadStore}=require('./campaign-upload-store');
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 const id=value=>{if(!/^\d+$/.test(String(value||'')))throw fail(400,'Identificador inválido.');return String(value)};
 const text=(value,max=200)=>{if(typeof value!=='string'||!value.trim()||value.length>max)throw fail(400,'Preencha os textos dentro do limite indicado.');return value.trim()};
 const link=value=>{try{const u=new URL(value);if(u.protocol==='https:'&&!u.username&&!u.password)return u.href}catch{}throw fail(400,'Informe um endereço HTTPS válido.')};
-async function body(req){let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>140*1024*1024)throw fail(413,'Arquivo acima do limite de 100 MB.');chunks.push(chunk)}const raw=Buffer.concat(chunks),type=String(req.headers?.['content-type']||'');if(!type.startsWith('multipart/form-data'))try{return JSON.parse(raw.toString())}catch{throw fail(400,'Dados inválidos.')}const boundary=type.match(/boundary=([^;]+)/)?.[1];if(!boundary)throw fail(400,'Upload inválido.');const parts=raw.toString('latin1').split('--'+boundary).slice(1,-1),result={};for(const part of parts){const cut=part.indexOf('\r\n\r\n');if(cut<0)continue;const header=part.slice(0,cut),name=header.match(/name="([^"]+)"/)?.[1],filename=header.match(/filename="([^"]*)"/)?.[1];if(!name)continue;const value=Buffer.from(part.slice(cut+4).replace(/\r\n$/,''),'latin1');result[name]=filename?{name:filename,type:header.match(/Content-Type: ([^\r]+)/i)?.[1]||'',data:value}:value.toString()}return result}
+async function body(req,limit=140*1024*1024){let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>limit)throw fail(413,'Arquivo acima do limite de 100 MB.');chunks.push(chunk)}const raw=Buffer.concat(chunks),type=String(req.headers?.['content-type']||'');if(!type.startsWith('multipart/form-data'))try{return JSON.parse(raw.toString())}catch{throw fail(400,'Dados inválidos.')}const boundary=type.match(/boundary=([^;]+)/)?.[1];if(!boundary)throw fail(400,'Upload inválido.');const parts=raw.toString('latin1').split('--'+boundary).slice(1,-1),result={};for(const part of parts){const cut=part.indexOf('\r\n\r\n');if(cut<0)continue;const header=part.slice(0,cut),name=header.match(/name="([^"]+)"/)?.[1],filename=header.match(/filename="([^"]*)"/)?.[1];if(!name)continue;const value=Buffer.from(part.slice(cut+4).replace(/\r\n$/,''),'latin1');result[name]=filename?{name:filename,type:header.match(/Content-Type: ([^\r]+)/i)?.[1]||'',data:value}:value.toString()}return result}
 
 function createCampaignManager({graph,rows,authorizeAccounts,connection,read,write,fetchImpl,planCampaign=require("./campaign-planner").plan,requiredDetails=require("./campaign-planner").missingRequiredDetails}){
-  const locks=new Set(), planning=new Set();
+  const locks=new Set(), planning=new Set(), uploads=createUploadStore();
   const current=(user,conn)=>{if(connection(user).revision!==conn.revision)throw fail(409,'A conexão mudou. Reabra esta conta antes de continuar.')};
   async function access(user,account,manage=false){const {conn,accounts}=await authorizeAccounts(user,[account]);if(manage&&!conn.scopes?.includes('ads_management'))throw fail(403,'Autorize o gerenciamento de anúncios. O app precisa ter ads_management aprovado para seu acesso.');return {conn,account:accounts.find(a=>a.id===account)}}
   async function owned(conn,account,object,fields='id,account_id,name,status,effective_status'){const item=await graph(conn.token,id(object),{fields});if('act_'+item.account_id!==account)throw fail(403,'Este item não pertence à conta selecionada.');return item}
@@ -18,6 +19,13 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
   async function locationFor(conn,query){const result=await graph(conn.token,'search',{type:'adgeolocation',location_types:JSON.stringify(['city','region','country']),q:query,limit:10});const item=(result.data||[]).find(x=>['city','region','country'].includes(x.type)&&x.key&&/^[A-Z]{2}$/.test(x.country_code||x.key));if(!item)throw fail(400,'A Meta não encontrou a localização sugerida. Descreva a cidade, estado ou país com mais precisão.');return {key:String(item.key),type:item.type,name:item.name,country:item.country_code||item.key,region:item.region||''}}
   async function interestsFor(conn,queries){const found=[];for(const query of queries){try{const result=await graph(conn.token,'search',{type:'adinterest',q:query,limit:5});const item=(result.data||[]).find(x=>x.id&&x.name);if(item&&!found.some(x=>x.id===String(item.id)))found.push({id:String(item.id),name:String(item.name).slice(0,120)})}catch{}}return found}
   async function post(user,conn,endpoint,params){current(user,conn);let response,payload;try{const data=params instanceof FormData?params:new URLSearchParams(Object.entries(params).map(([k,v])=>[k,typeof v==='object'?JSON.stringify(v):String(v)]));response=await fetchImpl(new URL('https://graph.facebook.com/v25.0/'+endpoint),{method:'POST',headers:{Authorization:'Bearer '+conn.token},body:data,signal:AbortSignal.timeout(120000)});payload=await response.json()}catch{throw fail(502,'A Meta não confirmou a operação. Atualize a lista antes de tentar criar novamente.')}if(!response.ok||payload.error){const e=payload.error||{};throw fail(e.code===190?409:400,(e.error_user_msg||e.error_user_title||'A Meta recusou a operação. Confira o acesso, as configurações e as regras da conta.').slice(0,600))}current(user,conn);return payload}
+  async function uploadMedia(user,conn,account,p){
+      const file=p.file&&Buffer.isBuffer(p.file.data)?p.file:null,mediaType=file?.type||p.type;if(!['image/jpeg','image/png','video/mp4'].includes(mediaType)||(!file&&(typeof p.data!=='string'||!/^[A-Za-z0-9+/]+={0,2}$/.test(p.data))))throw fail(400,'Envie uma imagem JPG/PNG ou um vídeo MP4.');
+      const bytes=file?.data||Buffer.from(p.data,'base64');if(!bytes.length||bytes.length>100*1024*1024)throw fail(413,'Use um arquivo de até 100 MB.');
+      const image=mediaType.startsWith('image/');const valid=mediaType==='image/png'?bytes.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')):mediaType==='image/jpeg'?bytes[0]===255&&bytes[1]===216:bytes.toString('ascii',4,8)==='ftyp';if(!valid)throw fail(400,'O conteúdo não corresponde ao formato do arquivo.');
+      let result;if(image)result=await post(user,conn,account+'/adimages',{bytes:bytes.toString('base64')});else{const form=new FormData();form.append('source',new Blob([bytes],{type:mediaType}),'creative.mp4');result=await post(user,conn,account+'/advideos',form)}
+      const value=image?Object.values(result.images||{})[0]?.hash:result.id;if(!value)throw fail(502,'A Meta não retornou o identificador do criativo.');const media={key:crypto.randomUUID(),account,kind:image?'image':'video',value,created:Date.now()};write('ads-media',user.id,[...(read('ads-media',user.id)||[]).slice(-199),media]);return {key:media.key,kind:media.kind};
+  }
   async function handle(req,user,url){const action=url.pathname.slice('/api/ads-manager/'.length),account=url.searchParams.get('account');const {conn,account:accountInfo}=await access(user,account,req.method!=='GET');
     if(req.method==='GET'){
       if(action==='locations'){
@@ -35,7 +43,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       throw fail(404,'Consulta não encontrada.');
     }
     if(req.method!=='POST')throw fail(405,'Método não permitido.');
-    const p=await body(req);
+    const p=await body(req,action==='upload-part'?2*1024*1024:140*1024*1024);
     if(action==='plan'){
       if(planning.has(user.id))throw fail(409,'Já existe uma campanha sendo preparada. Aguarde.');
       const last=read('ads-plan-time',user.id);if(last&&Date.now()-last<15000)throw fail(429,'Aguarde alguns segundos antes de gerar novamente.');
@@ -50,13 +58,10 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
         const saved=read('ads-locations',user.id)||[];write('ads-locations',user.id,[...saved.filter(x=>x.key!==location.key||x.type!==location.type),location].slice(-200));return {draft:{...draft,...destinationValues,page:page.id,countries:[location.country],location,interests},reviewRequired:true};
       }finally{planning.delete(user.id)}
     }
-    if(action==='upload'){
-      const file=p.file&&Buffer.isBuffer(p.file.data)?p.file:null,mediaType=file?.type||p.type;if(!['image/jpeg','image/png','video/mp4'].includes(mediaType)||(!file&&(typeof p.data!=='string'||!/^[A-Za-z0-9+/]+={0,2}$/.test(p.data))))throw fail(400,'Envie uma imagem JPG/PNG ou um vídeo MP4.');
-      const bytes=file?.data||Buffer.from(p.data,'base64');if(!bytes.length||bytes.length>100*1024*1024)throw fail(413,'Use um arquivo de até 100 MB.');
-      const image=mediaType.startsWith('image/');const valid=mediaType==='image/png'?bytes.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')):mediaType==='image/jpeg'?bytes[0]===255&&bytes[1]===216:bytes.toString('ascii',4,8)==='ftyp';if(!valid)throw fail(400,'O conteúdo não corresponde ao formato do arquivo.');
-      let result;if(image)result=await post(user,conn,account+'/adimages',{bytes:bytes.toString('base64')});else{const form=new FormData();form.append('source',new Blob([bytes],{type:mediaType}),'creative.mp4');result=await post(user,conn,account+'/advideos',form)}
-      const value=image?Object.values(result.images||{})[0]?.hash:result.id;if(!value)throw fail(502,'A Meta não retornou o identificador do criativo.');const media={key:crypto.randomUUID(),account,kind:image?'image':'video',value,created:Date.now()};write('ads-media',user.id,[...(read('ads-media',user.id)||[]).slice(-199),media]);return {key:media.key,kind:media.kind};
-    }
+    if(action==='upload')return uploadMedia(user,conn,account,p);
+    if(action==='upload-start')return uploads.start(user.id,account,p);
+    if(action==='upload-part')return uploads.part(p.upload,user.id,account,Number(p.offset),p.file?.data);
+    if(action==='upload-finish')return uploads.finish(p.upload,user.id,account,file=>uploadMedia(user,conn,account,{file}));
     if(action==='status'){
       if(!['campaign','adset','ad'].includes(p.kind)||!['ACTIVE','PAUSED'].includes(p.status)||p.confirm!==true)throw fail(400,'Confirme a alteração de status.');
       // Verify the object is present on the exact typed edge, not merely an arbitrary Graph node.

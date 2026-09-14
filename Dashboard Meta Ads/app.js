@@ -1776,7 +1776,7 @@ connectionStyles.textContent='main{min-width:0}.facebook-connection-bar>div:firs
 document.head.append(connectionStyles);
 async function personalRequest(route,options={}){
   const headers={...(options.headers||{})};if(!(options.body instanceof FormData))headers['Content-Type']=headers['Content-Type']||'application/json';const response=await fetch(route,{...options,headers}),payload=await response.json();
-  if(!response.ok)throw new Error(payload.error||'Não foi possível concluir a conexão.');
+  if(!response.ok)throw Object.assign(new Error(payload.error||'Não foi possível concluir a conexão.'),{status:response.status});
   return payload;
 }
 function forgetPersonalCache(){
@@ -1851,7 +1851,7 @@ if(personalIdentity?.personal){
 }
 setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date.now()-facebookNonceAt>5*60000)void prepareFacebookLogin().catch(()=>{})},60000);
 if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260909-traffic-pocket');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
-const campaignModule=await import('./campaign-manager-ui.js?v=20260914-compact-creative');
+const campaignModule=await import('./campaign-manager-ui.js?v=20260914-chunked-upload');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);
 const priorAccountTab=setAccountTab;setAccountTab=function(tab){campaignManagerUI.panel.hidden=tab!=='manage';document.querySelectorAll('#accountModal .modal-toolbar,#modalSummary,#planStrip').forEach(el=>el.hidden=tab==='manage');if(tab==='manage'){activeAccountTab=tab;document.querySelectorAll('[data-account-tab]').forEach(b=>b.classList.toggle('active',b.dataset.accountTab===tab));document.querySelector('#campaignTabPanel').hidden=true;document.querySelector('#accountAnalysisPanel').hidden=true;campaignManagerUI.open()}else{priorAccountTab(tab);renderModal();loadSelectedAccountAudit()}};campaignTab.onclick=()=>setAccountTab('manage');

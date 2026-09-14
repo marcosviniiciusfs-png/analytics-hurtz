@@ -25,6 +25,12 @@ O deploy precisa incluir `campaign-planner.js` no backend. Esse arquivo deve per
 
 ## Validação
 
+Arquivos acima de 1 MB usam `upload-start`, `upload-part` e `upload-finish`. Cada requisição transporta no máximo 1 MB de mídia, evitando o prazo de leitura de 60 segundos do proxy. As partes ficam temporariamente em diretório privado do processo, isoladas por usuário e conta, e são removidas após a confirmação ou falha da Meta. Envios abandonados expiram em 30 minutos; reiniciar o serviço invalida os envios incompletos.
+
+O deploy do backend deve incluir `campaign-upload-store.js` junto com `campaign-manager.js`. O proxy compartilhado não precisa ser alterado. Repetir a última parte ou a confirmação final reutiliza a tentativa existente e não envia outra cópia à Meta. O navegador mantém o arquivo e a posição confirmada enquanto a tela permanece aberta.
+
+`tests/campaign-upload-store.test.cjs` e `tests/campaign-upload-client.test.cjs` verificam isolamento, ordem, resposta perdida, retomada e prevenção de duplicação. O teste HTTP em `campaign-manager.test.cjs` usa 49,5 MB de dados sintéticos e compara os bytes recebidos.
+
 - Testes unitários cobrem isolamento de contas/usuários, localidades verificadas, sugestões inválidas, falha do provedor, reutilização de criativo e criação pausada.
 - Teste de navegador cobre os três destinos, revisão editável, modo manual, layout móvel, Escape e retorno do foco.
 - Testes usam Meta e IA simuladas. A busca real de localização e a geração real precisam ser exercitadas com sessão autorizada e credencial de IA.

@@ -16,6 +16,12 @@ test('50 MB multipart upload survives a real local HTTP request without sending 
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  try{const form=new FormData();form.append('file',new Blob([bytes],{type:'video/mp4'}),'synthetic.mp4');const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/ads-manager/upload?account=act_111',{method:'POST',body:form});assert.equal(response.status,200);assert.ok((await response.json()).key);assert.deepEqual(Buffer.from(await f.calls[0].params.get('source').arrayBuffer()),bytes)}finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}
 });
+test('chunked endpoints assemble the exact video and reuse final confirmation',async()=>{
+ const f=fixture(),bytes=Buffer.alloc(3*1024*1024+5,122);Buffer.from('00000018667479706d703432','hex').copy(bytes);
+ const session=await f.run('upload-start',{size:bytes.length,type:'video/mp4'});
+ for(let offset=0;offset<bytes.length;offset+=session.chunkSize){const form=new FormData();form.append('upload',session.upload);form.append('offset',offset);form.append('file',new Blob([bytes.subarray(offset,offset+session.chunkSize)]),'part');const request=new Request('https://test/api/ads-manager/upload-part?account=act_111',{method:'POST',body:form});const req=Object.assign(Readable.fromWeb(request.body),{method:'POST',headers:Object.fromEntries(request.headers)});const result=await f.api.handle(req,{id:'a'},new URL(request.url));assert.equal(result.received,Math.min(offset+session.chunkSize,bytes.length))}
+ const result=await f.run('upload-finish',{upload:session.upload});assert.equal(result.kind,'video');assert.deepEqual(await f.run('upload-finish',{upload:session.upload}),result);assert.equal(f.calls.length,1);assert.deepEqual(Buffer.from(await f.calls[0].params.get('source').arrayBuffer()),bytes);
+});
 function fixture(options={}){
  const store=new Map(),calls=[],nodes=new Map();let sequence=100,revision='one';
  const user={id:'a'},conn={token:'private-test-token',revision:'one',scopes:options.readOnly?['ads_read']:['ads_read','ads_management']};
