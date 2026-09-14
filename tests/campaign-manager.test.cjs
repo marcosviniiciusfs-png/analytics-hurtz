@@ -10,6 +10,12 @@ test('browser multipart uploads preserve binary bytes and return an account-scop
   assert.equal(f.store.get('ads-media:a').at(-1).account,'act_111');assert.equal(f.store.get('ads-media:b'),undefined);
  }
 });
+test('50 MB multipart upload survives a real local HTTP request without sending media to Meta',async()=>{
+ const http=require('node:http'),f=fixture(),bytes=Buffer.alloc(51858487,90);Buffer.from('00000018667479706d703432000000006d70343269736f6d','hex').copy(bytes);
+ const server=http.createServer(async(req,res)=>{try{const result=await f.api.handle(req,{id:'a'},new URL(req.url,'http://localhost'));res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(result))}catch(e){res.writeHead(e.status||500);res.end(e.message)}});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try{const form=new FormData();form.append('file',new Blob([bytes],{type:'video/mp4'}),'synthetic.mp4');const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/ads-manager/upload?account=act_111',{method:'POST',body:form});assert.equal(response.status,200);assert.ok((await response.json()).key);assert.deepEqual(Buffer.from(await f.calls[0].params.get('source').arrayBuffer()),bytes)}finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}
+});
 function fixture(options={}){
  const store=new Map(),calls=[],nodes=new Map();let sequence=100,revision='one';
  const user={id:'a'},conn={token:'private-test-token',revision:'one',scopes:options.readOnly?['ads_read']:['ads_read','ads_management']};

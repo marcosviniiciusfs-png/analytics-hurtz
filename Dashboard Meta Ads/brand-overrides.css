@@ -456,5 +456,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .cm-review-body{min-height:0;overflow:auto;overscroll-behavior:contain;padding:4px 8px 16px 0}
 .cm-editor-dialog #cmReview>.cm-actions{position:static;flex-shrink:0;padding-top:16px;margin:0;border-top:1px solid var(--line);box-shadow:none;background:var(--comment-surface)}
 .cm-editor-dialog #cmSendStatus{flex-shrink:0;max-height:100px;overflow:auto;margin:8px 0 0}
-.cm-editor-dialog button.cm-review-media{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%;min-height:140px;margin:0 0 20px;padding:16px;border:2px dashed var(--line);background:var(--bg);cursor:pointer;overflow-wrap:anywhere}
-.cm-review-media img,.cm-review-media video{max-width:100%;max-height:220px;object-fit:contain}
+.cm-editor-dialog button.cm-review-media{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:var(--cm-media-width,198px);max-width:100%;height:auto;min-height:140px;margin:0 0 20px;padding:16px;border:2px dashed var(--line);background:var(--bg);cursor:pointer;overflow-wrap:anywhere}
+.cm-review-media strong,.cm-review-media small{max-width:100%}
+.cm-review-media img,.cm-review-media video{display:block;width:100%;height:auto;max-height:280px;object-fit:contain}
