@@ -17,6 +17,17 @@ const slice=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,s
       ${slice('function pngEditorControl(', "document.querySelector('#resetPngReportEdits').onclick")}
       renderPngReportFields();drawPngReport();
     `});
+    const header=await page.evaluate(()=>{
+      const ctx=document.querySelector('canvas').getContext('2d');
+      const cleanRegion=(x,w)=>{const data=ctx.getImageData(x,213,w,48).data;for(let i=0;i<data.length;i+=4)if(data[i]!==248||data[i+1]!==249||data[i+2]!==252||data[i+3]!==255)return false;return true};
+      // Reproduce the old unbounded base layer, then clear the edited field.
+      ctx.font='800 10px Arial';ctx.fillStyle='#ff4b22';ctx.fillText('Campanha original muito longa ? '.repeat(50),578,245);
+      drawReportProducts(ctx,'');const empty=cleanRegion(578,1022);
+      drawReportProducts(ctx,'Campanha original muito longa ? '.repeat(50));const bounded=cleanRegion(1204,396),visible=!cleanRegion(578,625);
+      drawReportProducts(ctx,'Curto');const shortened=cleanRegion(700,900);
+      drawReportProducts(ctx,'');return {empty,bounded,visible,shortened,clearedAgain:cleanRegion(578,1022)};
+    });
+    assert.deepEqual(header,{empty:true,bounded:true,visible:true,shortened:true,clearedAgain:true},'Header must erase old names and keep long names inside its bounds');
     assert.equal(await page.locator('[data-png-metric-index]').count(),0);
     await page.locator('[data-add-png-metric]').click();
     await page.locator('[data-png-metric-field="label"]').fill('IMPRESSÕES');
