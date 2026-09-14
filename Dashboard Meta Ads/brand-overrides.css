@@ -476,3 +476,5 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(prefers-reduced-motion:reduce){.cm-publish-card{transition:none}.cm-publish-spin,.cm-publish-track span{animation:none}.cm-publish-track span{width:100%;opacity:.5}}
 
 .png-edit-control select{width:100%;box-sizing:border-box;min-height:40px;border:1px solid #ded4ce;border-radius:8px;background:#fff;padding:9px 10px;color:#251e1a;font:600 12px "DM Sans",sans-serif}.png-edit-control select:focus-visible{outline:2px solid #f27722;outline-offset:2px}
+.png-lower-cards{display:grid;gap:12px}.png-lower-card-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;padding:12px;border:1px solid #ded4ce;border-radius:10px;background:#fff}.png-lower-card-editor>strong{grid-column:1/-1;font-size:12px}.png-lower-card-editor .wide{grid-column:1/-1}
+@media(max-width:760px){.png-lower-card-editor{grid-template-columns:1fr}}

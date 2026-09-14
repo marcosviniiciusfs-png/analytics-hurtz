@@ -8,7 +8,7 @@ const slice=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,s
     const page=await browser.newPage({viewport:{width:1640,height:1000}});
     await page.setContent('<div id="pngReportFields"></div><canvas id="pngReportCanvas" width="1600" height="900"></canvas>');
     await page.addScriptTag({content:`
-      const edit={leadsLabel:'RESULTADOS',leadsValue:'153',cplLabel:'CUSTO POR RESULTADO',cplValue:'R$ 11,32',spendLabel:'VALOR GASTO',spendValue:'R$ 1.731,73',groupTitle:'DESEMPENHO POR GRUPO DE CAMPANHA',confirmedLabel:'TOTAL CONFIRMADO',confirmedValue:'153',confirmedUnit:'resultados',investmentText:'Investimento total de R$ 1.731,73 no período analisado.',groups:[{name:'NÃO IDENTIFICADO - MENSAGEM - PARAUAPEBAS',results:'153',cpl:'R$ 11,32'}],extraMetrics:[]};
+      const edit={leadsLabel:'RESULTADOS',leadsValue:'153',cplLabel:'CUSTO POR RESULTADO',cplValue:'R$ 11,32',spendLabel:'VALOR GASTO',spendValue:'R$ 1.731,73',groupTitle:'DESEMPENHO POR GRUPO DE CAMPANHA',confirmedLabel:'TOTAL CONFIRMADO',confirmedValue:'153',confirmedUnit:'resultados',investmentText:'Investimento total de R$ 1.731,73 no período analisado.',groups:[{name:'NÃO IDENTIFICADO - MENSAGEM - PARAUAPEBAS',results:'153',cpl:'R$ 11,32'}],extraMetrics:[],lowerCards:[{title:'Resumo',text:'Resumo de teste',icon:'document'},{title:'Bom',text:'Texto positivo',icon:'clipboard'},{title:'Melhorar',text:'Texto de melhoria',icon:'trend'}]};
       const currentPngAccountId='test';const currentPngEdit=()=>edit;
       const escapeHtml=value=>String(value??'').replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
       const drawPngReport=()=>drawEditableReportBlocks(document.querySelector('canvas').getContext('2d'),edit);
@@ -39,6 +39,21 @@ const slice=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,s
     await page.evaluate(()=>renderPngReportFields());
     assert.equal(await page.locator('[data-png-field="leadsIcon"]').inputValue(),'bank');
     assert.equal(await page.locator('[data-png-metric-field="icon"]').inputValue(),'calendar');
+    await page.locator('[data-png-field="leadsIcon"]').selectOption('eye');
+    assert.equal(await page.evaluate(()=>edit.leadsIcon),'eye');
+    assert.equal(await page.locator('[data-png-lower-card-index]').count(),9);
+    await page.locator('[data-add-png-lower-card]').click();
+    assert.equal(await page.evaluate(()=>edit.lowerCards.length),4);
+    await page.locator('[data-png-lower-card-index="3"][data-png-lower-card-field="title"]').fill('Novo destaque');
+    await page.locator('[data-png-lower-card-index="3"][data-png-lower-card-field="icon"]').selectOption('eye');
+    await page.locator('[data-remove-png-lower-card="1"]').click();
+    assert.deepEqual(await page.evaluate(()=>edit.lowerCards.map(card=>card.title)),['Resumo','Melhorar','Novo destaque']);
+    for(let i=0;i<3;i++)await page.locator('[data-remove-png-lower-card="0"]').click();
+    assert.equal(await page.evaluate(()=>edit.lowerCards.length),0);
+    await page.locator('[data-add-png-lower-card]').click();
+    assert.equal(await page.evaluate(()=>edit.lowerCards.length),1);
+    await page.locator('[data-png-field="groupIcon"]').selectOption('eye');
+    assert.equal(await page.evaluate(()=>edit.groupIcon),'eye');
     await page.locator('[data-png-metric-field="label"]').fill('IMPRESSÕES');
     await page.locator('[data-png-metric-field="value"]').fill('25.000');
     await page.locator('[data-png-field="groupWidth"]').fill('40');

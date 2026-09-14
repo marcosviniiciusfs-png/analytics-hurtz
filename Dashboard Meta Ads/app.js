@@ -807,7 +807,13 @@ let currentReportContext=null,currentPngAccountId=null;
 const reportPngEdits=new Map();
 function createPngReportEdit(accountId,displayName,row,groups,insights,context){
   const products=[...new Set(groups.map(group=>group.productLabel||group.name.split(' - ')[0]).filter(name=>name!=='NÃO IDENTIFICADO'))].join(' • ')||'NÃO IDENTIFICADO';
-  return {reportTitle:'Relatório de Performance',accountName:displayName,period:`${context.from.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})} a ${context.to.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}`,campaignsLabel:'Campanhas:',products,leadsLabel:'RESULTADOS',leadsValue:num(insights.totalResults),cplLabel:'CUSTO POR RESULTADO',cplValue:insights.overallCpl==null?'—':brl(insights.overallCpl),spendLabel:'VALOR GASTO',spendValue:brl(row.spend),extraMetrics:[],groupWidth:55,groupTitle:'DESEMPENHO POR GRUPO DE CAMPANHA',confirmedLabel:'TOTAL CONFIRMADO',confirmedValue:num(insights.totalResults),confirmedUnit:'resultados',investmentText:`Investimento total de ${brl(row.spend)} no período analisado.`,groups:groups.map(group=>({name:group.name,results:group.complete?num(group.results):'—',cpl:group.complete&&group.results?brl(group.spend/group.results):'—'})),summaryTitle:'Resumo do período',summaryText:`${displayName} gerou ${num(insights.totalResults)} resultados confirmados, com investimento total de ${brl(row.spend)} entre ${context.from.toLocaleDateString('pt-BR')} e ${context.to.toLocaleDateString('pt-BR')}.`,goodTitle:'O que está bom',goodText:insights.good,improveTitle:'O que pode melhorar',improveText:insights.improve};
+  const summaryText=`${displayName} gerou ${num(insights.totalResults)} resultados confirmados, com investimento total de ${brl(row.spend)} entre ${context.from.toLocaleDateString('pt-BR')} e ${context.to.toLocaleDateString('pt-BR')}.`;
+  const lowerCards=[
+    {title:'Resumo do período',text:summaryText,icon:'document'},
+    {title:'O que está bom',text:insights.good,icon:'clipboard'},
+    {title:'O que pode melhorar',text:insights.improve,icon:'trend'}
+  ];
+  return {reportTitle:'Relatório de Performance',accountName:displayName,period:`${context.from.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})} a ${context.to.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}`,campaignsLabel:'Campanhas:',products,leadsLabel:'RESULTADOS',leadsValue:num(insights.totalResults),cplLabel:'CUSTO POR RESULTADO',cplValue:insights.overallCpl==null?'—':brl(insights.overallCpl),spendLabel:'VALOR GASTO',spendValue:brl(row.spend),extraMetrics:[],lowerCards,groupWidth:55,groupTitle:'DESEMPENHO POR GRUPO DE CAMPANHA',confirmedLabel:'TOTAL CONFIRMADO',confirmedValue:num(insights.totalResults),confirmedUnit:'resultados',investmentText:`Investimento total de ${brl(row.spend)} no período analisado.`,groups:groups.map(group=>({name:group.name,results:group.complete?num(group.results):'—',cpl:group.complete&&group.results?brl(group.spend/group.results):'—'})),summaryTitle:'Resumo do período',summaryText,goodTitle:'O que está bom',goodText:insights.good,improveTitle:'O que pode melhorar',improveText:insights.improve};
 }
 function pngReportEditKey(accountId,context=currentReportContext){return JSON.stringify([personalIdentity?.user?.id||'anonymous',accountId,localIso(context.from),localIso(context.to)])}
 function pngReportEdit(accountId,displayName,row,groups,insights,context){const key=pngReportEditKey(accountId,context);if(!reportPngEdits.has(key))reportPngEdits.set(key,createPngReportEdit(accountId,displayName,row,groups,insights,context));const edit=reportPngEdits.get(key);edit.accountName=displayName;return edit}
@@ -817,6 +823,13 @@ function roundRect(ctx,x,y,w,h,r,fill,stroke=null){ctx.beginPath();ctx.roundRect
 function fitCanvasText(ctx,text,maxWidth,startSize,weight='700',family='Arial'){let size=startSize;do{ctx.font=`${weight} ${size}px ${family}`;if(ctx.measureText(String(text)).width<=maxWidth||size<=10)break;size-=1}while(size>10);return size}
 function wrapCanvasText(ctx,text,x,y,maxWidth,lineHeight,maxLines=4){const words=String(text).split(/\s+/),lines=[];let line='';for(const word of words){const test=line?`${line} ${word}`:word;if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word;if(lines.length===maxLines-1)break}else line=test}if(line&&lines.length<maxLines)lines.push(line);if(words.length&&lines.length===maxLines){while(ctx.measureText(lines[maxLines-1]+'…').width>maxWidth)lines[maxLines-1]=lines[maxLines-1].slice(0,-1);lines[maxLines-1]+='…'}lines.forEach((value,index)=>ctx.fillText(value,x,y+index*lineHeight));return lines.length}
 function drawReportIcon(ctx,type,cx,cy,color,scale=1){ctx.save();ctx.translate(cx,cy);ctx.scale(scale,scale);ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=4;ctx.lineCap='round';ctx.lineJoin='round';const line=(x1,y1,x2,y2)=>{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()};if(type==='calendar'){ctx.strokeRect(-18,-15,36,32);line(-18,-5,18,-5);line(-10,-20,-10,-11);line(10,-20,10,-11)}else if(type==='campaign'){ctx.beginPath();ctx.moveTo(-18,15);ctx.lineTo(-18,-5);ctx.lineTo(0,-22);ctx.lineTo(18,-5);ctx.lineTo(18,15);ctx.stroke();ctx.strokeRect(-5,3,10,12);line(-11,-2,-11,7);line(11,-2,11,7);line(0,-22,0,-29)}else if(type==='people'){[-15,0,15].forEach((x,index)=>{ctx.beginPath();ctx.arc(x,index===1?-8:-4,6,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(x,index===1?13:15,index===1?12:10,Math.PI,0);ctx.fill()})}else if(type==='target'){[18,11,4].forEach(radius=>{ctx.beginPath();ctx.arc(0,0,radius,0,Math.PI*2);ctx.stroke()});line(-24,0,-12,0);line(12,0,24,0);line(0,-24,0,-12);line(0,12,0,24)}else if(type==='money'){ctx.beginPath();ctx.arc(0,0,19,0,Math.PI*2);ctx.stroke();ctx.font='800 24px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('$',0,1)}else if(type==='bank'){ctx.beginPath();ctx.moveTo(-20,-8);ctx.lineTo(0,-21);ctx.lineTo(20,-8);ctx.closePath();ctx.stroke();[-13,0,13].forEach(x=>line(x,-5,x,13));line(-22,17,22,17);line(-18,-5,18,-5)}else if(type==='document'){ctx.beginPath();ctx.moveTo(-14,-21);ctx.lineTo(8,-21);ctx.lineTo(16,-13);ctx.lineTo(16,22);ctx.lineTo(-14,22);ctx.closePath();ctx.stroke();line(8,-21,8,-12);line(8,-12,16,-12);line(-7,-3,9,-3);line(-7,5,9,5);line(-7,13,5,13)}else if(type==='clipboard'){ctx.beginPath();ctx.roundRect(-17,-18,34,40,4);ctx.stroke();ctx.beginPath();ctx.roundRect(-8,-24,16,10,4);ctx.fill();ctx.beginPath();ctx.moveTo(-8,3);ctx.lineTo(-2,9);ctx.lineTo(10,-5);ctx.stroke()}else if(type==='trend'){line(-20,20,-20,-18);line(-20,20,22,20);ctx.beginPath();ctx.moveTo(-14,12);ctx.lineTo(-2,1);ctx.lineTo(7,8);ctx.lineTo(20,-8);ctx.stroke();ctx.beginPath();ctx.moveTo(12,-8);ctx.lineTo(20,-8);ctx.lineTo(20,0);ctx.stroke()}ctx.restore()}
+const drawReportIconBase=drawReportIcon;
+drawReportIcon=function(ctx,type,cx,cy,color,scale=1){
+  if(type!=='eye')return drawReportIconBase(ctx,type,cx,cy,color,scale);
+  ctx.save();ctx.translate(cx,cy);ctx.scale(scale,scale);ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=4;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.beginPath();ctx.moveTo(-24,0);ctx.quadraticCurveTo(0,-21,24,0);ctx.quadraticCurveTo(0,21,-24,0);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,7,0,Math.PI*2);ctx.fill();ctx.restore();
+};
 function drawReportSpecificIcon(ctx,type,cx,cy,color,scale=1){
   if(!['megaphone','layers'].includes(type))return drawReportIcon(ctx,type,cx,cy,color,scale);
   ctx.save();ctx.translate(cx,cy);ctx.scale(scale,scale);ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=4;ctx.lineCap='round';ctx.lineJoin='round';
@@ -973,7 +986,7 @@ function drawEditableReportBlocks(ctx,edit){
     else if(bottomIcon==='bars'){ctx.fillStyle=orange;[34,58,85].forEach((height,i)=>ctx.fillRect(x+cardW*(.2+i*.22),630-height,cardW*.15,height))}
     else if(bottomIcon!=='none')drawReportIcon(ctx,bottomIcon,cx,584,orange,Math.min(1.8,cardW/65));
   });
-  ctx.fillStyle=navy;ctx.beginPath();ctx.arc(groupX+22,326,22,0,Math.PI*2);ctx.fill();drawReportSpecificIcon(ctx,'layers',groupX+22,326,'#fff',.52);
+  ctx.fillStyle=navy;ctx.beginPath();ctx.arc(groupX+22,326,22,0,Math.PI*2);ctx.fill();drawReportSpecificIcon(ctx,edit.groupIcon||'layers',groupX+22,326,'#fff',.52);
   drawReportCellText(ctx,edit.groupTitle,groupX+55,334,groupW-55,20,navy);
   const totalW=Math.min(245,groupW*.29),gridX=groupX+totalW+18,gridW=groupW-totalW-18;
   roundRect(ctx,groupX,372,totalW,254,12,'#fff','#edf0f4');
@@ -1018,8 +1031,15 @@ drawPngReport=async function(accountId,displayName){
 
   drawEditableReportBlocks(ctx,edit);
 
-  const panels=[{x:40,w:590,title:edit.summaryTitle,text:edit.summaryText},{x:646,w:450,title:edit.goodTitle,text:edit.goodText},{x:1112,w:448,title:edit.improveTitle,text:edit.improveText}];
-  panels.forEach(panel=>{ctx.fillStyle='#fff';ctx.fillRect(panel.x+128,694,panel.w-145,132);ctx.fillStyle=ink;ctx.font='800 16px Arial';ctx.fillText(panel.title,panel.x+134,720);ctx.fillStyle=orange;ctx.fillRect(panel.x+134,735,42,2);ctx.fillStyle=ink;ctx.font='700 14px Arial';wrapCanvasText(ctx,panel.text,panel.x+134,770,panel.w-160,19,4)});
+  const panels=Array.isArray(edit.lowerCards)?edit.lowerCards:[{title:edit.summaryTitle,text:edit.summaryText,icon:'document'},{title:edit.goodTitle,text:edit.goodText,icon:'clipboard'},{title:edit.improveTitle,text:edit.improveText,icon:'trend'}];
+  ctx.fillStyle=bg;ctx.fillRect(0,650,1600,200);
+  const gap=16,panelW=(1520-gap*Math.max(0,panels.length-1))/Math.max(1,panels.length);
+  panels.forEach((panel,index)=>{const x=40+index*(panelW+gap),iconBg=index===0?navy:'#fff0eb',iconColor=index===0?'#fff':navy;
+    roundRect(ctx,x,670,panelW,172,10,'#fff','#dde3ea');ctx.fillStyle=iconBg;ctx.beginPath();ctx.arc(x+Math.min(69,panelW*.16),755,Math.min(40,panelW*.095),0,Math.PI*2);ctx.fill();
+    drawReportIcon(ctx,panel.icon||'document',x+Math.min(69,panelW*.16),755,iconColor,Math.min(.9,panelW/450));
+    const textX=x+Math.min(134,panelW*.30),textW=panelW-Math.min(160,panelW*.36);drawReportCellText(ctx,panel.title,textX,720,textW,16,ink);
+    ctx.fillStyle=orange;ctx.fillRect(textX,735,42,2);ctx.fillStyle=ink;ctx.font='700 14px Arial';wrapCanvasText(ctx,panel.text,textX,770,textW,19,4);
+  });
 };
 
 async function openPngReport(accountId){currentPngAccountId=accountId;const row=currentReportContext?.payload.accounts?.[accountId];if(!row)return;const input=document.querySelector('#pngReportName');input.value=row.name||row.id;document.querySelector('#pngReportModal').classList.add('open');document.querySelector('#pngReportModal').setAttribute('aria-hidden','false');await drawPngReport(accountId,input.value)}
@@ -1186,10 +1206,14 @@ function currentPngEdit(accountId=currentPngAccountId){
   return pngReportEdit(accountId,displayName,row,groups,insights,context);
 }
 function pngMetricIconControl(number,value,field,index,bottom=false){
-  const icons=[['people','Pessoas'],['target','Alvo'],['money','Dinheiro'],['trend','Crescimento'],['bank','Banco'],['document','Documento'],['clipboard','Prancheta'],['calendar','Calendário'],['campaign','Campanha']];
+  const icons=[['people','Pessoas'],['target','Alvo'],['money','Dinheiro'],['trend','Crescimento'],['eye','Olho'],['bank','Banco'],['document','Documento'],['clipboard','Prancheta'],['calendar','Calendário'],['campaign','Campanha']];
   if(bottom)icons.unshift(['bars','Barras'],['donut','Rosca'],['none','Sem elemento']);
   const attributes=field?`data-png-field="${field}"`:`data-png-metric-index="${index}" data-png-metric-field="${bottom?'bottomIcon':'icon'}"`;
   return `<label class="png-edit-control wide"><span>Ícone ${bottom?'inferior':'superior'} da métrica ${number}</span><select ${attributes}>${icons.map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${label}</option>`).join('')}</select></label>`;
+}
+function pngLowerCardControls(card,index){
+  const icons=[['document','Documento'],['clipboard','Prancheta'],['trend','Crescimento'],['eye','Olho'],['people','Pessoas'],['target','Alvo'],['money','Dinheiro'],['calendar','Calendário'],['campaign','Campanha']];
+  return `<div class="png-lower-card-editor"><strong>Card ${index+1}</strong><label class="png-edit-control"><span>Título</span><input data-png-lower-card-index="${index}" data-png-lower-card-field="title" value="${escapeHtml(card.title)}"></label><label class="png-edit-control wide"><span>Texto</span><textarea rows="3" data-png-lower-card-index="${index}" data-png-lower-card-field="text">${escapeHtml(card.text)}</textarea></label><label class="png-edit-control"><span>Ícone</span><select data-png-lower-card-index="${index}" data-png-lower-card-field="icon">${icons.map(([key,label])=>`<option value="${key}" ${key===(card.icon||'document')?'selected':''}>${label}</option>`).join('')}</select></label><button type="button" class="png-group-add" data-remove-png-lower-card="${index}">Remover card ${index+1}</button></div>`;
 }
 function pngEditorControl(label,field,value,{wide=false,multiline=false}={}){
   const tag=multiline?`<textarea rows="3" data-png-field="${field}">${escapeHtml(value)}</textarea>`:`<input data-png-field="${field}" value="${escapeHtml(value)}" />`;
@@ -1215,16 +1239,16 @@ function renderPngReportFields(accountId=currentPngAccountId){
     <fieldset><legend>Layout do relatório</legend><label class="png-edit-control"><span>Largura do bloco de campanhas: <output id="pngGroupWidthValue">${pngReportLayout(edit).groupPercent}%</output></span><input type="range" min="35" max="60" step="1" value="${pngReportLayout(edit).groupPercent}" data-png-field="groupWidth" aria-label="Largura do bloco de campanhas"></label></fieldset>
     <fieldset><legend>Desempenho por grupo de campanha</legend><div class="png-edit-grid">
       ${pngEditorControl('Título do bloco','groupTitle',edit.groupTitle,{wide:true})}
+      <label class="png-edit-control"><span>Ícone do bloco</span><select data-png-field="groupIcon"><option value="layers" ${(edit.groupIcon||'layers')==='layers'?'selected':''}>Camadas</option><option value="eye" ${edit.groupIcon==='eye'?'selected':''}>Olho</option><option value="campaign" ${edit.groupIcon==='campaign'?'selected':''}>Campanha</option><option value="target" ${edit.groupIcon==='target'?'selected':''}>Alvo</option></select></label>
       ${pngEditorControl('Rótulo do total','confirmedLabel',edit.confirmedLabel)}${pngEditorControl('Total confirmado','confirmedValue',edit.confirmedValue)}
       ${pngEditorControl('Unidade do total','confirmedUnit',edit.confirmedUnit)}${pngEditorControl('Texto do investimento','investmentText',edit.investmentText,{wide:true})}
     </div><div class="png-group-editor"><div class="png-group-editor-header"><span>Nome reconhecido / não reconhecido</span><span>Leads</span><span>CPL</span><span class="png-group-action-title">Ação</span></div>
       ${(edit.groups||[]).map((group,index)=>`<div class="png-group-edit-row"><input value="${escapeHtml(group.name)}" data-png-group-index="${index}" data-png-group-field="name" aria-label="Nome do grupo ${index+1}"><input value="${escapeHtml(group.results)}" data-png-group-index="${index}" data-png-group-field="results" aria-label="Leads do grupo ${index+1}"><input value="${escapeHtml(group.cpl)}" data-png-group-index="${index}" data-png-group-field="cpl" aria-label="CPL do grupo ${index+1}"><button class="png-group-remove" type="button" data-remove-png-group="${index}" title="Apagar esta campanha do relatório" aria-label="Apagar ${escapeHtml(group.name||`campanha ${index+1}`)} do relatório"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 3h4l1 3H7l1-3Zm-2 3 1 11h6l1-11M9 9v5m2-5v5"/></svg></button></div>`).join('')||'<p class="png-edit-empty">Nenhuma campanha será exibida. Use “Restaurar dados auditados” para recuperar as linhas.</p>'}
       <button class="png-group-add" type="button" data-add-png-group><span>+</span> Adicionar campanha</button>
     </div></fieldset>
-    <fieldset><legend>Textos de análise</legend><div class="png-edit-grid">
-      ${pngEditorControl('Título do resumo','summaryTitle',edit.summaryTitle)}${pngEditorControl('Resumo','summaryText',edit.summaryText,{wide:true,multiline:true})}
-      ${pngEditorControl('Título — ponto positivo','goodTitle',edit.goodTitle)}${pngEditorControl('O que está bom','goodText',edit.goodText,{wide:true,multiline:true})}
-      ${pngEditorControl('Título — melhoria','improveTitle',edit.improveTitle)}${pngEditorControl('O que pode melhorar','improveText',edit.improveText,{wide:true,multiline:true})}
+    <fieldset><legend>Cards inferiores</legend><div class="png-lower-cards">
+      ${(edit.lowerCards||[]).map(pngLowerCardControls).join('')}
+      <button type="button" class="png-group-add" data-add-png-lower-card ${(edit.lowerCards||[]).length>=4?'disabled':''}>+ Adicionar card inferior</button>
     </div></fieldset>`;
 }
 let pngEditorRedrawTimer;
@@ -1234,6 +1258,7 @@ document.querySelector('#pngReportFields').addEventListener('input',event=>{
   if(event.target.dataset.pngField){const field=event.target.dataset.pngField;edit[field]=event.target.value;if(field==='accountName'){reportDisplayNameOverrides.set(currentPngAccountId,event.target.value);document.querySelector('#pngReportName').value=event.target.value;if(pngReportMode==='bulk')renderBulkPngNames()}}
   if(event.target.dataset.pngField==='groupWidth')document.querySelector('#pngGroupWidthValue').textContent=`${pngReportLayout(edit).groupPercent}%`;
   const metricIndex=Number(event.target.dataset.pngMetricIndex),metricField=event.target.dataset.pngMetricField;if(metricField&&edit.extraMetrics?.[metricIndex])edit.extraMetrics[metricIndex][metricField]=event.target.value;
+  const lowerCardIndex=Number(event.target.dataset.pngLowerCardIndex),lowerCardField=event.target.dataset.pngLowerCardField;if(lowerCardField&&edit.lowerCards?.[lowerCardIndex])edit.lowerCards[lowerCardIndex][lowerCardField]=event.target.value;
   const index=Number(event.target.dataset.pngGroupIndex),groupField=event.target.dataset.pngGroupField;if(groupField&&edit.groups[index])edit.groups[index][groupField]=event.target.value;
   schedulePngEditorRedraw();
 });
@@ -1245,6 +1270,13 @@ document.querySelector('#pngReportFields').addEventListener('click',event=>{
   else edit.extraMetrics.splice(Number(remove.dataset.removePngMetric),1);
   renderPngReportFields();schedulePngEditorRedraw();
   document.querySelector(add?`[data-png-metric-index="${edit.extraMetrics.length-1}"][data-png-metric-field="label"]`:'[data-add-png-metric]')?.focus();
+});
+document.querySelector('#pngReportFields').addEventListener('click',event=>{
+  const add=event.target.closest('[data-add-png-lower-card]'),remove=event.target.closest('[data-remove-png-lower-card]');if(!add&&!remove)return;
+  const edit=currentPngEdit();if(!edit)return;edit.lowerCards=edit.lowerCards||[];
+  if(add){if(edit.lowerCards.length>=4)return;edit.lowerCards.push({title:'Novo card',text:'Escreva aqui a informação que deseja destacar.',icon:'document'});}else edit.lowerCards.splice(Number(remove.dataset.removePngLowerCard),1);
+  renderPngReportFields();schedulePngEditorRedraw();
+  document.querySelector(add?`[data-png-lower-card-index="${edit.lowerCards.length-1}"][data-png-lower-card-field="title"]`:'[data-add-png-lower-card]')?.focus();
 });
 document.querySelector('#resetPngReportEdits').onclick=async()=>{
   const row=currentReportContext?.payload.accounts?.[currentPngAccountId];if(!row)return;
