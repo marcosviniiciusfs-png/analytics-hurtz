@@ -45,6 +45,14 @@ const slice=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,s
     await page.waitForTimeout(250);
     assert.equal(await page.locator('#pngGroupWidthValue').textContent(),'40%');
     assert.equal(await page.evaluate(()=>edit.extraMetrics[0].value),'25.000');
+    const topBefore=await page.locator('canvas').evaluate(c=>Array.from(c.getContext('2d').getImageData(40,276,500,250).data));
+    const lowerBefore=await page.locator('canvas').evaluate(c=>c.toDataURL());
+    await page.locator('[data-png-field="leadsBottomIcon"]').selectOption('donut');
+    await page.locator('[data-png-metric-field="bottomIcon"]').selectOption('people');await page.waitForTimeout(200);
+    assert.equal(await page.evaluate(()=>edit.leadsBottomIcon),'donut');assert.equal(await page.evaluate(()=>edit.extraMetrics[0].bottomIcon),'people');
+    assert.notEqual(await page.locator('canvas').evaluate(c=>c.toDataURL()),lowerBefore);
+    assert.deepEqual(await page.locator('canvas').evaluate(c=>Array.from(c.getContext('2d').getImageData(40,276,500,250).data)),topBefore,'Lower icon changes must leave the upper icon and metric value intact');
+    await page.evaluate(()=>renderPngReportFields());assert.equal(await page.locator('[data-png-field="leadsBottomIcon"]').inputValue(),'donut');
     const clean=await page.locator('canvas').evaluate(c=>c.toDataURL());
     const repainted=await page.evaluate(()=>{const c=document.querySelector('canvas'),ctx=c.getContext('2d');ctx.fillStyle='black';ctx.fillRect(0,270,1600,390);drawPngReport();return c.toDataURL()});
     assert.equal(repainted,clean,'Redraw must erase all previous letters and table overflow');
