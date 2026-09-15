@@ -24,3 +24,6 @@ Workflow applied: specify -> plan -> tasks -> implement -> converge. No extensio
 
 ## Account picker revision
 Native select replaced with the existing Reports account-member visual classes. Browser checks pass with 62 accounts: BM-ID search, keyboard selection, one selected account, Escape/outside dismissal and 320/390/768/1440px dropdown bounds. Existing overview destination/review and complete-app monitoring tests pass.
+
+## Pointer selection regression
+Reproduced list click failure: selected account remained empty after a real click on a searched row. focusout microtask observed transient body focus and rebuilt the list before click. Use relatedTarget to distinguish internal focus transfers. Regression covers row text/avatar clicks, touch selection, keyboard selection, persisted account and review destination.

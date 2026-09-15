@@ -36,7 +36,9 @@ export function initializeOverviewCampaign({mount,getAccounts,isReady,isConnecte
   search.addEventListener('input',()=>{list.scrollTop=0;renderList()});
   picker.addEventListener('keydown',event=>{if(event.key==='Escape'&&pickerOpen){event.preventDefault();event.stopPropagation();closePicker(true)}else if(event.target===search&&event.key==='Enter'){event.preventDefault()}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){const buttons=[...list.querySelectorAll('button')],index=buttons.indexOf(document.activeElement);if(pickerOpen&&buttons.length){event.preventDefault();buttons[(index+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length].focus()}}});
   document.addEventListener('pointerdown',event=>{if(pickerOpen&&!picker.contains(event.target))closePicker()});
-  picker.addEventListener('focusout',()=>{queueMicrotask(()=>{if(pickerOpen&&!picker.contains(document.activeElement))closePicker()})});
+  // During pointer focus transfer activeElement can briefly be body before the click.
+  // relatedTarget identifies the actual destination without removing the clicked row.
+  picker.addEventListener('focusout',event=>{if(pickerOpen&&event.relatedTarget&&!picker.contains(event.relatedTarget))closePicker()});
   function setBusy(value){preparing=value;form.setAttribute('aria-busy',String(value));button.disabled=value;description.readOnly=value;selector.disabled=value;picker.inert=value;connection.disabled=value;button.textContent=value?'Preparando campanha…':choosing?'Preparar campanha':'Continuar →'}
   function refresh(){if(choosing&&!preparing)options(catalog());if(!preparing){connection.hidden=!needsAuthorization&&isConnected()&&isReady()&&catalog().length>0;connection.textContent=needsAuthorization?'Autorizar gerenciamento':isConnected()?'Atualizar contas':'Conectar Facebook'}}
   description.addEventListener('input',()=>{description.setCustomValidity('');$('#overviewCount').textContent=description.value.length+' / 1500';status.textContent=''});

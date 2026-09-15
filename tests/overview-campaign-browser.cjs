@@ -5,7 +5,7 @@ const brief='Quero divulgar uma loja em Belém, R$ 40 por dia, 25 a 45 anos, sit
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
  try{
-  const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];
+  const page=await browser.newPage({viewport:{width:1440,height:1000},hasTouch:true}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.route('https://overview.test/**',route=>{
    const file=new URL(route.request().url()).pathname.slice(1);
@@ -59,7 +59,7 @@ const brief='Quero divulgar uma loja em Belém, R$ 40 por dia, 25 a 45 anos, sit
   assert.equal(await page.locator('#overviewDestination select').count(),0);
   assert.equal(await page.locator('#overviewMemberStrip [data-overview-account]').count(),5);
   await page.locator('#overviewMemberAdd').click();await page.locator('#overviewMemberSearch').fill('bm_61');
-  assert.equal(await page.locator('#overviewMemberList button').count(),1);await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#overviewMemberList button').count(),1);await page.locator('#overviewMemberList [data-overview-account="act_62"] strong').click();assert.equal(await page.locator('#overviewAccount').inputValue(),'act_62');await page.locator('#overviewMemberAdd').click();await page.locator('#overviewMemberSearch').fill('bm_60');await page.locator('#overviewMemberList [data-overview-account="act_61"] .account-member-small').click();assert.equal(await page.locator('#overviewAccount').inputValue(),'act_61');await page.locator('#overviewMemberAdd').click();await page.locator('#overviewMemberSearch').fill('bm_59');await page.locator('#overviewMemberList [data-overview-account="act_60"]').tap();assert.equal(await page.locator('#overviewAccount').inputValue(),'act_60');await page.locator('#overviewMemberAdd').click();await page.locator('#overviewMemberSearch').fill('bm_61');await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');
   assert.equal(await page.locator('#overviewAccount').inputValue(),'act_62');assert.equal(await page.locator('#overviewMemberDropdown').isHidden(),true);
   assert.equal(await page.locator('#overviewMemberStrip [aria-pressed=true]').count(),1);
   await page.locator('#overviewMemberAdd').click();await page.locator('#overviewMemberSearch').fill('no match');assert.match(await page.locator('#overviewMemberList').innerText(),/Nenhuma conta/);await page.keyboard.press('Escape');assert.equal(await page.locator('#overviewMemberDropdown').isHidden(),true);
@@ -67,6 +67,7 @@ const brief='Quero divulgar uma loja em Belém, R$ 40 por dia, 25 a 45 anos, sit
   await page.locator('#overviewMemberAdd').click();
   for(const width of [1440,768,390,320]){await page.setViewportSize({width,height:900});const box=await page.locator('#overviewMemberDropdown').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=width);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)}
   fs.mkdirSync(path.join(__dirname,'../.codex-tmp'),{recursive:true});await page.screenshot({path:path.join(__dirname,'../.codex-tmp/overview-campaign-mobile.png')});
+  await page.keyboard.press('Escape');await page.locator('#overviewContinue').click();await page.locator('#cmReview').waitFor({state:'visible'});assert.match(await page.locator('#cmReview').innerText(),/act_62/);
   assert.deepEqual(errors,[]);console.log('Overview campaign: single/multiple/missing destinations, review, retry, cancellation and responsive checks passed.');
  }finally{await browser.close()}
 })().catch(error=>{console.error(error);process.exitCode=1});
