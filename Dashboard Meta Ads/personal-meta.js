@@ -46,6 +46,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (!value || value.expires <= Date.now()) { remove('session', token); return null; }
     return {...value, sessionHash: hash(token)};
   }
+  const queryPolicy = require('./meta-query-policy').createQueryPolicy();
   const challenges = new Map();
   const exchanges=new Map();
   const tokenService=require('./facebook-token');
@@ -56,7 +57,10 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if(!(oauthConfig===undefined?tokenService.configuration():oauthConfig))return conn;
     const promise=(async()=>{const upgraded=await exchangeToken(conn.token,conn.facebookId);const latest=read('connection',user.id);if(!latest||latest.revision!==conn.revision)return latest;const improves=upgraded&&(upgraded.noFixedExpiry||!latest.expiresAt||upgraded.expiresAt>latest.expiresAt);const result={...latest,...(improves?upgraded:{}),exchangeAttemptAt:Date.now()};write('connection',user.id,result);return result})().finally(()=>exchanges.delete(user.id));exchanges.set(user.id,promise);return promise;
   }
+  const graphPauses = new Map();
   async function graph(token, endpoint, params = {}) {
+    const pauseKey = hash(token), previous = graphPauses.get(pauseKey);
+    if (previous?.until > Date.now()) throw Object.assign(fail(429, 'A Meta limitou temporariamente as consultas. Aguarde antes de atualizar.'), {retryAfter: Math.ceil((previous.until - Date.now()) / 1000)});
     const url = new URL(`https://graph.facebook.com/${VERSION}/${endpoint}`);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
     let response, payload;
@@ -67,7 +71,13 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (!response.ok || payload.error) {
       console.warn(JSON.stringify({event:'meta_graph_error',endpoint,status:response.status,code:payload.error?.code,subcode:payload.error?.error_subcode,trace:payload.error?.fbtrace_id}));
       if (payload.error?.code === 190) throw fail(409, 'Sua conexão com o Facebook expirou. Conecte novamente.');
-      if(response.status===429||[4,17,613,80004].includes(payload.error?.code))throw fail(429,'A Meta limitou temporariamente as consultas. Aguarde alguns minutos e tente novamente. Sua conexão foi mantida.');
+      if(response.status===429||[4,17,32,613].includes(payload.error?.code)||(payload.error?.code>=80000&&payload.error?.code<=80014)||payload.error?.error_subcode===1504022){
+        const strikes=previous&&Date.now()-previous.last<3600000?previous.strikes+1:1;
+        const retryAfter=Math.max(Number(response.headers?.get('Retry-After'))||0,Math.min(1800,120*2**(strikes-1)));
+        if(graphPauses.size>=200)graphPauses.delete(graphPauses.keys().next().value);
+        graphPauses.set(pauseKey,{until:Date.now()+retryAfter*1000,last:Date.now(),strikes});
+        throw Object.assign(fail(429,'A Meta limitou temporariamente as consultas. Aguarde antes de atualizar.'),{retryAfter});
+      }
       if ([10,200,294].includes(payload.error?.code)) throw fail(403, 'O Facebook não liberou a leitura dos anúncios. Reconecte e autorize as contas nas configurações do Tryv CRM.');
       throw fail(502, 'A Meta não autorizou esta consulta. Verifique as permissões da conexão.');
     }
@@ -123,7 +133,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       child.stdin.on('error', () => {});
       child.stdin.end(JSON.stringify(input));
     }));
-    const result = await runner({token: conn.token, kind, from, to, ids, reportOnly: url.searchParams.get('report') === '1'});
+    const result = await queryPolicy.report(user.id + ':' + conn.revision, {token: conn.token, kind, from, to, ids, reportOnly: url.searchParams.get('report') === '1'}, runner, url.searchParams.get('refresh') === '1');
     // A disconnect/reconnect while a report is running must not release stale data.
     if (read('connection', user.id)?.revision !== conn.revision) throw fail(409, 'A conexão mudou. Atualize a consulta.');
     return result;
@@ -208,7 +218,10 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const {accounts} = await authorizeAccounts(user, ids);
       return send(res, 200, {accounts: accounts.filter(a => ids.includes(a.id)).map(({id, name}) => ({id, name}))});
     }
-    if (['/api/meta-spend', '/api/meta-analysis'].includes(route) && req.method === 'GET') return send(res, 200, await report(user, route.endsWith('spend') ? 'spend' : 'analysis', url));
+    if (['/api/meta-spend', '/api/meta-analysis'].includes(route) && req.method === 'GET') {
+      try { return send(res, 200, await report(user, route.endsWith('spend') ? 'spend' : 'analysis', url)); }
+      catch (error) { if (error.status !== 429) throw error; const retryAfter = error.retryAfter || 120; res.setHeader?.('Retry-After', String(retryAfter)); return send(res, 429, {error: error.message, retry_after: retryAfter}); }
+    }
     if (['/api/alert-plans', '/api/account-profiles'].includes(route)) {
       const key = route === '/api/alert-plans' ? 'plans' : 'profiles', settings = read('settings', user.id) || {};
       if (req.method === 'GET') return send(res, 200, settings[key] || (key === 'plans' ? {plans: {}} : {items: [], activeId: null}));

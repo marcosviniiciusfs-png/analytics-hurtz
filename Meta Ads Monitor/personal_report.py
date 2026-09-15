@@ -4,18 +4,23 @@ import json
 import os
 import re
 import sys
+from meta_query_guard import MetaRateLimited
 
 
 def collect_accounts(ids, collect):
     def safe_collect(account_id):
         try:
             return collect(account_id)
+        except MetaRateLimited as error:
+            return {'id': account_id, 'reconciled': False, 'result_reconciled': False,
+                    'error': str(error), 'rate_limited': True, 'retry_after': error.retry_after,
+                    'campaigns': [], 'daily': []}
         except Exception:
             # Never serialize upstream exceptions: URLs may include credentials.
             return {'id': account_id, 'reconciled': False, 'result_reconciled': False,
                     'error': 'A Meta não liberou a auditoria desta conta neste período. Verifique as permissões ou tente atualizar.',
                     'campaigns': [], 'daily': []}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         return {row['id']: row for row in pool.map(safe_collect, ids)}
 
 

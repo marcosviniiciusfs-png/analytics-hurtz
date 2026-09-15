@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 from decimal import Decimal
 from account_credentials import account_token
+from meta_query_guard import get_json
 from result_metrics import result_metrics
 
 
@@ -22,8 +23,7 @@ def get(path: str, params: dict) -> list[dict]:
     url = f"https://graph.facebook.com/{VERSION}/{path}?{query}"
     rows: list[dict] = []
     while url:
-        with urllib.request.urlopen(url, timeout=50) as response:
-            payload = json.load(response)
+        payload = get_json(url, timeout=50)
         rows.extend(payload.get("data", []))
         url = payload.get("paging", {}).get("next")
     return rows
@@ -142,8 +142,7 @@ def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
             continue
         query = urllib.parse.urlencode({"ids": batch, "fields": "id,status,effective_status,creative{id,name,object_type,video_id,image_hash,image_url,thumbnail_url,object_story_spec,asset_feed_spec}", "access_token": token})
         try:
-            with urllib.request.urlopen(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50) as response:
-                payload = json.load(response)
+            payload = get_json(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50)
         except Exception:
             payload = {}
             metadata_warnings.append('A Meta não retornou parte dos nomes, status ou prévias. As métricas de Insights foram preservadas.')
@@ -175,8 +174,7 @@ def breakdown(account_id: str, period: str, report_only: bool = False) -> dict:
             continue
         query = urllib.parse.urlencode({"ids": batch, "fields": "id,objective", "access_token": token})
         try:
-            with urllib.request.urlopen(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50) as response:
-                payload = json.load(response)
+            payload = get_json(f"https://graph.facebook.com/{VERSION}/?{query}", timeout=50)
         except Exception:
             payload = {}
             metadata_warnings.append('A Meta não retornou parte dos nomes, status ou prévias. As métricas de Insights foram preservadas.')
@@ -221,7 +219,7 @@ def main() -> None:
     if not account_ids:
         raise SystemExit("Informe ao menos uma conta.")
     period = json.dumps({"since": since, "until": until}, separators=(",", ":"))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         rows = list(pool.map(lambda account_id: breakdown(account_id, period, report_only), account_ids))
     print(json.dumps({"since": since, "until": until, "accounts": {row["id"]: row for row in rows}}, ensure_ascii=False))
 

@@ -81,13 +81,14 @@ test('challenge belongs to one session and cannot be replayed', async t => {
 });
 
 test('report account authorization precedes execution; caller identity cannot be overridden', async t => {
-  let executions = 0;
-  const f = fixture(t, async input => { executions++; return {used: input.token}; });
+  let executions = 0, usedToken;
+  const f = fixture(t, async input => { executions++; usedToken=input.token; return {accounts:{act_111:{id:'act_111',reconciled:true}}}; });
   await f.connect(f.sessionA, f.tokens.a);
   const url = '/api/meta-spend?from=2026-09-01&to=2026-09-02&accounts=';
   assert.equal((await f.request(f.sessionA, url + 'act_222&user_id=user-b')).status, 403);
   assert.equal(executions, 0);
-  assert.equal((await f.request(f.sessionA, url + 'act_111')).body.used, f.tokens.a);
+  assert.equal((await f.request(f.sessionA, url + 'act_111')).status, 200);
+  assert.equal(usedToken, f.tokens.a);
   assert.equal((await f.request(f.sessionB, url + 'act_111')).status, 409);
   assert.equal((await f.request(f.sessionA, '/api/tasks')).status, 403);
 });

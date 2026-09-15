@@ -7,6 +7,7 @@ import urllib.parse
 import urllib.request
 from decimal import Decimal
 from account_credentials import account_token
+from meta_query_guard import get_json
 from result_metrics import result_metrics, serializable_metrics
 
 VERSION = os.environ.get("META_API_VERSION", "v25.0")
@@ -39,8 +40,7 @@ def get(path, params):
     url = f"https://graph.facebook.com/{VERSION}/{path}?{query}"
     rows = []
     while url:
-        with urllib.request.urlopen(url, timeout=40) as response:
-            payload = json.load(response)
+        payload = get_json(url, timeout=40)
         rows.extend(payload.get("data", []))
         url = payload.get("paging", {}).get("next")
     return rows
@@ -149,7 +149,7 @@ def main():
     since, until = sys.argv[1:3]
     account_ids = sys.argv[3:] or ACCOUNTS
     period = json.dumps({"since": since, "until": until}, separators=(",", ":"))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         rows = list(pool.map(lambda account_id: audit(account_id, period), account_ids))
     print(json.dumps({"since": since, "until": until, "accounts": {row["id"]: row for row in rows}}, ensure_ascii=False))
 

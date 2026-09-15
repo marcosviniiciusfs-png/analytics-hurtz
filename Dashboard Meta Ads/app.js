@@ -49,13 +49,30 @@ function cachedMetadataFetch(input,options={}){const method=(options.method||'GE
 const pendingReportRequests=new Map();
 let reportRequestsActive=0;
 const reportRequestQueue=[];
+let reportPauseUntil=0;
+function reportPauseResponse(){
+  const seconds=Math.max(1,Math.ceil((reportPauseUntil-Date.now())/1000));
+  let notice=document.querySelector('#metaQueryNotice');
+  if(!notice){notice=document.createElement('div');notice.id='metaQueryNotice';notice.setAttribute('role','status');notice.style.cssText='margin:12px 0;padding:12px 16px;border:1px solid #dce4dd;border-radius:10px;background:#f3f6f3;color:#26332b;font:400 13px/1.5 system-ui';document.querySelector('main')?.prepend(notice)}
+  notice.hidden=false;
+  notice.textContent='A Meta limitou as consultas. Mantivemos os dados j? carregados. Tente atualizar ap?s '+new Date(reportPauseUntil).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'.';
+  return new Response(JSON.stringify({error:notice.textContent,retry_after:seconds}),{status:429,headers:{'Content-Type':'application/json','Retry-After':String(seconds)}});
+}
 async function limitedReportRequest(url,options){
-  if(reportRequestsActive>=2)await new Promise(resolve=>reportRequestQueue.push(resolve));
+  if(reportRequestsActive>=1)await new Promise(resolve=>reportRequestQueue.push(resolve));
   else reportRequestsActive++;
-  try{return await monitorApiFetch(url,options)}finally{const next=reportRequestQueue.shift();if(next)next();else reportRequestsActive--}
+  try{
+    if(options.signal?.aborted)throw new DOMException('Consulta cancelada','AbortError');
+    if(reportPauseUntil>Date.now())return reportPauseResponse();
+    const response=await monitorApiFetch(url,options);
+    if(response.status===429){const data=await response.clone().json().catch(()=>({}));const seconds=Number(data.retry_after)||Number(response.headers.get('Retry-After'))||120;reportPauseUntil=Date.now()+Math.max(1,seconds)*1000;return reportPauseResponse()}
+    if(response.ok){const notice=document.querySelector('#metaQueryNotice');if(notice)notice.hidden=true}
+    return response;
+  }finally{const next=reportRequestQueue.shift();if(next)next();else reportRequestsActive--}
 }
 async function personalReportFetch(input,options={}){
   const url=new URL(input,location.origin),ids=[...new Set((url.searchParams.get('accounts')||'').split(',').filter(Boolean))];
+  url.searchParams.set('accounts',[...ids].sort().join(','));url.searchParams.sort();
   const key=url.pathname+url.search;
   if(!options.signal&&pendingReportRequests.has(key))return (await pendingReportRequests.get(key)).clone();
   const execute=async()=>{
@@ -82,11 +99,12 @@ async function fetchJsonWithRetry(url,{attempts=3,delay=700,...options}={}){
     try{
       const response=await fetch(url,options);
       const payload=await response.json().catch(()=>null);
-      if(!response.ok)throw new Error(payload?.detail||payload?.error||`Falha HTTP ${response.status}`);
+      if(!response.ok)throw Object.assign(new Error(payload?.detail||payload?.error||`Falha HTTP ${response.status}`),{status:response.status});
       if(!payload)throw new Error('A API retornou uma resposta vazia.');
       return payload;
     }catch(error){
       lastError=error;
+      if(error.name==='AbortError'||(error.status>=400&&error.status<500))throw error;
       if(attempt<attempts)await wait(delay*attempt);
     }
   }
@@ -673,7 +691,7 @@ function closeModal(){closeCampaignGoal();modal.classList.remove('open');modal.s
 document.querySelector('#searchInput').addEventListener('input',e=>renderAccounts(e.target.value));document.querySelector('#closeModal').onclick=closeModal;modal.onclick=e=>{if(e.target===modal)closeModal()};document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('modal-backdrop'))closeModal()});document.querySelectorAll('#quickDates button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));b.classList.add('active');setDates(b.dataset.range)});document.querySelectorAll('.custom-date input').forEach(i=>i.onchange=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));if(selectedAccount)updatePeriodLabel()});document.querySelector('#refreshButton').onclick=e=>{const b=e.currentTarget;b.querySelector('span').textContent='Atualizando...';setTimeout(()=>{b.querySelector('span').textContent='Atualizado agora';setTimeout(()=>b.querySelector('span').textContent='Atualizar',1500)},700)};
 document.querySelectorAll('#quickDates button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));b.classList.add('active');setDates(b.dataset.range);if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
 document.querySelectorAll('.custom-date input').forEach(i=>i.onchange=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
-document.querySelector('#refreshButton').onclick=async event=>{const button=event.currentTarget;setButtonLoading(button,true,'Atualizando contas...');try{if(!await findMetaAccounts(false))return;loadPlans();await hydrateAlertPlans();delete LIVE_PERIOD_DATA[`${iso(globalPeriod.from)}|${iso(globalPeriod.to)}`];delete LIVE_PERIOD_DATA[lastThreeDays().key];if(realControlAuditKey)delete LIVE_PERIOD_DATA[realControlAuditKey];await Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to,event.currentTarget,true),loadRealControlData(globalPeriod.to,true),loadLastThreeDays(true)])}finally{setButtonLoading(button,false)}};
+document.querySelector('#refreshButton').onclick=async event=>{const button=event.currentTarget;setButtonLoading(button,true,'Atualizando contas...');try{if(!await findMetaAccounts(false))return;loadPlans();await hydrateAlertPlans();await Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to,event.currentTarget,true),loadRealControlData(globalPeriod.to,true),loadLastThreeDays(true)])}finally{setButtonLoading(button,false)}};
 loadAccountCatalog();selectedAccountIds=new Set(accounts.map(account=>account.id));loadPlans();renderAccountFilterOptions();refreshPresetSelect();const defaultPreset=readPresets().items[readPresets().defaultName];if(defaultPreset)applyPreset(defaultPreset,false);setGlobalRange('yesterday');document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;loadLastThreeDays();renderSummary();renderAccounts();
 
 /* Analise interativa: somente dados reconciliados pela API Meta. */
