@@ -2156,7 +2156,7 @@ if(personalIdentity?.personal){
 }
 setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date.now()-facebookNonceAt>5*60000)void prepareFacebookLogin().catch(()=>{})},60000);
 if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260909-traffic-pocket');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
-const campaignModule=await import('./campaign-manager-ui.js?v=20260915-campaign-review');
+const campaignModule=await import('./campaign-manager-ui.js?v=20260915-minimal-campaign-flow');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);
 const priorAccountTab=setAccountTab;setAccountTab=function(tab){campaignManagerUI.panel.hidden=tab!=='manage';document.querySelectorAll('#accountModal .modal-toolbar,#modalSummary,#planStrip').forEach(el=>el.hidden=tab==='manage');if(tab==='manage'){activeAccountTab=tab;document.querySelectorAll('[data-account-tab]').forEach(b=>b.classList.toggle('active',b.dataset.accountTab===tab));document.querySelector('#campaignTabPanel').hidden=true;document.querySelector('#accountAnalysisPanel').hidden=true;campaignManagerUI.open()}else{priorAccountTab(tab);renderModal();loadSelectedAccountAudit()}};campaignTab.onclick=()=>setAccountTab('manage');
@@ -2176,7 +2176,7 @@ document.querySelector('.sidebar nav').addEventListener('click',event=>{if(event
 routeAccount();
 window.addEventListener('storage',event=>{if(event.key===MONITOR_SESSION_KEY)location.reload()});
 /* Description-first campaign entry; monitoring loads only in Accounts. */
-const overviewModule=await import('./overview-campaign.js?v=20260915-picker-click-fix');
+const overviewModule=await import('./overview-campaign.js?v=20260915-minimal-campaign-flow');
 const overviewMount=document.createElement('section');overviewMount.id='overviewCampaign';overviewMount.hidden=true;document.querySelector('main>header').after(overviewMount);
 overviewComposer=overviewModule.initializeOverviewCampaign({mount:overviewMount,getAccounts:()=>accounts,isReady:()=>accountCatalogReady,isConnected:()=>!!facebookSettings?.connected,prepare:(...args)=>campaignManagerUI.prepare(...args),connect:()=>window.dispatchEvent(new Event('hurtz-connect-ads')),reload:()=>findMetaAccounts(false)});
 const trafficViewRouter=showDashboardView;

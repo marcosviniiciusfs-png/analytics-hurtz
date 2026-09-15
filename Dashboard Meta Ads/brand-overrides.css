@@ -526,6 +526,12 @@ dialog::backdrop{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .cm-review-layout .cm-review-footer{padding:16px 28px}
 .cm-publish-loader{gap:0;overflow:hidden;animation:none}.cm-stage-loader-card{box-sizing:border-box;max-width:420px;box-shadow:0 14px 40px rgba(12,45,32,.12)}
 @media(max-width:700px){.cm-editor-dialog{width:calc(100% - 16px);max-height:92dvh}.cm-editor-dialog:has(#cmReview.cm-review-layout:not([hidden])) #cmEditor{height:92dvh}.cm-review-layout .cm-review-body{padding:18px}.cm-review-layout .cm-review-header,.cm-review-layout .cm-review-footer{padding-inline:18px}}
+
+/* Minimal campaign entry and review. */
+.overview-campaign{max-width:720px}.overview-composer{padding:24px}.overview-composer textarea{min-height:176px}
+.overview-loading{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:14px;min-height:104px;padding:20px;border:1px solid var(--tp-primary-border);border-radius:12px;background:var(--tp-primary-soft)}.overview-loading-spinner{width:30px;height:30px;border:3px solid var(--tp-primary-border);border-top-color:var(--tp-primary);border-radius:50%;animation:cm-stage-spin .8s linear infinite}.overview-loading strong{display:block;color:var(--ink);font-size:15px}.overview-loading p{margin:5px 0 0;color:var(--comment-muted);font-size:13px;line-height:1.45}.overview-composer.is-preparing>:not(#overviewLoading){display:none!important}
+.cm-editor-dialog{width:min(760px,calc(100% - 32px))}.cm-review-layout .cm-review-body{width:min(100%,640px)}
+@media(prefers-reduced-motion:reduce){.overview-loading-spinner{animation:none}}@media(max-width:600px){.overview-campaign{max-width:none}.overview-composer{padding:18px}.overview-loading{grid-template-columns:1fr;justify-items:center;text-align:center}.cm-editor-dialog{width:calc(100% - 16px)}}
 .campaign-overview main{padding-top:clamp(32px,7vh,80px)!important}
 .campaign-overview main>.local-environment,.campaign-overview main>.facebook-connection-bar,.campaign-overview main>header,.campaign-overview #summaryCards,.campaign-overview #accounts{display:none!important}
 .overview-campaign{max-width:880px;min-width:0;margin:0 auto;padding:24px 0 48px;color:var(--ink)}
