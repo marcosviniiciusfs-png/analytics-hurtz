@@ -5,4 +5,4 @@
 - [x] T003 [US1] Add responsive supplied-layout styles in Dashboard Meta Ads/brand-overrides.css.
 - [x] T004 [US2] Replace unstable deck loading states with compact stage loaders in Dashboard Meta Ads/campaign-manager-ui.js and Dashboard Meta Ads/brand-overrides.css.
 - [x] T005 [US1] [US2] Extend browser coverage for review hierarchy, responsive scrolling, loaders, errors and reduced motion in tests/campaign-review-browser.cjs.
-- [ ] T006 Validate build and production deployment.
+- [x] T006 Validate build and production deployment.
