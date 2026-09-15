@@ -86,5 +86,6 @@ test('returns a neutral service error only after both providers fail', async () 
 test('accepts only loopback Ollama endpoints', () => {
   assert.equal(localOllama('http://127.0.0.1:11434/api/chat'), true);
   assert.equal(localOllama('http://localhost:11434/api/chat'), true);
+  assert.equal(localOllama('http://analytics_ollama:11434/api/chat'), true);
   assert.equal(localOllama('https://ollama.example.com/api/chat'), false);
 });
