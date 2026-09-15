@@ -1375,6 +1375,201 @@ async function hydrateAlertPlans(){try{const response=await fetch('/api/alert-pl
 hydrateAlertPlans();
 document.querySelector('#analysisNav').onclick=null;document.querySelector('#reportsNav').onclick=null;
 const requestedView=new URLSearchParams(location.search).get('view');
+/* Native integration of the supplied KanbanBoard, using the existing task API. */
+let taskKanbanCleanup = () => {};
+let taskKanbanSaving = false;
+
+function taskKanbanCard(task) {
+  if (inlineEditingTaskId === task.id) return `<article class="task-card task-card-editing" data-task-id="${task.id}">${taskInlineForm(task)}</article>`;
+  const completed = taskColumnRole(nativeTasks.columns.find(column => column.id === task.column_id)) === 'completed';
+  const progress = completed ? 100 : taskProgress(task);
+  const dueSoon = task.due_date && !completed && new Date(`${task.due_date}T23:59:59`) < new Date(Date.now() + 86400000);
+  const priority = ['urgent', 'high', 'medium', 'low'].includes(task.priority) ? task.priority : 'medium';
+  const labels = { urgent: 'Urgente', high: 'Alta', medium: 'Normal', low: 'Baixa' };
+  const name = String(task.assignee || '').trim();
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => Array.from(word)[0]).join('').toUpperCase();
+  const hue = Array.from(name).reduce((hash, letter) => hash + letter.codePointAt(0), 0) % 360;
+  const due = task.due_date ? new Date(`${task.due_date}T12:00:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }) : '';
+  return `<article class="task-card" data-task-id="${task.id}">
+    <div class="task-card-chips"><span class="task-kanban-priority ${priority}"><i data-lucide="flag" aria-hidden="true"></i>${labels[priority]}</span>${(task.labels || []).map(label => `<span class="task-kanban-category"><i data-lucide="tag" aria-hidden="true"></i>${escapeHtml(label)}</span>`).join('')}<button class="task-card-settings" type="button" data-task-card-menu="${task.id}" aria-label="Opções de ${escapeHtml(task.title)}" aria-expanded="${openTaskCardMenuId === task.id}"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div>
+    <div class="task-card-heading"><button class="task-card-title" type="button" data-edit-task="${task.id}">${escapeHtml(task.title)}</button></div>
+    ${task.description ? `<p>${escapeHtml(task.description)}</p>` : ''}
+    <div class="task-kanban-footer">${name ? `<span class="task-kanban-avatar" title="${escapeHtml(name)}" aria-label="Responsável: ${escapeHtml(name)}" style="--avatar-hue:${hue}">${escapeHtml(initials)}</span>` : '<span></span>'}<div class="task-kanban-metrics">${task.estimate_minutes ? `<span title="Tempo estimado">${taskEstimateLabel(task.estimate_minutes)}</span>` : ''}${due ? `<span class="task-kanban-due ${dueSoon ? 'due-soon' : ''}"><i data-lucide="calendar-days" aria-hidden="true"></i>${due}</span>` : ''}<span class="task-kanban-progress" role="progressbar" aria-label="Progresso de ${escapeHtml(task.title)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}" title="${progress}% concluído" style="--progress:${progress}%"></span><button type="button" class="task-kanban-handle" aria-label="Mover ${escapeHtml(task.title)}" aria-describedby="taskKanbanHelp" aria-pressed="false"><i data-lucide="grip-vertical" aria-hidden="true"></i></button></div></div>
+    ${openTaskCardMenuId === task.id ? `<div class="task-card-popover"><strong>Opções do cartão</strong><button type="button" data-inline-edit-task="${task.id}">Editar</button><button type="button" data-edit-task="${task.id}">Mais detalhes</button><button class="danger" type="button" data-delete-card="${task.id}">Excluir</button></div>` : ''}
+  </article>`;
+}
+
+function bindTaskKanban(board) {
+  taskKanbanCleanup();
+  board.setAttribute('role', 'region');
+  board.setAttribute('aria-label', 'Quadro de tarefas');
+  if (!document.querySelector('#taskKanbanHelp')) {
+    const help = document.createElement('div');
+    help.className = 'task-kanban-sr';
+    help.innerHTML = '<span id="taskKanbanHelp">Pressione espaço para pegar, use as setas para mover, espaço para soltar e Escape para cancelar. No celular, arraste pela alça.</span><span id="taskKanbanAnnouncement" role="status" aria-live="polite" aria-atomic="true"></span>';
+    board.before(help);
+  }
+  const announce = message => { document.querySelector('#taskKanbanAnnouncement').textContent = message; };
+  let active = null, pending = null, frame = 0, pointer = null;
+  const sections = () => [...board.querySelectorAll('[data-task-column]')];
+  const cards = list => [...list.querySelectorAll('.task-card[data-task-id]')].filter(card => card !== active?.card);
+  const animate = change => {
+    const elements = [...board.querySelectorAll('.task-card:not(.task-kanban-floating)')];
+    const before = elements.map(element => element.getBoundingClientRect());
+    change();
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    elements.forEach((element, index) => {
+      const after = element.getBoundingClientRect(), delta = before[index].top - after.top;
+      if (delta) element.animate([{ transform: `translateY(${delta}px)` }, { transform: 'none' }], { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    });
+  };
+  const clear = () => {
+    cancelAnimationFrame(frame); frame = 0;
+    if (active) {
+      active.overlay?.remove(); active.placeholder.remove();
+      active.card.hidden = false; active.card.classList.remove('task-kanban-grabbed');
+      active.card.querySelector('.task-kanban-handle')?.setAttribute('aria-pressed', 'false');
+    }
+    sections().forEach(section => section.classList.remove('drag-over'));
+    active = null; pending = null; pointer = null;
+  };
+  const begin = (card, event) => {
+    const rect = card.getBoundingClientRect(), list = card.parentElement;
+    const placeholder = document.createElement('div');
+    placeholder.className = 'task-kanban-placeholder'; placeholder.style.height = `${rect.height}px`;
+    active = { card, placeholder, origin: list, next: card.nextSibling, id: card.dataset.taskId, keyboard: !event };
+    if (event) {
+      active.midpoints = new Map(sections().map(section => {
+        const targetList = section.querySelector('.task-list'), top = targetList.getBoundingClientRect().top;
+        let shift = 0;
+        const mids = [...targetList.querySelectorAll('.task-card[data-task-id]')].flatMap(row => {
+          const bounds = row.getBoundingClientRect();
+          if (row === card) { shift = bounds.height + 8; return []; }
+          return [bounds.top - top - shift + bounds.height / 2];
+        });
+        return [targetList, mids];
+      }));
+      const overlay = card.cloneNode(true);
+      overlay.classList.add('task-kanban-floating'); overlay.setAttribute('aria-hidden', 'true'); overlay.inert = true;
+      Object.assign(overlay.style, { width: `${rect.width}px`, left: '0', top: '0', transform: `translate(${rect.left}px,${rect.top}px)` });
+      document.body.append(overlay);
+      active.overlay = overlay; active.offsetX = event.clientX - rect.left; active.offsetY = event.clientY - rect.top;
+      card.before(placeholder); card.hidden = true;
+    } else {
+      card.classList.add('task-kanban-grabbed'); card.querySelector('.task-kanban-handle').setAttribute('aria-pressed', 'true');
+    }
+    announce('Tarefa selecionada. Use as setas para mover ou Escape para cancelar.');
+  };
+  const finish = async cancel => {
+    if (!active) { pending = null; return; }
+    const state = active, marker = state.keyboard ? state.card : state.placeholder;
+    const destination = marker.closest('[data-task-column]');
+    const nextId = cards(marker.parentElement).find(card => marker.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING)?.dataset.taskId;
+    if (cancel) {
+      state.origin.insertBefore(state.card, state.next?.parentElement === state.origin ? state.next : null);
+      clear(); state.card.querySelector('.task-kanban-handle')?.focus(); announce('Movimentação cancelada.'); return;
+    }
+    const task = nativeTasks.tasks.find(item => item.id === state.id);
+    if (!task || !destination) { clear(); return; }
+    const snapshot = nativeTasks.tasks.map(item => ({ id: item.id, column_id: item.column_id, position: item.position, completed_at: item.completed_at }));
+    const target = nativeTasks.columns.find(column => column.id === destination.dataset.taskColumn);
+    const wasCompleted = taskColumnRole(nativeTasks.columns.find(column => column.id === task.column_id)) === 'completed';
+    const completed = taskColumnRole(target) === 'completed';
+    const ordered = nativeTasks.tasks.filter(item => item.column_id === target.id && item.id !== task.id).sort((a, b) => a.position - b.position);
+    const index = nextId ? ordered.findIndex(item => item.id === nextId) : ordered.length;
+    ordered.splice(index < 0 ? ordered.length : index, 0, task);
+    task.column_id = target.id; task.completed_at = completed ? task.completed_at || new Date().toISOString() : null;
+    ordered.forEach((item, position) => { item.position = position; });
+    nativeTasks.tasks.sort((a, b) => a.position - b.position);
+    clear(); taskKanbanSaving = true; renderNativeTasks();
+    const focus = () => board.querySelector(`[data-task-id="${state.id}"] .task-kanban-handle`)?.focus({ preventScroll: true });
+    focus();
+    try {
+      await taskApi('/api/task-order', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: nativeTasks.tasks.map(item => ({ id: item.id, column_id: item.column_id, position: item.position, completed_at: item.completed_at })) }) });
+      announce(`Tarefa movida para ${target.title}.`);
+      if (completed && !wasCompleted) celebrateTaskCompletion();
+    } catch (error) {
+      for (const before of snapshot) Object.assign(nativeTasks.tasks.find(item => item.id === before.id) || {}, before);
+      nativeTasks.tasks.sort((a, b) => a.position - b.position);
+      renderNativeTasks(); focus(); announce(`Não foi possível mover a tarefa. ${error.message}`);
+    } finally { taskKanbanSaving = false; }
+  };
+  const place = () => {
+    if (!active?.overlay || !pointer) return;
+    active.overlay.style.transform = `translate(${pointer.x - active.offsetX}px,${pointer.y - active.offsetY}px) rotate(1deg)`;
+    const bounds = board.getBoundingClientRect();
+    if (pointer.x < bounds.left + 48) board.scrollLeft -= 12;
+    if (pointer.x > bounds.right - 48) board.scrollLeft += 12;
+    const section = sections().find(section => { const rect = section.getBoundingClientRect(); return pointer.x >= rect.left && pointer.x <= rect.right; });
+    if (section) {
+      const list = section.querySelector('.task-list'), rows = cards(list);
+      // Snapshot coordinates exclude the dragged card and the animated placeholder.
+      const placeholder = active.placeholder, top = list.getBoundingClientRect().top;
+      const midpoints = active.midpoints.get(list) || [];
+      const index = midpoints.findIndex(midpoint => pointer.y < top + midpoint);
+      const after = index < 0 ? null : rows[index];
+      if (placeholder.parentElement !== list || placeholder.nextElementSibling !== (after || null)) animate(() => list.insertBefore(placeholder, after || null));
+      sections().forEach(item => item.classList.toggle('drag-over', item === section));
+    }
+    frame = requestAnimationFrame(place);
+  };
+  const down = event => {
+    if (taskKanbanSaving || active || event.button !== 0) return;
+    const card = event.target.closest('.task-card:not(.task-card-editing)');
+    if (!card || !board.contains(card)) return;
+    if (event.target.closest('button') && !event.target.closest('.task-kanban-handle')) return;
+    if (event.pointerType === 'touch' && !event.target.closest('.task-kanban-handle')) return;
+    pending = { card, x: event.clientX, y: event.clientY, id: event.pointerId };
+  };
+  const move = event => {
+    if (pending && event.pointerId === pending.id && !active && Math.hypot(event.clientX - pending.x, event.clientY - pending.y) > 5) begin(pending.card, event);
+    if (active?.overlay) { event.preventDefault(); pointer = { x: event.clientX, y: event.clientY }; if (!frame) frame = requestAnimationFrame(place); }
+  };
+  const up = () => { finish(false); };
+  const cancel = () => { finish(true); };
+  const key = event => {
+    if (event.key === 'Escape' && active) { event.preventDefault(); finish(true); return; }
+    const handle = event.target.closest('.task-kanban-handle');
+    if (!handle || taskKanbanSaving) return;
+    if (event.key === ' ' || event.key === 'Enter') {
+      event.preventDefault(); if (active) finish(false); else begin(handle.closest('.task-card')); return;
+    }
+    if (!active?.keyboard || !event.key.startsWith('Arrow')) return;
+    event.preventDefault();
+    const card = active.card, list = card.parentElement, cols = sections(), col = card.closest('[data-task-column]');
+    animate(() => {
+      if (event.key === 'ArrowUp' && card.previousElementSibling) list.insertBefore(card, card.previousElementSibling);
+      if (event.key === 'ArrowDown' && card.nextElementSibling) list.insertBefore(card, card.nextElementSibling.nextSibling);
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        const target = cols[cols.indexOf(col) + (event.key === 'ArrowLeft' ? -1 : 1)];
+        if (target) { const index = [...list.children].indexOf(card), dest = target.querySelector('.task-list'); dest.insertBefore(card, cards(dest)[index] || null); }
+      }
+    });
+    handle.focus({ preventScroll: true }); card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    announce(`Posição ${[...card.parentElement.children].indexOf(card) + 1} em ${card.closest('[data-task-column]').querySelector('.task-column-name').textContent}.`);
+  };
+  board.addEventListener('pointerdown', down);
+  window.addEventListener('pointermove', move, { passive: false });
+  window.addEventListener('pointerup', up); window.addEventListener('pointercancel', cancel); window.addEventListener('blur', cancel);
+  window.addEventListener('keydown', key);
+  taskKanbanCleanup = () => {
+    clear(); frame = 0;
+    board.removeEventListener('pointerdown', down); window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', cancel); window.removeEventListener('blur', cancel); window.removeEventListener('keydown', key);
+  };
+  const paths = {
+    flag: '<path d="M4 22V3m0 1c4-4 8 4 16 0v12c-8 4-12-4-16 0"/>',
+    tag: '<path d="M20 13 11 22 2 13V2h11l9 9Z"/><circle cx="7" cy="7" r="1"/>',
+    ellipsis: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    'calendar-days': '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M8 15h2m4 0h2M8 18h2"/>',
+    'grip-vertical': '<path d="M9 5h.01M9 12h.01M9 19h.01M15 5h.01M15 12h.01M15 19h.01" stroke-width="3"/>'
+  };
+  board.querySelectorAll('[data-lucide]').forEach(icon => {
+    icon.outerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[icon.dataset.lucide] || ''}</svg>`;
+  });
+}
+
 let nativeTasks={columns:[],tasks:[],projects:[],modules:[],cycles:[],subtasks:[],comments:[],attachments:[],activities:[],notifications:[]},tasksInitialized=false,draggedTaskId=null,taskView='board',activeTaskDetail='checklist',inlineEditingTaskId=null,inlineNewColumnId=null,openTaskCardMenuId=null;
 const TASK_LOCAL_CACHE_KEY='hurtz-native-tasks-cache-v1';
 let taskLoadPromise=null,taskLoadedAt=0,taskMutationRevision=0;
@@ -1409,12 +1604,10 @@ function celebrateTaskCompletion(){
 function taskInlineForm(task=null,columnId=''){
   return `<form class="task-inline-editor" data-inline-task-form="${task?.id||''}" data-inline-column="${columnId||task?.column_id||''}"><label>Título<input name="title" maxlength="180" value="${escapeHtml(task?.title||'Nova tarefa')}" required></label><label>Descrição<textarea name="description" maxlength="2000" rows="3" placeholder="Descreva a tarefa. Use @ para mencionar alguém.">${escapeHtml(task?.description||'')}</textarea></label><div class="task-inline-editor-grid"><label>▣ Prazo final<input name="due_date" type="date" value="${task?.due_date||''}"></label><label>◷ Tempo (min)<input name="estimate_minutes" type="number" min="0" max="100000" value="${task?.estimate_minutes||''}" placeholder="60"></label></div><div class="task-inline-editor-actions"><button class="save" type="submit">Salvar</button><button type="button" data-cancel-inline-task>Cancelar</button></div><span class="task-inline-editor-status"></span></form>`;
 }
-function taskCardMarkup(task,completedColumn){
-  if(inlineEditingTaskId===task.id)return `<article class="task-card task-card-editing" data-task-id="${task.id}">${taskInlineForm(task)}</article>`;
-  const isOverdue=task.due_date&&task.column_id!==completedColumn?.id&&new Date(`${task.due_date}T23:59:59`)<NOW,subtasks=nativeTasks.subtasks.filter(item=>item.task_id===task.id),progress=taskProgress(task),menuOpen=openTaskCardMenuId===task.id;
-  return `<article class="task-card" draggable="true" data-task-id="${task.id}"><div class="task-card-heading"><span class="task-drag-handle" title="Arraste para mover">⠿</span><button class="task-card-title" type="button" data-inline-edit-task="${task.id}">${escapeHtml(task.title)}</button><button class="task-card-settings ${menuOpen?'active':''}" type="button" data-task-card-menu="${task.id}" aria-label="Opções do cartão">⚙</button></div>${task.description?`<p>${escapeHtml(task.description)}</p>`:''}${task.labels?.length?`<div class="task-labels">${task.labels.map(label=>`<span class="task-label">${escapeHtml(label)}</span>`).join('')}</div>`:''}<div class="task-meta">${task.assignee?`<span>👤 ${escapeHtml(task.assignee)}</span>`:''}${task.due_date?`<span class="${isOverdue?'task-overdue':''}">▣ ${taskDateLabel(task.due_date)}</span>`:''}${task.estimate_minutes?`<span>◷ ${taskEstimateLabel(task.estimate_minutes)}</span>`:''}${subtasks.length?`<span>✓ ${progress}%</span>`:''}</div>${menuOpen?`<div class="task-card-popover"><strong>Opções do cartão</strong><button type="button" data-inline-edit-task="${task.id}">⚙ Editar</button><button type="button" data-edit-task="${task.id}">⋯ Mais detalhes</button><button class="danger" type="button" data-delete-card="${task.id}">× Excluir</button></div>`:''}</article>`;
-}
+function taskCardMarkup(task,completedColumn){return taskKanbanCard(task)}
+
 function renderNativeTasks(){
+  taskKanbanCleanup();
   const board=document.querySelector('#tasksBoard'),count=document.querySelector('#taskCount');
   const search=(document.querySelector('#taskSearch')?.value||'').trim().toLocaleLowerCase('pt-BR'),priority=document.querySelector('#taskPriorityFilter')?.value||'',assignee=document.querySelector('#taskAssigneeFilter')?.value||'',project=document.querySelector('#taskProjectFilter')?.value||'',moduleId=document.querySelector('#taskModuleFilter')?.value||'',cycle=document.querySelector('#taskCycleFilter')?.value||'';
   const visibleTasks=nativeTasks.tasks.filter(task=>(!search||`${task.title} ${task.description||''} ${task.assignee||''} ${(task.labels||[]).join(' ')}`.toLocaleLowerCase('pt-BR').includes(search))&&(!priority||task.priority===priority)&&(!assignee||task.assignee===assignee)&&(!project||task.project_id===project)&&(!moduleId||task.module_id===moduleId)&&(!cycle||task.cycle_id===cycle));
@@ -1423,11 +1616,11 @@ function renderNativeTasks(){
   document.querySelector('#taskSummary').textContent=`${completed} concluída${completed===1?'':'s'}${overdue?` • ${overdue} atrasada${overdue===1?'':'s'}`:''}${visibleTasks.length!==nativeTasks.tasks.length?` • ${visibleTasks.length} exibida${visibleTasks.length===1?'':'s'}`:''}`;
   renderTaskDeadlineAlerts();
   if(taskView!=='board')return renderTaskAlternativeView(visibleTasks);
-  board.className='tasks-board';
+  board.className='tasks-board task-kanban-board';
   board.innerHTML=nativeTasks.columns.map(column=>{
-    const items=visibleTasks.filter(task=>task.column_id===column.id),total=nativeTasks.tasks.filter(task=>task.column_id===column.id).length;
+    const items=visibleTasks.filter(task=>task.column_id===column.id).sort((a,b)=>a.position-b.position),total=nativeTasks.tasks.filter(task=>task.column_id===column.id).length;
     const role=taskColumnRole(column);
-    return `<section class="task-column task-column-${role}" data-task-column="${column.id}" data-column-role="${role}"><header class="task-column-header"><div class="task-column-title"><span class="task-column-name">${escapeHtml(column.title)}</span><small>${taskColumnRoleLabel(role)}</small><span title="${total} tarefas nesta etapa">${total}</span></div><button class="task-column-settings-button" type="button" data-configure-column="${column.id}" title="Configurar etapa" aria-label="Configurar etapa ${escapeHtml(column.title)}">⚙</button></header><div class="task-list">${items.map(task=>taskCardMarkup(task,completedColumn)).join('')}${inlineNewColumnId===column.id?`<article class="task-card task-card-editing task-new-card">${taskInlineForm(null,column.id)}</article>`:''}</div><button class="task-add-card" type="button" data-quick-task="${column.id}" ${inlineNewColumnId===column.id?'disabled':''}><span>+</span> Adicionar Cartão</button></section>`;
+    return `<section class="task-column task-column-${role}" data-task-column="${column.id}" data-column-role="${role}"><header class="task-column-header"><div class="task-column-title"><i class="task-kanban-dot" aria-hidden="true"></i><span class="task-column-name">${escapeHtml(column.title)}</span><span title="${total} tarefas nesta etapa">${total}</span></div><button class="task-column-settings-button" type="button" data-configure-column="${column.id}" title="Configurar etapa" aria-label="Configurar etapa ${escapeHtml(column.title)}"><i data-lucide="ellipsis" aria-hidden="true"></i></button><button class="task-kanban-add" type="button" data-quick-task="${column.id}" aria-label="Adicionar tarefa em ${escapeHtml(column.title)}"><i data-lucide="plus" aria-hidden="true"></i></button></header><div class="task-list">${items.map(task=>taskCardMarkup(task,completedColumn)).join('')}${inlineNewColumnId===column.id?`<article class="task-card task-card-editing task-new-card">${taskInlineForm(null,column.id)}</article>`:''}</div><button class="task-add-card" type="button" data-quick-task="${column.id}" ${inlineNewColumnId===column.id?'disabled':''}><span>+</span> Adicionar tarefa</button></section>`;
   }).join('')+`<section class="task-column task-add-column"><button type="button" id="taskAddColumn"><span>+</span> Adicionar etapa</button></section>`;
   board.querySelectorAll('[data-edit-task]').forEach(button=>button.onclick=()=>openTaskModal(nativeTasks.tasks.find(task=>task.id===button.dataset.editTask)));
   board.querySelectorAll('[data-quick-task]').forEach(button=>button.onclick=()=>{inlineEditingTaskId=null;inlineNewColumnId=button.dataset.quickTask;openTaskCardMenuId=null;renderNativeTasks();board.querySelector('[data-inline-task-form=""] input[name="title"]')?.select()});
@@ -1438,8 +1631,7 @@ function renderNativeTasks(){
   board.querySelectorAll('[data-inline-task-form]').forEach(form=>form.onsubmit=async event=>{event.preventDefault();const status=form.querySelector('.task-inline-editor-status'),id=form.dataset.inlineTaskForm,columnId=form.dataset.inlineColumn||nativeTasks.tasks.find(item=>item.id===id)?.column_id,data=new FormData(form),existing=nativeTasks.tasks.find(item=>item.id===id),payload={id,title:String(data.get('title')||'').trim(),description:String(data.get('description')||'').trim(),due_date:data.get('due_date')||null,estimate_minutes:Number(data.get('estimate_minutes'))||null,column_id:columnId,priority:existing?.priority||'medium',assignee:existing?.assignee||'',labels:existing?.labels||[],project_id:existing?.project_id||null,module_id:existing?.module_id||null,cycle_id:existing?.cycle_id||null,position:existing?.position??nativeTasks.tasks.filter(item=>item.column_id===columnId).length};status.textContent='Salvando...';try{const saved=await taskApi('/api/tasks',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),taskId=id||saved.id,recipients=taskMentions(payload.description);if(taskId&&recipients.length)await taskApi('/api/task-notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task_id:taskId,recipients})});inlineEditingTaskId=null;inlineNewColumnId=null;await loadNativeTasks()}catch(error){status.textContent=error.message}});
   document.querySelector('#taskAddColumn').onclick=()=>document.querySelector('#taskStructureButton').click();
   board.querySelectorAll('[data-configure-column]').forEach(button=>button.onclick=()=>openTaskColumnSettings(button.dataset.configureColumn));
-  board.querySelectorAll('.task-card').forEach(card=>{card.ondragstart=event=>{draggedTaskId=card.dataset.taskId;card.classList.add('task-dragging');if(event.dataTransfer){event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',draggedTaskId);try{event.dataTransfer.setDragImage(card,20,20)}catch{}}};card.ondragend=()=>{draggedTaskId=null;card.classList.remove('task-dragging')}});
-  board.querySelectorAll('.task-column[data-task-column]').forEach(column=>{column.ondragover=event=>{event.preventDefault();column.classList.add('drag-over');const list=column.querySelector('.task-list'),after=[...list.querySelectorAll('.task-card:not(.task-dragging)')].find(card=>event.clientY<=card.getBoundingClientRect().top+card.offsetHeight/2);const dragging=board.querySelector('.task-dragging');if(dragging)list.insertBefore(dragging,after||null)};column.ondragleave=event=>{if(!column.contains(event.relatedTarget))column.classList.remove('drag-over')};column.ondrop=async event=>{event.preventDefault();column.classList.remove('drag-over');const task=nativeTasks.tasks.find(item=>item.id===draggedTaskId);if(!task)return;const previousColumn=nativeTasks.columns.find(item=>item.id===task.column_id),snapshot=nativeTasks.tasks.map(item=>({id:item.id,column_id:item.column_id,position:item.position,completed_at:item.completed_at})),target=nativeTasks.columns.find(item=>item.id===column.dataset.taskColumn),isCompleted=taskColumnRole(target)==='completed',enteredCompleted=isCompleted&&taskColumnRole(previousColumn)!=='completed',completedAt=isCompleted?(task.completed_at||new Date().toISOString()):null;task.column_id=column.dataset.taskColumn;task.completed_at=completedAt;const orderByColumn=new Map([...board.querySelectorAll('.task-column[data-task-column]')].map(section=>[section.dataset.taskColumn,[...section.querySelectorAll('.task-card')].map(card=>card.dataset.taskId)]));for(const item of nativeTasks.tasks){const order=orderByColumn.get(item.column_id)||[];const index=order.indexOf(item.id);if(index>=0)item.position=index}renderNativeTasks();if(enteredCompleted)celebrateTaskCompletion();try{await taskApi('/api/task-order',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:nativeTasks.tasks.map(item=>({id:item.id,column_id:item.column_id,position:item.position,completed_at:item.completed_at}))})})}catch(error){for(const before of snapshot)Object.assign(nativeTasks.tasks.find(item=>item.id===before.id)||{},before);renderNativeTasks();alert(error.message)}}});
+  bindTaskKanban(board);
 }
 const taskEstimateLabel=minutes=>{const value=Number(minutes)||0,hours=Math.floor(value/60),rest=value%60;return hours?`${hours}h${rest?` ${rest}min`:''}`:`${rest}min`};
 function taskPropertyTitle(list,id){return list.find(item=>item.id===id)?.title||'—'}
