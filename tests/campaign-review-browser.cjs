@@ -11,11 +11,12 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   await page.evaluate(()=>{window.formFlashed=false;window.checkFrames=true;const check=()=>{const f=document.querySelector('#cmForm');if(f&&!f.hidden&&f.getBoundingClientRect().height)window.formFlashed=true;if(window.checkFrames)requestAnimationFrame(check)};check()});
   await page.locator('#cmQuickForm button[type=submit]').click();await page.locator('#cmReview').waitFor({state:'visible'});await page.evaluate(()=>window.checkFrames=false);
   assert.equal(await page.evaluate(()=>window.formFlashed),false);assert.equal(await page.locator('#cmForm').isHidden(),true);
-  assert.ok((await page.locator('#cmReviewMedia').boundingBox()).width<=200);
+  assert.equal(await page.locator('.cm-review-layout .cm-review-header').count(),1);assert.equal(await page.locator('.cm-review-layout .cm-review-section').count(),4);assert.match(await page.locator('.cm-review-layout').innerText(),/Conta e destino/);assert.match(await page.locator('.cm-review-layout').innerText(),/Público e orçamento/);assert.match(await page.locator('.cm-review-layout').innerText(),/Conteúdo do anúncio/);
+  assert.ok((await page.locator('#cmReviewMedia').boundingBox()).width>200);
   const portrait=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=108;canvas.height=192;return canvas.toDataURL().split(',')[1]});
   const chooser=page.waitForEvent('filechooser');await page.locator('#cmReviewMedia').click();await(await chooser).setFiles({name:'creative.png',mimeType:'image/png',buffer:Buffer.from(portrait,'base64')});
   await page.waitForFunction(()=>document.querySelector('#cmReviewMedia img')?.naturalWidth>0);
-  const card=await page.locator('#cmReviewMedia').boundingBox(),media=await page.locator('#cmReviewMedia img').boundingBox();assert.ok(Math.abs(card.width-media.width-36)<1,JSON.stringify({card,media}));assert.ok(card.width<200);
+  const card=await page.locator('#cmReviewMedia').boundingBox(),media=await page.locator('#cmReviewMedia img').boundingBox();assert.ok(card.width>media.width,JSON.stringify({card,media}));assert.ok(card.width<=700);
   assert.equal(await page.locator('#cmForm').isHidden(),true);assert.match(await page.locator('#cmReviewMedia').innerText(),/creative.png/);
   for(const width of [1200,390]){await page.setViewportSize({width,height:850});const before=await page.locator('#cmSend').boundingBox();await page.locator('.cm-review-body').evaluate(el=>el.scrollTop=el.scrollHeight);const after=await page.locator('#cmSend').boundingBox();assert.ok(Math.abs(before.y-after.y)<1);assert.ok(after.y+after.height<=850);assert.equal(await page.locator('.cm-editor-dialog').evaluate(el=>el.scrollWidth<=el.clientWidth),true)}
   await page.evaluate(()=>window.failUpload=true);await page.locator('#cmSend').click();await page.getByText(/conexão com o servidor foi interrompida/).waitFor();assert.equal(await page.evaluate(()=>writes.length),0);
@@ -23,15 +24,15 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   await page.evaluate(()=>{window.failUpload=false;window.failCreate=true;window.holdCreate=true});await page.locator('#cmSend').click();
   await page.locator('.cm-publish-loader').waitFor();
   assert.equal(await page.locator('#cmEditor').evaluate(el=>el.inert),true);
-  assert.equal(await page.locator('.cm-publish-card').count(),4);
-  assert.match(await page.locator('.cm-publish-loader').innerText(),/Campanhas/i);
+  assert.equal(await page.locator('.cm-stage-loader-card').count(),1);
+  assert.match(await page.locator('.cm-publish-loader').innerText(),/PUBLICAÇÃO NA META/i);
   assert.equal(await page.locator('.cm-publish-loader').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
   await page.keyboard.press('Escape');assert.equal(await page.locator('.cm-editor-dialog').evaluate(el=>el.open),true);
   for(const width of [1200,390]){await page.setViewportSize({width,height:850});const box=await page.locator('.cm-publish-loader').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=width);assert.ok(box.y>=0&&box.y+box.height<=850)}
   const shot=path.join(__dirname,'../.codex-tmp/campaign-publish-loader.png');await page.locator('.cm-editor-dialog').screenshot({path:shot});
   await page.evaluate(()=>window.finishCreate());await page.getByText('Video sendo processado',{exact:true}).waitFor();
   assert.equal(await page.locator('.cm-publish-loader').count(),0);assert.equal(await page.locator('#cmEditor').evaluate(el=>el.inert),false);
-  await page.emulateMedia({reducedMotion:'reduce'});await page.evaluate(()=>{window.failCreate=false;window.finishCreate=null});await page.locator('#cmSend').click();await page.locator('.cm-publish-loader').waitFor();assert.equal(await page.locator('.cm-publish-spin').first().evaluate(el=>getComputedStyle(el).animationName),'none');await page.evaluate(()=>window.finishCreate());await page.getByText(/Criação confirmada pela Meta/).waitFor();
+  await page.emulateMedia({reducedMotion:'reduce'});await page.evaluate(()=>{window.failCreate=false;window.finishCreate=null});await page.locator('#cmSend').click();await page.locator('.cm-publish-loader').waitFor();assert.equal(await page.locator('.cm-stage-spinner').evaluate(el=>getComputedStyle(el).animationName),'none');await page.evaluate(()=>window.finishCreate());await page.getByText(/Criação confirmada pela Meta/).waitFor();
   await page.locator('.cm-campaign-confirmation').waitFor();assert.match(await page.locator('.cm-campaign-confirmation').innerText(),/Campanha publicada e ativa/);assert.match(await page.locator('.cm-campaign-confirmation').innerText(),/Conta teste/);
   await page.locator('[data-cm-confirmation-close]').click();assert.equal(await page.locator('.cm-editor-dialog').evaluate(el=>el.open),false);
   assert.equal(await page.evaluate(()=>writes.filter(x=>x.action==='upload').length),1);assert.equal(await page.evaluate(()=>writes.filter(x=>x.action==='create').every(x=>x.p.media==='media-key'&&x.p.confirm)),true);
