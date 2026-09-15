@@ -514,6 +514,18 @@ dialog::backdrop{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 @media(max-width:600px){#cmQuickForm .cm-ai-loader,.cm-editor-dialog #cmEditor>.cm-ai-loader{grid-template-columns:1fr;text-align:center;justify-items:center;padding:18px}.cm-ai-loader::before{width:28px;height:28px}}
 @media(prefers-reduced-motion:reduce){.cm-stage-spinner{animation:none;border-top-color:var(--tp-primary)}}
 @media(max-width:600px){.cm-review-layout .cm-review-header{padding:18px}.cm-review-header h3{font-size:18px}.cm-review-layout .cm-review-body{padding:18px}.cm-review-tiles{grid-template-columns:1fr}.cm-review-tile,.cm-review-tile:nth-child(2n){border-right:0;border-bottom:1px solid var(--line)}.cm-review-tile:last-child{border-bottom:0}.cm-review-layout .cm-review-footer{padding:14px 18px}.cm-review-footer .cm-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}.cm-review-footer .cm-actions button{width:100%}.cm-stage-loader-card{padding:24px 18px}.cm-stage-steps{flex-wrap:wrap}}
+
+/* Review owns the editor dialog: one header, one scroll region and the supplied proportion. */
+.cm-editor-dialog{width:min(1040px,calc(100% - 32px));max-height:88dvh}
+.cm-editor-dialog:has(#cmReview.cm-review-layout:not([hidden])){overflow:hidden}
+.cm-editor-dialog:has(#cmReview.cm-review-layout:not([hidden])) #cmEditor{height:min(88dvh,960px);max-height:none;padding:0}
+.cm-editor-dialog:has(#cmReview.cm-review-layout:not([hidden])) #cmEditor>.cm-heading{display:none}
+.cm-editor-dialog #cmReview.cm-review-layout{height:100%;max-height:none}
+.cm-review-layout .cm-review-header{padding:24px 28px 20px}
+.cm-review-layout .cm-review-body{box-sizing:border-box;width:min(100%,640px);padding:24px 28px 28px}
+.cm-review-layout .cm-review-footer{padding:16px 28px}
+.cm-publish-loader{gap:0;overflow:hidden;animation:none}.cm-stage-loader-card{box-sizing:border-box;max-width:420px;box-shadow:0 14px 40px rgba(12,45,32,.12)}
+@media(max-width:700px){.cm-editor-dialog{width:calc(100% - 16px);max-height:92dvh}.cm-editor-dialog:has(#cmReview.cm-review-layout:not([hidden])) #cmEditor{height:92dvh}.cm-review-layout .cm-review-body{padding:18px}.cm-review-layout .cm-review-header,.cm-review-layout .cm-review-footer{padding-inline:18px}}
 .campaign-overview main{padding-top:clamp(32px,7vh,80px)!important}
 .campaign-overview main>.local-environment,.campaign-overview main>.facebook-connection-bar,.campaign-overview main>header,.campaign-overview #summaryCards,.campaign-overview #accounts{display:none!important}
 .overview-campaign{max-width:880px;min-width:0;margin:0 auto;padding:24px 0 48px;color:var(--ink)}

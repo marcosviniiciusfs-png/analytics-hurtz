@@ -16,11 +16,16 @@ function formatCampaignReview(review,mediaBox){
   const esc=value=>String(value??'—').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const tile=(label,value,mono=false)=>'<article class="cm-review-tile"><span>'+esc(label)+'</span><strong'+(mono?' class="cm-review-mono"':'')+'>'+esc(value)+'</strong></article>';
   const section=(title,content)=>'<section class="cm-review-section"><div class="cm-review-section-head"><i aria-hidden="true"></i><h5>'+title+'</h5></div>'+content+'</section>';
+  const splitLast=(value,pattern)=>{const text=String(value||'—'),match=text.match(pattern);if(!match)return [text,'—'];const before=text.slice(0,match.index).replace(/\s*[·—-]\s*$/,'').trim();return [before||'—',match[0].trim()]};
+  const [business,businessId]=splitLast(details.get('BM'),/\d{6,}$/);
+  const [accountName,accountId]=splitLast(details.get('Conta'),/act_[\w-]+$/i);
+  const audience=String(details.get('Público e orçamento')||'—').split(' · ').map(value=>value.trim()).filter(Boolean);
+  const budget=audience.pop()||'—',age=audience.pop()||'—',country=audience.pop()||'—',region=audience.pop()||'—',location=audience.join(' · ')||'—';
   const header=document.createElement('header');header.className='cm-review-header';header.innerHTML='<div><h3>Nova campanha e anúncio</h3><p>Confira o destino, o público e o orçamento diário antes de publicar na Meta.</p></div><button type="button" class="cm-review-close" data-cm="cancel" aria-label="Fechar criação">×</button>';
   const body=document.createElement('div');body.className='cm-review-body';
   const creative=document.createElement('div');creative.className='cm-review-creative';creative.append(mediaBox);body.append(creative);
-  body.insertAdjacentHTML('beforeend',section('Conta e destino','<div class="cm-review-tiles">'+tile('Business Manager',details.get('BM'))+tile('Conta de anúncio',details.get('Conta'))+tile('Destino',details.get('Destino'))+tile('Página / Instagram',details.get('Página / Instagram'))+'</div>'));
-  body.insertAdjacentHTML('beforeend',section('Público e orçamento','<div class="cm-review-tiles">'+tile('Público',details.get('Público e orçamento'))+tile('Orçamento diário',(details.get('Público e orçamento')||'').split(' · ').slice(-1)[0],true)+'</div>'));
+  body.insertAdjacentHTML('beforeend',section('Conta e destino','<div class="cm-review-tiles">'+tile('Business Manager',business)+tile('ID da BM',businessId,true)+tile('Conta de anúncio',accountName)+tile('ID da conta',accountId,true)+tile('Página / Instagram',details.get('Página / Instagram'))+tile('Destino',details.get('Destino'))+'</div>'));
+  body.insertAdjacentHTML('beforeend',section('Público e orçamento','<div class="cm-review-tiles">'+tile('Localização',location)+tile('Estado / país',region+' · '+country)+tile('Idade',age,true)+tile('Orçamento diário',budget,true)+'</div>'));
   body.insertAdjacentHTML('beforeend',section('Conteúdo do anúncio','<div class="cm-review-tiles cm-review-tiles-single">'+tile('Título',details.get('Título'))+'</div><div class="cm-review-text">'+esc(details.get('Texto'))+'</div>'));
   body.insertAdjacentHTML('beforeend',section('Arquivo','<div class="cm-review-file"><span aria-hidden="true">▣</span><p><b>Criativo</b>'+esc(details.get('Arquivo'))+'</p></div>'));
   const footer=document.createElement('footer');footer.className='cm-review-footer';footer.append(review.querySelector('.cm-actions'),review.querySelector('#cmSendStatus'));
@@ -65,7 +70,7 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
       const waiting=error?.status===409&&/(vídeo ainda está sendo processado|capa do vídeo ainda não está disponível)/i.test(error.message||'');
       if(!waiting||Date.now()>=deadline)throw error;
       const status=$('#cmSendStatus');if(status)status.textContent='Vídeo sendo processado pela Meta. Aguardando para publicar automaticamente...';
-      await new Promise(resolve=>setTimeout(resolve,5000));
+      await new Promise(resolve=>setTimeout(resolve,1500));
     }}
   };
   function notice(message){$('#cmStatus').textContent=message}
