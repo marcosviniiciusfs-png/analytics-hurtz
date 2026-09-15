@@ -515,7 +515,7 @@ dialog::backdrop{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 @media(prefers-reduced-motion:reduce){.cm-stage-spinner{animation:none;border-top-color:var(--tp-primary)}}
 @media(max-width:600px){.cm-review-layout .cm-review-header{padding:18px}.cm-review-header h3{font-size:18px}.cm-review-layout .cm-review-body{padding:18px}.cm-review-tiles{grid-template-columns:1fr}.cm-review-tile,.cm-review-tile:nth-child(2n){border-right:0;border-bottom:1px solid var(--line)}.cm-review-tile:last-child{border-bottom:0}.cm-review-layout .cm-review-footer{padding:14px 18px}.cm-review-footer .cm-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}.cm-review-footer .cm-actions button{width:100%}.cm-stage-loader-card{padding:24px 18px}.cm-stage-steps{flex-wrap:wrap}}
 .campaign-overview main{padding-top:clamp(32px,7vh,80px)!important}
-.campaign-overview main>.local-environment,.campaign-overview main>.facebook-connection-bar,.campaign-overview main>header,.campaign-overview #summaryCards{display:none!important}
+.campaign-overview main>.local-environment,.campaign-overview main>.facebook-connection-bar,.campaign-overview main>header,.campaign-overview #summaryCards,.campaign-overview #accounts{display:none!important}
 .overview-campaign{max-width:880px;min-width:0;margin:0 auto;padding:24px 0 48px;color:var(--ink)}
 .overview-campaign[hidden],.overview-campaign [hidden],.cm-editor-dialog [hidden]{display:none!important}
 .overview-intro{margin-bottom:28px}.overview-intro h1{font-family:inherit;margin:12px 0;font-size:clamp(28px,3.2vw,42px);line-height:1.15;letter-spacing:-.035em}.overview-intro>p:last-child{margin:0;color:var(--comment-muted);line-height:1.6}

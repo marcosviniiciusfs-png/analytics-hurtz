@@ -20,7 +20,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('nod
   await page.route('**/api/ads-manager/assets?*',r=>json(r,{pages:[{id:'1',name:'Página da loja'}],instagram:[]}));
   await page.route('**/api/ads-manager/campaigns?*',r=>json(r,{items:[],currency:'BRL',canManage:true}));
   await page.route('**/api/ads-manager/operations?*',r=>json(r,{items:[]}));
-  await page.goto('http://127.0.0.1:8098/?view=overview');await page.locator('#overviewDescription').waitFor();await page.waitForFunction(()=>document.querySelector('#facebookConnectionStatus').textContent.includes('1 contas'));
+  const overviewModule=fs.readFileSync(path.join(root,'Dashboard Meta Ads/overview-campaign.js'));
+  await page.route('**/overview-campaign.js?*',async route=>{await new Promise(resolve=>setTimeout(resolve,450));await route.fulfill({contentType:'text/javascript; charset=utf-8',body:overviewModule})});
+  await page.goto('http://127.0.0.1:8098/?view=overview',{waitUntil:'domcontentloaded'});
+  await page.locator('#accounts').waitFor({state:'attached'});assert.equal(await page.locator('#accounts').isVisible(),false,'Overview must not flash the account catalog while its module is loading');
+  await page.locator('#overviewDescription').waitFor();await page.waitForFunction(()=>document.querySelector('#facebookConnectionStatus').textContent.includes('1 contas'));
   await page.waitForTimeout(300);assert.equal(spend.length,0);assert.equal(await page.locator('#summaryCards').isVisible(),false);assert.equal(await page.locator('main>header').isVisible(),false);
   for(const width of [1440,768,390,320]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:path.join(root,'.codex-tmp/overview-live-layout-'+width+'.png')})}
   await page.setViewportSize({width:1440,height:1000});await page.locator('#overviewDescription').fill('Quero anunciar minha loja em Belém, R$ 40 por dia, 25 a 45 anos, site, Facebook e Instagram.');await page.locator('#overviewContinue').click();await page.locator('#cmReview').waitFor({state:'visible'});
