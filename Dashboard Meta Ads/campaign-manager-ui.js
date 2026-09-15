@@ -14,6 +14,15 @@ export function showCampaignPublishLoader(dialog,initialStage='Enviando criativo
   stop.setStage=setStage;loader.publishLoader=stop;return stop;
 }
 
+export function showCampaignConfirmation(dialog,{campaign,account,currency,created}){
+  dialog.querySelector('.cm-campaign-confirmation')?.remove();
+  const destination={site:'Site',whatsapp:'WhatsApp',form:'Formulário'}[campaign.destination]||campaign.destination;
+  const details=[['Campanha',campaign.name],['Conta',account.name],['Destino',destination],['Orçamento diário',campaign.dailyBudget+' '+currency],['Publicada em',new Date().toLocaleString('pt-BR')],['ID da campanha',created.campaign],['ID do conjunto',created.adset],['ID do anúncio',created.ad]];
+  const card=document.createElement('section');card.className='cm-campaign-confirmation';card.tabIndex=-1;card.setAttribute('role','dialog');card.setAttribute('aria-modal','true');card.setAttribute('aria-labelledby','cmConfirmationTitle');
+  card.innerHTML='<div class="cm-confirmation-card"><div class="cm-confirmation-check" aria-hidden="true">✓</div><h2 id="cmConfirmationTitle">Campanha publicada e ativa</h2><p>Campanha, conjunto e anúncio foram confirmados como ativos na Meta.</p><dl>'+details.map(([label,value],index)=>'<div'+(index===3?' class="cm-confirmation-highlight"':'')+'><dt>'+label+'</dt><dd>'+String(value||'—').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</dd></div>').join('')+'</dl><button type="button" class="cm-primary" data-cm-confirmation-close>Ver campanhas ativas</button></div>';
+  dialog.append(card);card.querySelector('[data-cm-confirmation-close]').onclick=()=>{card.remove();dialog.close()};requestAnimationFrame(()=>card.classList.add('is-visible'));card.focus({preventScroll:true});
+}
+
 const mediaTransfers=new WeakMap();
 export async function uploadCampaignMedia(request,file,type,onProgress=()=>{}){
   // Small files retain the original transport. Large files avoid proxy body deadlines.
@@ -32,13 +41,14 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
   document.querySelector('.modal-tabs').after(panel);
   panel.innerHTML='<header class="cm-heading"><div><h3>Campanhas e anúncios</h3><p>Gerencie os anúncios desta conta com o seu acesso do Facebook.</p></div><div class="cm-actions"><button type="button" data-cm="refresh">Atualizar</button><button type="button" data-cm="new" class="cm-primary">Criar anúncio</button></div></header><p class="cm-notice" id="cmPermission" hidden>Seu acesso atual permite consultar. Para criar e gerenciar anúncios, <button type="button" data-cm="authorize">autorize o gerenciamento no Facebook</button>.</p><p id="cmStatus" role="status" aria-live="polite"></p><nav id="cmBreadcrumb" aria-label="Navegação das campanhas"></nav><div id="cmItems"></div><details><summary>Operações de criação</summary><div id="cmOperations"></div></details><section id="cmEditor" hidden></section>';
   const editorDialog=document.createElement('dialog');editorDialog.className='cm-editor-dialog';editorDialog.setAttribute('aria-labelledby','cmEditorTitle');editorDialog.append(panel.querySelector('#cmEditor'));panel.append(editorDialog);let editorTurn=0,editorTrigger=null;editorDialog.addEventListener('keydown',event=>{if(event.key==='Escape')event.stopPropagation()});editorDialog.addEventListener('cancel',event=>{if(busy)event.preventDefault()});editorDialog.addEventListener('close',()=>{editorTurn++;editorTrigger?.focus({preventScroll:true})});const $=s=>panel.querySelector(s);let account=null,currency='',canManage=false,level='campaign',parent=null,campaign=null,items=[],generation=0,draftKey=null,previewUrl=null,busy=false;
+  editorDialog.addEventListener('campaign-created',event=>showCampaignConfirmation(editorDialog,event.detail));
   const cache=new Map(),labels={campaign:'Campanha',adset:'Conjunto',ad:'Anúncio'},statusName={ACTIVE:'Ativo',PAUSED:'Pausado',CAMPAIGN_PAUSED:'Campanha pausada',ADSET_PAUSED:'Conjunto pausado',PENDING_REVIEW:'Em análise',DISAPPROVED:'Reprovado',WITH_ISSUES:'Com problemas',IN_PROCESS:'Processando',ARCHIVED:'Arquivado',DELETED:'Excluído'};
   let api=(action,params={},payload,owner=account)=>request('/api/ads-manager/'+action+'?'+new URLSearchParams({account:owner,...params}),payload?{method:'POST',body:payload instanceof FormData?payload:JSON.stringify(payload)}:{});
   const apiRequest=api;
   api=async(action,params={},payload,owner=account)=>{
     if(action!=='create')return apiRequest(action,params,payload,owner);
     const deadline=Date.now()+5*60*1000;
-    for(;;){try{return await apiRequest(action,params,payload,owner)}catch(error){
+    for(;;){try{const result=await apiRequest(action,params,payload,owner);setTimeout(()=>editorDialog.dispatchEvent(new CustomEvent('campaign-created',{detail:{campaign:payload,created:result.created||result,account:getAccount(),currency}})),0);return result}catch(error){
       const waiting=error?.status===409&&/(vídeo ainda está sendo processado|capa do vídeo ainda não está disponível)/i.test(error.message||'');
       if(!waiting||Date.now()>=deadline)throw error;
       const status=$('#cmSendStatus');if(status)status.textContent='Vídeo sendo processado pela Meta. Aguardando para publicar automaticamente...';

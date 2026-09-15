@@ -32,6 +32,8 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   await page.evaluate(()=>window.finishCreate());await page.getByText('Video sendo processado',{exact:true}).waitFor();
   assert.equal(await page.locator('.cm-publish-loader').count(),0);assert.equal(await page.locator('#cmEditor').evaluate(el=>el.inert),false);
   await page.emulateMedia({reducedMotion:'reduce'});await page.evaluate(()=>{window.failCreate=false;window.finishCreate=null});await page.locator('#cmSend').click();await page.locator('.cm-publish-loader').waitFor();assert.equal(await page.locator('.cm-publish-spin').first().evaluate(el=>getComputedStyle(el).animationName),'none');await page.evaluate(()=>window.finishCreate());await page.getByText(/Criação confirmada pela Meta/).waitFor();
+  await page.locator('.cm-campaign-confirmation').waitFor();assert.match(await page.locator('.cm-campaign-confirmation').innerText(),/Campanha publicada e ativa/);assert.match(await page.locator('.cm-campaign-confirmation').innerText(),/Conta teste/);
+  await page.locator('[data-cm-confirmation-close]').click();assert.equal(await page.locator('.cm-editor-dialog').evaluate(el=>el.open),false);
   assert.equal(await page.evaluate(()=>writes.filter(x=>x.action==='upload').length),1);assert.equal(await page.evaluate(()=>writes.filter(x=>x.action==='create').every(x=>x.p.media==='media-key'&&x.p.confirm)),true);
   assert.deepEqual(errors,[]);console.log('Campaign review: no form flash, direct file selection, fixed actions, multipart, preserved file and upload reuse passed.');
  }finally{await browser.close()}
