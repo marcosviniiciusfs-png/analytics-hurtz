@@ -2176,7 +2176,7 @@ document.querySelector('.sidebar nav').addEventListener('click',event=>{if(event
 routeAccount();
 window.addEventListener('storage',event=>{if(event.key===MONITOR_SESSION_KEY)location.reload()});
 /* Description-first campaign entry; monitoring loads only in Accounts. */
-const overviewModule=await import('./overview-campaign.js?v=20260915-overview-campaign');
+const overviewModule=await import('./overview-campaign.js?v=20260915-account-picker');
 const overviewMount=document.createElement('section');overviewMount.id='overviewCampaign';overviewMount.hidden=true;document.querySelector('main>header').after(overviewMount);
 overviewComposer=overviewModule.initializeOverviewCampaign({mount:overviewMount,getAccounts:()=>accounts,isReady:()=>accountCatalogReady,isConnected:()=>!!facebookSettings?.connected,prepare:(...args)=>campaignManagerUI.prepare(...args),connect:()=>window.dispatchEvent(new Event('hurtz-connect-ads')),reload:()=>findMetaAccounts(false)});
 const trafficViewRouter=showDashboardView;

@@ -26,3 +26,7 @@ Independent test: BM/account identity matches plan destination in initial and ed
 ## Dependencies and strategy
 T001 -> T002 -> T003 -> T004/T006 -> T005/T007 -> T008 -> T009 -> T010.
 Deliver all three stories together. US1 entry is the initial increment; US2 and US3 complete the user journey. Shared files require sequential edits. Independent research of startup query triggers ran alongside local editor research; no parallel implementation needed.
+
+## Account picker revision
+- [x] T011 Replace the native select with the Reports avatar/search selector in Dashboard Meta Ads/overview-campaign.js, retaining single destination selection.
+- [x] T012 Verify search across 62 accounts, BM IDs, keyboard selection, Escape/outside click, single selection and responsive dropdown in tests/overview-campaign-browser.cjs.

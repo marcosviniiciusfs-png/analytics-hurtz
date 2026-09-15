@@ -5,3 +5,5 @@ prepare(account,description,isCurrent) must ignore stale work and open existing 
 Account options display business identity, account name and ID. Sole known BM/account is automatic; missing BM metadata requires explicit account choice.
 POST /api/ads-manager/plan?account=<authorized ID> keeps existing {description} request and {draft,reviewRequired} response. No API schema changes.
 Editor review displays BM name/ID or explicit unavailable label and account name/ID in the review definition list.
+
+Account picker uses the shared account-member-* classes from Reports. Five avatars and a selection button expose a bounded searchable dropdown. Selecting an account replaces the prior selection, closes the dropdown and restores focus. Escape, outside click and leaving the picker close it. No native select popup is used.

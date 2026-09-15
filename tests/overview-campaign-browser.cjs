@@ -40,13 +40,13 @@ const brief='Quero divulgar uma loja em Belém, R$ 40 por dia, 25 a 45 anos, sit
   for(const rows of [[one,{...one,id:'act_2',name:'Conta B'}],[one,{...one,id:'act_2',name:'Conta B',businessId:'bm_2',businessName:'Empresa B'}]]){
    await reset(rows);await page.locator('#overviewDescription').fill(brief);await page.locator('#overviewContinue').click();
    assert.equal(await page.locator('#overviewAccount').inputValue(),'');assert.equal(await page.evaluate(()=>calls.length),0);
-   await page.locator('#overviewAccount').selectOption('act_2');await page.locator('#overviewContinue').click();await page.locator('#cmReview').waitFor({state:'visible'});
+   await page.locator('#overviewMemberStrip [data-overview-account="act_2"]').click();await page.locator('#overviewContinue').click();await page.locator('#cmReview').waitFor({state:'visible'});
    assert.match(await page.locator('#cmReview').innerText(),/Conta B.*act_2/s);
    assert.ok((await page.evaluate(()=>calls[0].url)).endsWith('account=act_2'));
   }
   await reset([one,one]);await page.locator('#overviewDescription').fill(brief);await page.locator('#overviewContinue').click();await page.locator('#cmReview').waitFor({state:'visible'});
   await reset([{...one,businessId:'',businessName:''}]);await page.locator('#overviewDescription').fill(brief);await page.locator('#overviewContinue').click();assert.equal(await page.locator('#overviewAccount').inputValue(),'');
-  await page.locator('#overviewAccount').selectOption('act_1');await page.locator('#overviewContinue').click();await page.locator('#cmReview').waitFor({state:'visible'});assert.match(await page.locator('#cmReview').innerText(),/BM não informada/);
+  await page.locator('#overviewMemberStrip [data-overview-account="act_1"]').click();await page.locator('#overviewContinue').click();await page.locator('#cmReview').waitFor({state:'visible'});assert.match(await page.locator('#cmReview').innerText(),/BM não informada/);
   await reset([]);await page.locator('#overviewDescription').fill(brief);await page.locator('#overviewContinue').click();assert.match(await page.locator('#overviewStatus').innerText(),/conta/);assert.equal(await page.locator('#overviewDescription').inputValue(),brief);
   await reset([one]);await page.evaluate(()=>ready=false);await page.locator('#overviewDescription').fill(brief);await page.locator('#overviewContinue').click();assert.equal(await page.evaluate(()=>calls.length),0);await page.evaluate(()=>{ready=true;composer.refresh()});
   await page.evaluate(()=>fail=true);await page.locator('#overviewContinue').click();await page.getByText('Falha temporária. Tente novamente.',{exact:true}).waitFor();assert.equal(await page.locator('#overviewDescription').inputValue(),brief);
@@ -54,6 +54,18 @@ const brief='Quero divulgar uma loja em Belém, R$ 40 por dia, 25 a 45 anos, sit
   await reset([one]);await page.evaluate(()=>hold=true);await page.locator('#overviewDescription').fill(brief);await page.locator('#overviewContinue').click();await page.waitForFunction(()=>window.release);await page.evaluate(()=>{composer.setVisible(false);manager.close();release()});await page.waitForTimeout(100);assert.equal(await page.locator('.cm-editor-dialog').evaluate(el=>el.open),false);
   await reset([one,{...one,id:'act_2',name:'<img src=x onerror=alert(1)>',businessName:'Empresa '.repeat(30)}]);await page.locator('#overviewDescription').fill(brief);await page.locator('#overviewContinue').click();assert.equal(await page.locator('#overviewDestination img').count(),0);
   for(const width of [1440,768,390,320]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.locator('#overviewDescription').focus();await page.keyboard.press('Tab');}
+  await reset(Array.from({length:62},(_,i)=>({...one,id:'act_'+(i+1),name:'Conta '+(i+1),businessId:'bm_'+i,businessName:'Empresa '+i})));
+  await page.locator('#overviewDescription').fill(brief);await page.locator('#overviewContinue').click();
+  assert.equal(await page.locator('#overviewDestination select').count(),0);
+  assert.equal(await page.locator('#overviewMemberStrip [data-overview-account]').count(),5);
+  await page.locator('#overviewMemberAdd').click();await page.locator('#overviewMemberSearch').fill('bm_61');
+  assert.equal(await page.locator('#overviewMemberList button').count(),1);await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#overviewAccount').inputValue(),'act_62');assert.equal(await page.locator('#overviewMemberDropdown').isHidden(),true);
+  assert.equal(await page.locator('#overviewMemberStrip [aria-pressed=true]').count(),1);
+  await page.locator('#overviewMemberAdd').click();await page.locator('#overviewMemberSearch').fill('no match');assert.match(await page.locator('#overviewMemberList').innerText(),/Nenhuma conta/);await page.keyboard.press('Escape');assert.equal(await page.locator('#overviewMemberDropdown').isHidden(),true);
+  await page.locator('#overviewMemberAdd').click();await page.locator('#overviewDescription').click();assert.equal(await page.locator('#overviewMemberDropdown').isHidden(),true);
+  await page.locator('#overviewMemberAdd').click();
+  for(const width of [1440,768,390,320]){await page.setViewportSize({width,height:900});const box=await page.locator('#overviewMemberDropdown').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=width);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)}
   fs.mkdirSync(path.join(__dirname,'../.codex-tmp'),{recursive:true});await page.screenshot({path:path.join(__dirname,'../.codex-tmp/overview-campaign-mobile.png')});
   assert.deepEqual(errors,[]);console.log('Overview campaign: single/multiple/missing destinations, review, retry, cancellation and responsive checks passed.');
  }finally{await browser.close()}

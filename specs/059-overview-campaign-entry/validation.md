@@ -21,3 +21,6 @@ Workflow applied: specify -> plan -> tasks -> implement -> converge. No extensio
 - https://analytics.hurtzcompany.com/?view=overview serves the new feature.
 - index.html, app.js, overview-campaign.js, campaign-manager-ui.js and brand-overrides.css returned HTTP 200 and matched the release files exactly after line-ending normalization.
 - No backend deployment was necessary; existing campaign authorization/planning APIs are reused.
+
+## Account picker revision
+Native select replaced with the existing Reports account-member visual classes. Browser checks pass with 62 accounts: BM-ID search, keyboard selection, one selected account, Escape/outside dismissal and 320/390/768/1440px dropdown bounds. Existing overview destination/review and complete-app monitoring tests pass.
