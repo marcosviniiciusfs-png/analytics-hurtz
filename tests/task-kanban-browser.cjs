@@ -87,6 +87,30 @@ const { spawn } = require('node:child_process');
     await page.locator('[data-task-view="list"]').click();
     assert.equal(await page.locator('#tasksBoard').getAttribute('class'), 'tasks-board task-list-view');
     await page.locator('[data-task-view="board"]').click();
+    for (const width of [1920, 1573, 1440, 1024, 768, 390, 320]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const toolbar = page.locator('.tasks-toolbar');
+      for (const expanded of [false, true]) {
+        await page.locator('.task-extra-filters').evaluate((element, open) => { element.open = open; }, expanded);
+        const violations = await toolbar.evaluate(element => {
+          const bounds = element.getBoundingClientRect();
+          return [...element.querySelectorAll('input,select,button,summary')].filter(control => control.checkVisibility()).filter(control => {
+            const rect = control.getBoundingClientRect();
+            return rect.width < 24 || rect.left < bounds.left || rect.right > bounds.right;
+          }).map(control => control.id || control.textContent);
+        });
+        assert.deepEqual(violations, [], `Toolbar overflow at ${width}px, expanded=${expanded}`);
+      }
+    }
+    await page.locator('.task-extra-filters').evaluate(element => { element.open = false; });
+    await page.locator('.task-extra-filters summary').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#taskProjectFilter').isVisible(), true);
+    await page.keyboard.press('Enter');
+    await page.locator('#taskSearch').fill('nenhuma tarefa encontrada');
+    assert.equal(await page.locator('.task-card[data-task-id]').count(), 0);
+    await page.locator('#taskSearch').fill('');
+    assert.equal(await page.locator('.task-card[data-task-id]').count(), 1);
     await page.setViewportSize({ width: 390, height: 844 });
     const section = page.locator('#tasks');
     assert.equal(await section.evaluate(element => element.scrollWidth <= element.clientWidth), true);

@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260911-green-brand" />
   <link rel="stylesheet" href="brand-overrides.css?v=20260914-report-cards" />
-  <link rel="stylesheet" href="task-kanban.css?v=20260915" />
+  <link rel="stylesheet" href="task-kanban.css?v=20260915-toolbar-v2" />
 </head>
 <body>
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -165,17 +165,23 @@
         </div>
         <div class="task-retention-notice" role="alert"><strong>Retenção de 72 horas</strong><span>O quadro não limita a quantidade de cartões. Porém, cada tarefa é apagada permanentemente 72 horas após sua criação, junto com seus arquivos.</span></div>
         <div class="tasks-toolbar">
-          <div class="tasks-summary"><b id="taskCount">0 tarefas</b><span id="taskSummary">Arraste os cartões para atualizar o andamento.</span></div>
+          <div class="tasks-toolbar-top">
+            <div class="tasks-summary"><b id="taskCount">0 tarefas</b><span id="taskSummary">Arraste os cartões para atualizar o andamento.</span></div>
+            <div class="tasks-toolbar-actions"><div class="task-view-switch"><button class="active" type="button" data-task-view="board">Quadro</button><button type="button" data-task-view="list">Lista</button><button type="button" data-task-view="calendar">Calendário</button><button type="button" data-task-view="analytics">Resumo</button></div><button id="refreshTasks" type="button">↻ Atualizar</button></div>
+          </div>
           <div class="tasks-controls">
-            <label class="task-search"><span>⌕</span><input id="taskSearch" placeholder="Buscar tarefa..." /></label>
-            <select id="taskProjectFilter" aria-label="Filtrar por projeto"><option value="">Todos os projetos</option></select>
-            <select id="taskModuleFilter" aria-label="Filtrar por módulo"><option value="">Todos os módulos</option></select>
-            <select id="taskCycleFilter" aria-label="Filtrar por ciclo"><option value="">Todos os ciclos</option></select>
+            <label class="task-search"><span aria-hidden="true">⌕</span><input id="taskSearch" type="search" aria-label="Buscar tarefas" placeholder="Buscar tarefa..." /></label>
             <select id="taskPriorityFilter" aria-label="Filtrar por prioridade"><option value="">Todas as prioridades</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select>
             <select id="taskAssigneeFilter" aria-label="Filtrar por responsável"><option value="">Todos os responsáveis</option></select>
-            <div class="task-view-switch"><button class="active" type="button" data-task-view="board">Quadro</button><button type="button" data-task-view="list">Lista</button><button type="button" data-task-view="calendar">Calendário</button><button type="button" data-task-view="analytics">Resumo</button></div>
-            <button id="refreshTasks" type="button">↻ Atualizar</button>
           </div>
+          <details class="task-extra-filters">
+            <summary>Mais filtros <span>Projeto, m?dulo e ciclo</span></summary>
+            <div class="task-extra-filter-grid">
+                <select id="taskProjectFilter" aria-label="Filtrar por projeto"><option value="">Todos os projetos</option></select>
+                <select id="taskModuleFilter" aria-label="Filtrar por módulo"><option value="">Todos os módulos</option></select>
+                <select id="taskCycleFilter" aria-label="Filtrar por ciclo"><option value="">Todos os ciclos</option></select>
+            </div>
+          </details>
         </div>
         <div class="task-deadline-alerts" id="taskDeadlineAlerts" hidden></div>
         <div class="tasks-board" id="tasksBoard" aria-live="polite"></div>

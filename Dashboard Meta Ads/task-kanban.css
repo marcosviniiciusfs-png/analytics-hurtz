@@ -1,4 +1,47 @@
 /* Supplied KanbanBoard visual structure, scoped to the task board. */
+#tasks{--task-ui-text:#26332b;--task-ui-muted:#59675e;--task-ui-border:#dce4dd;--task-ui-surface:#fff;--task-ui-soft:#f3f6f3;--task-ui-accent:var(--tp-primary,#3f8128);--task-ui-accent-soft:var(--tp-primary-soft,#edf7e9);--task-ui-radius:12px;--task-ui-gap:12px;min-width:0;max-width:100%;container-type:inline-size;font-family:"DM Sans",system-ui,sans-serif}
+#tasks *,#tasks *::before,#tasks *::after{box-sizing:border-box}
+#tasks .tasks-heading{align-items:center;flex-wrap:wrap;gap:20px;margin:8px 0 20px}
+#tasks .tasks-heading>div:first-child{flex:1 1 300px;min-width:0}
+#tasks .tasks-heading h2{font:700 28px/1.2 "DM Sans",system-ui,sans-serif;color:var(--task-ui-text);margin:6px 0 8px}
+#tasks .tasks-heading p:last-child{font:400 13px/1.5 "DM Sans",system-ui,sans-serif;color:var(--task-ui-muted)}
+#tasks .tasks-heading-actions{display:flex;flex:0 1 auto;flex-wrap:wrap;align-items:center;gap:8px;width:auto}
+#tasks .tasks-heading-actions button{min-height:42px;padding:10px 14px;border:1px solid var(--task-ui-border);border-radius:8px;background:var(--task-ui-surface);color:var(--task-ui-text);font:600 12px/1.4 "DM Sans",system-ui,sans-serif;box-shadow:none}
+#tasks .tasks-heading-actions .task-primary-button{background:var(--task-ui-accent);border-color:var(--task-ui-accent);color:var(--task-ui-surface)}
+#tasks .tasks-heading-actions button:hover{background:var(--task-ui-soft)}
+#tasks .tasks-heading-actions .task-primary-button:hover{background:var(--tp-primary-strong,#2d651d)}
+#tasks #taskNotificationCount{background:var(--task-ui-accent);color:var(--task-ui-surface);font-size:11px}
+#tasks .task-retention-notice{gap:10px;padding:10px 14px;border-color:var(--task-ui-border);background:var(--task-ui-soft);color:var(--task-ui-muted);opacity:1;border-radius:var(--task-ui-radius)}
+#tasks .task-retention-notice strong{font:600 11px/1.5 "DM Sans",system-ui,sans-serif;color:var(--task-ui-text)}
+#tasks .task-retention-notice span{font:400 11px/1.5 "DM Sans",system-ui,sans-serif}
+#tasks .tasks-toolbar{display:flex;flex-direction:column;align-items:stretch;gap:var(--task-ui-gap);width:100%;min-width:0;padding:16px;margin:0 0 16px;border:1px solid var(--task-ui-border);border-radius:var(--task-ui-radius);background:var(--task-ui-surface)}
+#tasks .tasks-toolbar-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--task-ui-gap);min-width:0}
+#tasks .tasks-summary{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+#tasks .tasks-summary b{color:var(--task-ui-text);font-size:13px}
+#tasks .tasks-summary span{color:var(--task-ui-muted);font-size:12px;line-height:1.5}
+#tasks .tasks-toolbar-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;min-width:0}
+#tasks .task-view-switch{display:flex;flex-wrap:wrap;gap:3px;width:auto;max-width:100%;padding:3px;border:1px solid var(--task-ui-border);border-radius:9px;background:var(--task-ui-soft);overflow:visible}
+#tasks .task-view-switch button{flex:1 1 auto;min-height:34px;padding:7px 12px;border:0;border-radius:6px;color:var(--task-ui-muted);font:500 12px/1.4 "DM Sans",system-ui,sans-serif;white-space:nowrap}
+#tasks .task-view-switch button.active{background:var(--task-ui-surface);color:var(--task-ui-accent)!important;box-shadow:0 1px 3px #00000012;font-weight:700}
+#tasks .task-view-switch button:not(.active){color:var(--task-ui-muted)!important}
+#tasks #refreshTasks{flex:none;min-height:38px;padding:8px;color:var(--task-ui-muted);font:500 12px/1.4 "DM Sans",system-ui,sans-serif}
+#tasks .tasks-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.45fr) minmax(190px,.45fr);gap:var(--task-ui-gap);width:100%;min-width:0}
+#tasks .task-search{display:flex;align-items:center;gap:8px;width:100%;min-width:0;max-width:none;height:42px;margin:0;padding:0 12px;border:1px solid var(--task-ui-border);border-radius:8px;background:var(--task-ui-surface)}
+#tasks .task-search span{color:var(--task-ui-muted);font-size:18px}
+#tasks .task-search input{width:100%;min-width:0;max-width:none;height:100%;padding:0;border:0;background:transparent;outline:0;color:var(--task-ui-text);font:400 13px "DM Sans",system-ui,sans-serif}
+#tasks .task-search:focus-within{outline:2px solid var(--task-ui-accent);outline-offset:2px}
+#tasks .task-search input:focus-visible{outline:none!important;box-shadow:none}
+#tasks .task-search input::placeholder{color:var(--task-ui-muted);opacity:1}
+#tasks .tasks-controls select,#tasks .task-extra-filter-grid select{width:100%;min-width:0;max-width:none;min-height:42px;padding:8px 12px;border:1px solid var(--task-ui-border);border-radius:8px;background:var(--task-ui-surface);color:var(--task-ui-text);font:400 12px/1.5 "DM Sans",system-ui,sans-serif}
+#tasks .task-extra-filters{min-width:0;padding-top:2px}
+#tasks .task-extra-filters summary{width:fit-content;max-width:100%;min-height:28px;padding:4px 0;color:var(--task-ui-text);font:600 12px/1.5 "DM Sans",system-ui,sans-serif;cursor:pointer}
+#tasks .task-extra-filters summary span{margin-left:8px;color:var(--task-ui-muted);font-weight:400}
+#tasks .task-extra-filters summary:focus-visible{outline:2px solid var(--task-ui-accent);outline-offset:3px;border-radius:4px}
+#tasks .task-extra-filter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--task-ui-gap);margin-top:10px}
+#tasks .task-deadline-alerts{display:flex;flex-wrap:wrap;gap:8px;max-width:100%;font:400 12px/1.5 "DM Sans",system-ui,sans-serif}
+#tasks .task-deadline-alerts[hidden]{display:none}
+@container(max-width:760px){#tasks .tasks-toolbar-top{align-items:flex-start}#tasks .tasks-toolbar-actions{width:100%;justify-content:space-between}#tasks .tasks-controls{grid-template-columns:repeat(2,minmax(0,1fr))}#tasks .task-search{grid-column:1/-1}#tasks .tasks-heading-actions{width:100%}#tasks .tasks-heading-actions button{flex:1 1 auto}}
+@container(max-width:430px){#tasks .tasks-toolbar{padding:12px}#tasks .tasks-toolbar-actions{gap:8px}#tasks .task-view-switch{width:100%}#tasks .task-view-switch button{padding:7px 6px}#tasks #refreshTasks{margin-left:auto}#tasks .tasks-controls{grid-template-columns:minmax(0,1fr)}#tasks .task-extra-filter-grid{grid-template-columns:minmax(0,1fr)}#tasks .task-extra-filters summary span{display:none}#tasks .task-retention-notice{align-items:flex-start;flex-direction:column;gap:4px}#tasks .tasks-heading-actions .task-primary-button{flex-basis:100%}#tasks .tasks-controls select,#tasks .task-extra-filter-grid select,#tasks .task-search input{font-size:16px}}
 #tasksBoard.task-kanban-board{display:flex;align-items:flex-start;gap:16px;overflow-x:auto;padding:6px 2px 20px;scroll-padding:16px;overscroll-behavior-x:contain;font-family:"DM Sans",sans-serif}
 #tasksBoard.task-kanban-board button,#tasksBoard.task-kanban-board .task-column-name{font-family:"DM Sans",sans-serif!important}
 #tasksBoard.task-kanban-board .task-column{box-sizing:border-box;display:flex;flex-direction:column;flex:0 0 286px;width:286px;min-width:286px;min-height:180px;max-height:none;padding:12px;border:0!important;border-radius:16px;background:#f3f4f5!important;box-shadow:none}
