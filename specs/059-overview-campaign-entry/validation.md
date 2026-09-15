@@ -13,4 +13,11 @@ Workflow applied: specify -> plan -> tasks -> implement -> converge. No extensio
 - Desktop/mobile screenshots inspected. No real Meta ads were created; all campaign calls in tests were mocked.
 
 ## Convergence
-8 functional requirements, 5 success criteria, 9 acceptance scenarios and 4 architecture decisions reviewed. All implemented. No unresolved implementation gaps. Deployment verification pending.
+8 functional requirements, 5 success criteria, 9 acceptance scenarios and 4 architecture decisions reviewed. All implemented. No unresolved implementation gaps. Deployment verified successfully.
+
+## Production
+- Release: 8b33be827b68b493dff4db8377fdc3ccee2edf22.
+- GitHub Pages run: https://github.com/marcosviniiciusfs-png/analytics-hurtz/actions/runs/34993017083 (completed, success).
+- https://analytics.hurtzcompany.com/?view=overview serves the new feature.
+- index.html, app.js, overview-campaign.js, campaign-manager-ui.js and brand-overrides.css returned HTTP 200 and matched the release files exactly after line-ending normalization.
+- No backend deployment was necessary; existing campaign authorization/planning APIs are reused.

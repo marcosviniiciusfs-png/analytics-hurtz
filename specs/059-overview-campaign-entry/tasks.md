@@ -21,7 +21,7 @@ Independent test: BM/account identity matches plan destination in initial and ed
 
 ## Polish and delivery
 - [x] T009 Include assets/cache versions in dev/build-pages.cjs and Dashboard Meta Ads/index.html; run build and scoped checks.
-- [ ] T010 Record results in specs/059-overview-campaign-entry/validation.md and verify production deployment.
+- [x] T010 Record results in specs/059-overview-campaign-entry/validation.md and verify production deployment.
 
 ## Dependencies and strategy
 T001 -> T002 -> T003 -> T004/T006 -> T005/T007 -> T008 -> T009 -> T010.
