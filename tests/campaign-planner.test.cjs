@@ -1,6 +1,90 @@
-const {test}=require('node:test'),assert=require('node:assert/strict');
-const {plan}=require('../Dashboard Meta Ads/campaign-planner');
-const draft={name:'Campaign',headline:'Headline',message:'Message',dailyBudget:30,category:'',rationale:'Review this draft.',destination:'site',locationQuery:'Belem',ageMin:18,ageMax:65,interestQueries:['Health'],placements:'automatic'};
-test('missing AI configuration is explicit and never fabricates a generated draft',async()=>{let called=false;await assert.rejects(plan({}, {config:{},fetchImpl:async()=>{called=true}}),/configuração/);assert.equal(called,false)});
-test('AI receives business context but returns only validated editable fields',async()=>{const result=await plan({page:'Business',description:'Consultoria em Bel?m',currency:'BRL'},{config:{key:'private-key',model:'test'},fetchImpl:async(url,options)=>{assert.equal(url,'https://api.openai.com/v1/chat/completions');assert.ok(!options.body.includes('private-key'));return {ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({...draft,media:'malicious',location:{key:'foreign'}})}}]})}}});assert.deepEqual(result,draft)});
-test('provider failure and malformed or unsafe budgets cannot become campaign drafts',async()=>{for(const content of ['invalid','null',JSON.stringify({...draft,dailyBudget:-1}),JSON.stringify({...draft,category:'OTHER'}),JSON.stringify({...draft,name:''})])await assert.rejects(plan({}, {config:{key:'key'},fetchImpl:async()=>({ok:true,json:async()=>({choices:[{message:{content}}]})})}));await assert.rejects(plan({}, {config:{key:'key'},fetchImpl:async()=>({ok:false,json:async()=>({error:'secret internal error'})})}),/configuração/)});
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { plan, localOllama } = require('../Dashboard Meta Ads/campaign-planner');
+
+const draft = {
+  name: 'Campanha de teste',
+  headline: 'Título de teste',
+  message: 'Texto principal de teste.',
+  rationale: 'Rascunho validado para revisão.',
+  destination: 'form',
+  locationQuery: 'São Paulo',
+  ageMin: 25,
+  ageMax: 45,
+  dailyBudget: 30,
+  category: '',
+  interestQueries: [],
+  placements: 'automatic'
+};
+
+const config = {
+  groq: { key: 'private-key', model: 'groq-model', url: 'https://groq.test/chat' },
+  ollama: { model: 'qwen2.5:0.5b', url: 'http://127.0.0.1:11434/api/chat' }
+};
+const groqReply = value => ({
+  ok: true,
+  status: 200,
+  json: async () => ({ choices: [{ message: { content: JSON.stringify(value) } }] })
+});
+const ollamaReply = value => ({
+  ok: true,
+  status: 200,
+  json: async () => ({ message: { content: JSON.stringify(value) } })
+});
+
+test('fails clearly when no provider is configured', async () => {
+  await assert.rejects(
+    plan({}, { config: {}, fetchImpl: async () => { throw new Error('should not fetch'); } }),
+    /não está configurada/
+  );
+});
+
+test('uses Groq as the primary provider', async () => {
+  const calls = [];
+  const result = await plan({ prompt: 'teste' }, {
+    config,
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return groqReply(draft);
+    }
+  });
+
+  assert.deepEqual(result, draft);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, config.groq.url);
+  assert.equal(calls[0].options.headers.Authorization, 'Bearer private-key');
+});
+
+test('falls back to Ollama when Groq fails', async () => {
+  const calls = [];
+  const result = await plan({ prompt: 'teste' }, {
+    config,
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      if (url === config.groq.url) return { ok: false, status: 429, json: async () => ({}) };
+      return ollamaReply(draft);
+    }
+  });
+
+  assert.deepEqual(result, draft);
+  assert.deepEqual(calls.map(call => call.url), [config.groq.url, config.ollama.url]);
+  assert.equal(JSON.parse(calls[1].options.body).stream, false);
+  assert.equal(JSON.parse(calls[1].options.body).format.type, 'object');
+  assert.equal(JSON.parse(calls[1].options.body).options.num_predict, 700);
+});
+
+test('returns a neutral service error only after both providers fail', async () => {
+  await assert.rejects(
+    plan({ prompt: 'teste' }, {
+      config,
+      fetchImpl: async () => ({ ok: false, status: 503, json: async () => ({}) })
+    }),
+    /temporariamente indisponível/
+  );
+});
+
+test('accepts only loopback Ollama endpoints', () => {
+  assert.equal(localOllama('http://127.0.0.1:11434/api/chat'), true);
+  assert.equal(localOllama('http://localhost:11434/api/chat'), true);
+  assert.equal(localOllama('https://ollama.example.com/api/chat'), false);
+});
