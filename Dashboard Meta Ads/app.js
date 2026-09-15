@@ -1,4 +1,5 @@
 ;(async()=>{
+document.body.classList.toggle('campaign-overview',(new URLSearchParams(location.search).get('view')||(location.hash==='#accounts'?'accounts':'overview'))==='overview');
 const MONITOR_API_BASE=location.hostname==='analytics.hurtzcompany.com'?'https://analytics-api.161-97-148-99.sslip.io':'';
 const MONITOR_SESSION_KEY='hurtz-monitor-session-v2';
 const browserFetch=window.fetch.bind(window);
@@ -134,6 +135,13 @@ function setButtonLoading(button,loading,label){
 }
 
 const accounts = [];
+let activeDashboardView=new URLSearchParams(location.search).get('view')||(location.hash==='#accounts'?'accounts':'overview');
+let overviewComposer=null,accountMonitoringPending=null;
+function loadAccountMonitoring(){
+  if(activeDashboardView!=='accounts'||!accountCatalogReady||!selectedAccountIds.size)return;
+  if(!accountMonitoringPending)accountMonitoringPending=Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to),loadLastThreeDays(),loadRealControlData(globalPeriod.to)]).finally(()=>{accountMonitoringPending=null});
+  return accountMonitoringPending;
+}
 
 const AUDITED_META_DATA={};
 const LIVE_PERIOD_DATA={};
@@ -269,7 +277,7 @@ function metricGoalState(metric,campaign,days,goals){
   return {tone:'good',reason:`Verde: ${brl(campaign.costPerResult)} está dentro do custo ideal.`};
 }
 function saveAccountCatalog(){
-  const catalog=accounts.map(({id,name,initials,color,status,businessName,businessPicture,objectives})=>({id,name,initials,color,status,businessName,businessPicture,objectives}));
+  const catalog=accounts.map(({id,name,initials,color,status,businessName,businessId,currency,businessPicture,objectives})=>({id,name,initials,color,status,businessName,businessId,currency,businessPicture,objectives}));
   userStorage.setItem(ACCOUNT_CATALOG_KEY,JSON.stringify(catalog));
 }
 function loadAccountCatalog(){}
@@ -294,15 +302,16 @@ async function findMetaAccounts(showProgress=true){
         existing.name=cleanName;
         existing.initials=cleanName.split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]).join('').toUpperCase()||existing.initials;
         existing.status=item.account_status===1?'active':'inactive';
-        existing.businessName=item.business_name||existing.businessName;
+        existing.businessName=item.business_name||item.business?.name||'Sem BM informada';
+        existing.businessId=item.business_id||item.business?.id||'';existing.currency=item.currency||'';
         existing.businessPicture=item.business_profile_picture_uri||existing.businessPicture;
         if(Array.isArray(item.objectives))existing.objectives=item.objectives;
         return;
       }
       const cleanName=item.name||item.id,initials=cleanName.split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]).join('').toUpperCase();
-      accounts.push({id:item.id,name:cleanName,initials:initials||'MA',color:`hsl(${(accounts.length+index)*47%360} 55% 45%)`,status:item.account_status===1?'active':'inactive',businessName:item.business_name||'Sem BM informada',businessPicture:item.business_profile_picture_uri||null,objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:iso(NOW),depositTime:'00:00',plannedDays:1,dailyLimit:0}});
+      accounts.push({id:item.id,name:cleanName,initials:initials||'MA',color:`hsl(${(accounts.length+index)*47%360} 55% 45%)`,status:item.account_status===1?'active':'inactive',businessName:item.business_name||item.business?.name||'Sem BM informada',businessId:item.business_id||item.business?.id||'',currency:item.currency||'',businessPicture:item.business_profile_picture_uri||null,objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:iso(NOW),depositTime:'00:00',plannedDays:1,dailyLimit:0}});
     });
-    accountCatalogReady=true;saveAccountCatalog();applyActiveAccountProfile(false);renderAccountFilterOptions();renderSummary();renderAccounts(document.querySelector('#searchInput').value);document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;syncReportAccountsWithDashboard();monitoredAnalysisAccounts=[];if(!document.querySelector('#analysis').hidden)initializeDetailedAnalysis();status.textContent=`${payload.account_count||accounts.length} contas encontradas em ${payload.business_count||0} BMs`;
+    accountCatalogReady=true;overviewComposer?.refresh();saveAccountCatalog();applyActiveAccountProfile(false);renderAccountFilterOptions();renderSummary();renderAccounts(document.querySelector('#searchInput').value);document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;syncReportAccountsWithDashboard();monitoredAnalysisAccounts=[];if(!document.querySelector('#analysis').hidden)initializeDetailedAnalysis();status.textContent=`${payload.account_count||accounts.length} contas encontradas em ${payload.business_count||0} BMs`;
     const connectionStatus=document.querySelector('#facebookConnectionStatus');if(connectionStatus)connectionStatus.textContent=accounts.length?`${accounts.length} contas autorizadas pelo seu Facebook. Lista atualizada.`:'O Facebook não retornou contas de anúncio. Reconecte e confira as contas em Editar configurações.';
     return payload;
   }catch(error){status.textContent=error.message;const connectionStatus=document.querySelector('#facebookConnectionStatus');if(connectionStatus)connectionStatus.textContent=error.message;return null}
@@ -375,6 +384,7 @@ function applyGlobalPeriod(from,to,label,trigger=null){
   renderSummary();
   renderAccounts(document.querySelector('#searchInput').value);
   if(selectedAccount){syncModalDates();renderModal()}
+  if(activeDashboardView!=='accounts')return Promise.resolve();
   return Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to,trigger),loadRealControlData(globalPeriod.to)]);
 }
 function setGlobalRange(range,trigger=null){
@@ -692,7 +702,7 @@ document.querySelector('#searchInput').addEventListener('input',e=>renderAccount
 document.querySelectorAll('#quickDates button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));b.classList.add('active');setDates(b.dataset.range);if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
 document.querySelectorAll('.custom-date input').forEach(i=>i.onchange=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
 document.querySelector('#refreshButton').onclick=async event=>{const button=event.currentTarget;setButtonLoading(button,true,'Atualizando contas...');try{if(!await findMetaAccounts(false))return;loadPlans();await hydrateAlertPlans();await Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to,event.currentTarget,true),loadRealControlData(globalPeriod.to,true),loadLastThreeDays(true)])}finally{setButtonLoading(button,false)}};
-loadAccountCatalog();selectedAccountIds=new Set(accounts.map(account=>account.id));loadPlans();renderAccountFilterOptions();refreshPresetSelect();const defaultPreset=readPresets().items[readPresets().defaultName];if(defaultPreset)applyPreset(defaultPreset,false);setGlobalRange('yesterday');document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;loadLastThreeDays();renderSummary();renderAccounts();
+loadAccountCatalog();selectedAccountIds=new Set(accounts.map(account=>account.id));loadPlans();renderAccountFilterOptions();refreshPresetSelect();const defaultPreset=readPresets().items[readPresets().defaultName];if(defaultPreset)applyPreset(defaultPreset,false);setGlobalRange('yesterday');document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;if(activeDashboardView==='accounts')loadLastThreeDays();renderSummary();renderAccounts();
 
 /* Analise interativa: somente dados reconciliados pela API Meta. */
 const HISTORICAL_90_DATA={};
@@ -2138,15 +2148,15 @@ if(personalIdentity?.personal){
   void (async()=>{try{
     facebookSettings=await personalRequest('/api/meta/connection?verify=1');
     facebookStatus.textContent=facebookSettings.connected?`Conectado como ${facebookSettings.name}. Sua conexão está salva para os próximos acessos.`:facebookSettings.rejected?'A Meta recusou a autorização salva para este aplicativo. Conecte novamente para atualizá-la.':facebookSettings.expired?'Sua autorização expirou. Conecte o Facebook novamente.':'Conecte seu Facebook e autorize a leitura das contas que deseja acompanhar.';
-    renderFacebookConnection();
+    renderFacebookConnection();overviewComposer?.refresh();
     facebookDisconnect.hidden=!facebookSettings.connected;
-    if(facebookSettings.connected){facebookConnect.disabled=false;void(async()=>{const found=await findMetaAccounts(false);if(found){await loadAccountProfiles();loadPlans();await hydrateAlertPlans();if(selectedAccountIds.size){loadAuditedPeriod(globalPeriod.from,globalPeriod.to);loadLastThreeDays();loadRealControlData(globalPeriod.to)}}})().catch(error=>{facebookStatus.textContent='Facebook conectado. Não foi possível atualizar as contas: '+error.message})}
+    if(facebookSettings.connected){facebookConnect.disabled=false;void(async()=>{const found=await findMetaAccounts(false);if(found){await loadAccountProfiles();loadPlans();await hydrateAlertPlans();loadAccountMonitoring();}})().catch(error=>{facebookStatus.textContent='Facebook conectado. Não foi possível atualizar as contas: '+error.message})}
     await loadFacebookSdk(facebookSettings);await prepareFacebookLogin();
   }catch(error){facebookStatus.textContent=error.message}})();
 }
 setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date.now()-facebookNonceAt>5*60000)void prepareFacebookLogin().catch(()=>{})},60000);
 if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260909-traffic-pocket');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
-const campaignModule=await import('./campaign-manager-ui.js?v=20260915-active-confirmation');
+const campaignModule=await import('./campaign-manager-ui.js?v=20260915-overview-campaign');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);
 const priorAccountTab=setAccountTab;setAccountTab=function(tab){campaignManagerUI.panel.hidden=tab!=='manage';document.querySelectorAll('#accountModal .modal-toolbar,#modalSummary,#planStrip').forEach(el=>el.hidden=tab==='manage');if(tab==='manage'){activeAccountTab=tab;document.querySelectorAll('[data-account-tab]').forEach(b=>b.classList.toggle('active',b.dataset.accountTab===tab));document.querySelector('#campaignTabPanel').hidden=true;document.querySelector('#accountAnalysisPanel').hidden=true;campaignManagerUI.open()}else{priorAccountTab(tab);renderModal();loadSelectedAccountAudit()}};campaignTab.onclick=()=>setAccountTab('manage');
@@ -2161,25 +2171,30 @@ openAccount=function(id,plan=false,fromHistory=false){const next=accounts.find(a
 closeModal=function(){if(!hideAccountPage())return;history.pushState(null,'','?view=accounts');previousDashboardView('accounts');window.scrollTo({top:accountReturnScroll,behavior:'instant'});if(accountReturnFocus?.isConnected)accountReturnFocus.focus({preventScroll:true})};backAccount.onclick=closeModal;modal.onclick=null;
 function routeAccount(){const query=new URLSearchParams(location.search);if(query.get('view')!=='account')return;const id=query.get('account');if(accounts.some(a=>a.id===id))openAccount(id,false,true);else{previousDashboardView('accounts');document.querySelector('#accountSearchStatus').textContent='Carregando a conta solicitada. Ela precisa estar autorizada no seu Facebook.'}}
 const previousRenderAccounts=renderAccounts;renderAccounts=function(...args){previousRenderAccounts(...args);if(!routingAccount&&modal.hidden&&new URLSearchParams(location.search).get('view')==='account')routeAccount()};
-window.addEventListener('popstate',()=>{if(campaignManagerUI.busy()){history.replaceState(null,'','?view=account&account='+encodeURIComponent(selectedAccount.id));return}const view=new URLSearchParams(location.search).get('view')||'overview';if(view==='account')routeAccount();else showDashboardView(view)});
+window.addEventListener('popstate',()=>{if(campaignManagerUI.busy()){history.replaceState(null,'',document.body.classList.contains('account-workspace')&&selectedAccount?'?view=account&account='+encodeURIComponent(selectedAccount.id):'?view=overview');return}const view=new URLSearchParams(location.search).get('view')||'overview';if(view==='account')routeAccount();else showDashboardView(view)});
 document.querySelector('.sidebar nav').addEventListener('click',event=>{if(event.target.closest('a')){if(campaignManagerUI.busy()){event.preventDefault();event.stopImmediatePropagation();return}const link=event.target.closest('a'),target=new URL(link.href,location.href);if(target.origin===location.origin){event.preventDefault();event.stopImmediatePropagation();const view=target.searchParams.get('view')||(target.hash==='#accounts'?'accounts':'overview');history.pushState(null,'','?view='+encodeURIComponent(view));showDashboardView(view)}else hideAccountPage()}},true);
 routeAccount();
 window.addEventListener('storage',event=>{if(event.key===MONITOR_SESSION_KEY)location.reload()});
-/* Keep the overview for aggregate metrics and reserve the account catalog for its own view. */
+/* Description-first campaign entry; monitoring loads only in Accounts. */
+const overviewModule=await import('./overview-campaign.js?v=20260915-overview-campaign');
+const overviewMount=document.createElement('section');overviewMount.id='overviewCampaign';overviewMount.hidden=true;document.querySelector('main>header').after(overviewMount);
+overviewComposer=overviewModule.initializeOverviewCampaign({mount:overviewMount,getAccounts:()=>accounts,isReady:()=>accountCatalogReady,isConnected:()=>!!facebookSettings?.connected,prepare:(...args)=>campaignManagerUI.prepare(...args),connect:()=>window.dispatchEvent(new Event('hurtz-connect-ads')),reload:()=>findMetaAccounts(false)});
 const trafficViewRouter=showDashboardView;
 showDashboardView=function(view){
+  if(campaignManagerUI.busy())return;
+  activeDashboardView=view;
+  if(view!=='overview')campaignManagerUI.close();
   trafficViewRouter(view);
+  overviewComposer.setVisible(view==='overview');
+  document.body.classList.toggle('campaign-overview',view==='overview');
   if(view!=='overview'&&view!=='accounts')return;
   const summary=document.querySelector('#summaryCards'),catalog=document.querySelector('#accounts'),header=document.querySelector('main>header');
   const title=header.querySelector('h1'),subtitle=header.querySelector('.subtitle'),eyebrow=header.querySelector('.eyebrow');
   const accountsView=view==='accounts';
-  summary.hidden=accountsView;
-  catalog.hidden=!accountsView;
-  eyebrow.textContent=accountsView?'CONTAS META ADS':'CENTRAL DE MONITORAMENTO';
-  title.textContent=accountsView?'Contas de anúncio':'Visão geral';
-  subtitle.textContent=accountsView?'Consulte, filtre e abra cada conta de anúncio autorizada.':'Acompanhe os indicadores consolidados das contas selecionadas.';
+  summary.hidden=true;catalog.hidden=!accountsView;header.hidden=!accountsView;
+  if(accountsView){eyebrow.textContent='CONTAS META ADS';title.textContent='Contas de an\u00fancio';subtitle.textContent='Consulte, filtre e abra cada conta de an\u00fancio autorizada.';loadAccountMonitoring()}
 };
-const trafficInitialView=new URLSearchParams(location.search).get('view')||'overview';
+const trafficInitialView=new URLSearchParams(location.search).get('view')||(location.hash==='#accounts'?'accounts':'overview');
 if(trafficInitialView!=='account')showDashboardView(trafficInitialView);
 
 })().catch(error=>{console.error("Falha ao iniciar o Traffic pocket");const status=document.querySelector("#accountSearchStatus");if(status)status.textContent="Não foi possível iniciar. Atualize a página."});
