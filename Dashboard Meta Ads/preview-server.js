@@ -183,7 +183,10 @@ http.createServer((req,res)=>{
     const bearer=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
     let personalSession;
     try{personalSession=personalMeta.session(bearer)}catch{return jsonResponse(res,401,{error:'Sessão inválida. Entre novamente.'})}
-    if(personalSession){const handler=taskCollaborationRoutes.has(requestUrl.pathname)||taskDataRoute(requestUrl.pathname)?handlePersonalTaskRoute(req,res,requestUrl,personalSession):personalMeta.handle(req,res,personalSession,requestUrl,jsonResponse);return Promise.resolve(handler).catch(error=>{if(!res.headersSent)jsonResponse(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir a solicitação.'})})}
+    if(personalSession){
+      if(requestUrl.pathname==='/api/session'&&req.method==='GET')return jsonResponse(res,200,{ok:true,user:{id:personalSession.id,email:personalSession.email},personal:true,tools:true});
+      const handler=taskCollaborationRoutes.has(requestUrl.pathname)||taskDataRoute(requestUrl.pathname)?handlePersonalTaskRoute(req,res,requestUrl,personalSession):personalMeta.handle(req,res,personalSession,requestUrl,jsonResponse);return Promise.resolve(handler).catch(error=>{if(!res.headersSent)jsonResponse(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir a solicitação.'})})
+    }
     if(bearer.startsWith('pa_'))return jsonResponse(res,401,{error:'Sua sessão expirou. Entre novamente.'});
   }
   if(!isCreativeAgentRoute&&process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){
