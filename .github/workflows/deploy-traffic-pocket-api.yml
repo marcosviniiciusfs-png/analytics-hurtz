@@ -1,0 +1,57 @@
+name: Deploy Traffic Pocket API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dashboard Meta Ads/**'
+      - '.github/workflows/deploy-traffic-pocket-api.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: traffic-pocket-api-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VPS_HOST: ${{ secrets.TRAFFIC_POCKET_VPS_HOST }}
+      VPS_USER: ${{ secrets.TRAFFIC_POCKET_VPS_USER }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.TRAFFIC_POCKET_VPS_SSH_KEY }}
+        run: |
+          test -n "$VPS_HOST" && test -n "$VPS_USER" && test -n "$SSH_KEY"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/traffic-pocket-deploy
+          chmod 600 ~/.ssh/traffic-pocket-deploy
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Send API source
+        run: |
+          tar --exclude='.git' --exclude='.env' -C . -czf - 'Dashboard Meta Ads' |
+            ssh -i ~/.ssh/traffic-pocket-deploy -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" \
+              "mkdir -p '/home/$VPS_USER/traffic-pocket' && tar -xzf - -C '/home/$VPS_USER/traffic-pocket'"
+
+      - name: Rebuild only the Traffic Pocket API
+        run: |
+          ssh -i ~/.ssh/traffic-pocket-deploy -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" "
+            set -eu
+            sudo docker build -t traffic-pocket-api:production \
+              -f \"/home/$VPS_USER/traffic-pocket/Dashboard Meta Ads/Dockerfile.api\" \
+              \"/home/$VPS_USER/traffic-pocket/Dashboard Meta Ads\"
+            sudo docker rm -f traffic-pocket-api 2>/dev/null || true
+            sudo docker run -d --name traffic-pocket-api --restart unless-stopped \
+              --network traffic-pocket-supabase_default \
+              --env-file /opt/traffic-pocket-supabase/.env \
+              --env-file /opt/traffic-pocket-supabase/secrets/campaign-ai.env \
+              -e SUPABASE_URL=http://api-gw:8000 \
+              -e ANALYTICS_PUBLIC_URL=https://analytics.hurtzcompany.com \
+              -p 127.0.0.1:8091:8091 traffic-pocket-api:production
+          "
