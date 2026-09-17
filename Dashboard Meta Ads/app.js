@@ -2110,7 +2110,8 @@ function loadFacebookSdk(settings){
 }
 let reconnectingComments=false,reconnectingInstagram=false,reconnectingAds=false;
 function requestFacebookPermissions(instagram=false){if(facebookLoginBusy)return;const status=document.querySelector('#commentsPagesStatus');if(!window.FB||!facebookNonce){status.textContent='O login ainda estÃ¡ carregando. Tente novamente em alguns instantes.';return}reconnectingComments=true;reconnectingInstagram=instagram;status.textContent=instagram?'Autorize o Instagram na janela do Facebook. Se a Meta recusar a permissÃ£o, sua conexÃ£o atual serÃ¡ mantida.':'Revise as pÃ¡ginas autorizadas no Facebook. Sua conexÃ£o atual serÃ¡ mantida se vocÃª cancelar.';facebookConnect.click()}
-window.addEventListener('hurtz-connect-ads',()=>{if(facebookLoginBusy)return;if(!window.FB||!facebookNonce){facebookStatus.textContent='Aguarde o carregamento do Facebook e tente novamente.';return}reconnectingAds=true;facebookConnect.click()});
+window.hurtzStartFacebookConnection=()=>{if(facebookLoginBusy)return{ok:false,message:'A autorização do Facebook já está em andamento.'};if(!window.FB||!facebookNonce)return{ok:false,message:'O Facebook ainda está sendo preparado. Aguarde alguns segundos e tente novamente.'};reconnectingAds=true;facebookConnect.click();return{ok:true}};
+window.addEventListener('hurtz-connect-ads',()=>{const result=window.hurtzStartFacebookConnection();if(!result.ok)facebookStatus.textContent=result.message});
 window.addEventListener('hurtz-connect-comments',()=>requestFacebookPermissions(false));
 window.addEventListener('hurtz-connect-instagram',()=>requestFacebookPermissions(true));
 facebookConnect.onclick=()=>{
@@ -2156,7 +2157,7 @@ if(personalIdentity?.personal){
   }catch(error){facebookStatus.textContent=error.message}})();
 }
 setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date.now()-facebookNonceAt>5*60000)void prepareFacebookLogin().catch(()=>{})},60000);
-if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260917-stacked-settings');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
+if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260917-facebook-flow');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
 const campaignModule=await import('./campaign-manager-ui.js?v=20260916-creative-picker');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);
