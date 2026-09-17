@@ -199,8 +199,9 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       return send(res, 200, {connected: true, name: me.name, accountCount: accounts.length});
     }
     if (route === '/api/meta/connection' && req.method === 'DELETE') {
+      const profile=(read('settings', user.id) || {}).profile;
       remove('connection', user.id);
-      remove('settings', user.id);
+      if(profile)write('settings', user.id, {profile});else remove('settings', user.id);
       return send(res, 200, {ok: true});
     }
     if (route === '/api/meta-accounts' && req.method === 'GET') {
