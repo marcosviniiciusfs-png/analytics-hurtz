@@ -317,6 +317,7 @@ async function findMetaAccounts(showProgress=true){
   }catch(error){status.textContent=error.message;const connectionStatus=document.querySelector('#facebookConnectionStatus');if(connectionStatus)connectionStatus.textContent=error.message;return null}
   finally{if(showProgress)setButtonLoading(button,false)}
 }
+window.hurtzRefreshMetaAccounts=()=>findMetaAccounts(false);
 async function syncAccountsForAudit(ids=[...selectedAccountIds]){
   const selected=ids.map(id=>accounts.find(account=>account.id===id)).filter(Boolean).map(account=>({id:account.id,name:account.name}));
   if(!selected.length)throw new Error('Nenhuma conta vÃ¡lida foi selecionada para monitoramento.');
@@ -1962,7 +1963,7 @@ function profileAccountChecklist(profile){
 }
 function renderProfileSelector(){
   const select=document.querySelector('#accountProfileSelect');if(!select)return;
-  select.innerHTML=accountProfiles.items.length?accountProfiles.items.map(profile=>`<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>`).join(''):'<option value="">Todos os acessos</option>';
+  select.innerHTML='<option value="">Todas as contas</option>'+accountProfiles.items.map(profile=>`<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>`).join('');
   select.value=accountProfiles.activeId||'';
   const profile=activeAccountProfile(),count=document.querySelector('#accountProfileCount');if(count)count.textContent=profile?`${profile.accountIds.length} conta${profile.accountIds.length===1?'':'s'}`:'Sem perfil';
 }
@@ -2161,8 +2162,11 @@ if(personalIdentity?.personal){
 }
 setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date.now()-facebookNonceAt>5*60000)void prepareFacebookLogin().catch(()=>{})},60000);
 if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260917-facebook-button-state');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
+await import('./text-encoding-repair.js?v=20260917-ui-text');
+await import('./campaign-whatsapp-selector.js?v=20260917-page-linked-whatsapp');
 const campaignModule=await import('./campaign-manager-ui.js?v=20260916-creative-picker');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
+const prepareCampaignWithAccount=campaignManagerUI.prepare;campaignManagerUI.prepare=(destination,...args)=>{window.hurtzCampaignAccount=destination?.id||'';return prepareCampaignWithAccount(destination,...args)};
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);
 const priorAccountTab=setAccountTab;setAccountTab=function(tab){campaignManagerUI.panel.hidden=tab!=='manage';document.querySelectorAll('#accountModal .modal-toolbar,#modalSummary,#planStrip').forEach(el=>el.hidden=tab==='manage');if(tab==='manage'){activeAccountTab=tab;document.querySelectorAll('[data-account-tab]').forEach(b=>b.classList.toggle('active',b.dataset.accountTab===tab));document.querySelector('#campaignTabPanel').hidden=true;document.querySelector('#accountAnalysisPanel').hidden=true;campaignManagerUI.open()}else{priorAccountTab(tab);renderModal();loadSelectedAccountAudit()}};campaignTab.onclick=()=>setAccountTab('manage');
 // Account details are a routed page. Preserve the existing reports and payment controls.
