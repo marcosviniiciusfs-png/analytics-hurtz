@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "Dashboard Meta Ads/**"
+      - "dev/build-pages.cjs"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
