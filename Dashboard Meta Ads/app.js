@@ -2090,7 +2090,9 @@ function forgetPersonalCache(){
   const prefix=`hurtz-user:${personalIdentity.user.id}:`;
   Object.keys(window.localStorage).filter(key=>key.startsWith(prefix)).forEach(key=>window.localStorage.removeItem(key));
 }
-let facebookNonce='',facebookSettings=null,facebookNonceAt=0,facebookLoginBusy=false;
+let facebookNonce='',facebookSettings=null,facebookNonceAt=0,facebookLoginBusy=false,facebookReady=false;
+window.hurtzFacebookConnectionState={ready:false,message:'Preparando a conexão com o Facebook...'};
+const publishFacebookConnectionState=(ready,message)=>{facebookReady=ready;window.hurtzFacebookConnectionState={ready,message};window.dispatchEvent(new CustomEvent('hurtz-facebook-ready',{detail:window.hurtzFacebookConnectionState}))};
 function renderFacebookConnection(){facebookConnect.textContent=facebookSettings?.connected?'Conectado ao Facebook':'Conectar Facebook';facebookConnect.dataset.connected=String(Boolean(facebookSettings?.connected));facebookDisconnect.hidden=!facebookSettings?.connected;facebookConnect.title=facebookSettings?.connected?'Sua conexÃ£o estÃ¡ salva. Revise permissÃµes na seÃ§Ã£o ComentÃ¡rios.':'Conectar sua conta do Facebook'}
 async function prepareFacebookLogin(){
   if(!facebookSettings?.connected)facebookConnect.disabled=true;
@@ -2110,14 +2112,14 @@ function loadFacebookSdk(settings){
 }
 let reconnectingComments=false,reconnectingInstagram=false,reconnectingAds=false;
 function requestFacebookPermissions(instagram=false){if(facebookLoginBusy)return;const status=document.querySelector('#commentsPagesStatus');if(!window.FB||!facebookNonce){status.textContent='O login ainda estÃ¡ carregando. Tente novamente em alguns instantes.';return}reconnectingComments=true;reconnectingInstagram=instagram;status.textContent=instagram?'Autorize o Instagram na janela do Facebook. Se a Meta recusar a permissÃ£o, sua conexÃ£o atual serÃ¡ mantida.':'Revise as pÃ¡ginas autorizadas no Facebook. Sua conexÃ£o atual serÃ¡ mantida se vocÃª cancelar.';facebookConnect.click()}
-window.hurtzStartFacebookConnection=()=>{if(facebookLoginBusy)return{ok:false,message:'A autorização do Facebook já está em andamento.'};if(!window.FB||!facebookNonce)return{ok:false,message:'O Facebook ainda está sendo preparado. Aguarde alguns segundos e tente novamente.'};reconnectingAds=true;facebookConnect.click();return{ok:true}};
+window.hurtzStartFacebookConnection=()=>{if(facebookLoginBusy)return{ok:false,message:'A autorização do Facebook já está em andamento.'};if(!facebookReady||!window.FB||!facebookNonce)return{ok:false,message:window.hurtzFacebookConnectionState.message||'O Facebook ainda está sendo preparado. Aguarde alguns segundos e tente novamente.'};reconnectingAds=true;openFacebookLogin();return{ok:true}};
 window.addEventListener('hurtz-connect-ads',()=>{const result=window.hurtzStartFacebookConnection();if(!result.ok)facebookStatus.textContent=result.message});
 window.addEventListener('hurtz-connect-comments',()=>requestFacebookPermissions(false));
 window.addEventListener('hurtz-connect-instagram',()=>requestFacebookPermissions(true));
-facebookConnect.onclick=()=>{
+function openFacebookLogin(){
   if(facebookLoginBusy||(facebookSettings?.connected&&!reconnectingComments&&!reconnectingAds))return;
   if(!window.FB||!facebookNonce)return;
-  if(Date.now()-facebookNonceAt>8*60000){reconnectingComments=false;reconnectingInstagram=false;reconnectingAds=false;void prepareFacebookLogin().then(()=>{facebookStatus.textContent='AutorizaÃ§Ã£o preparada. Clique novamente para continuar.'}).catch(e=>{facebookStatus.textContent=e.message});return}
+  if(Date.now()-facebookNonceAt>8*60000){reconnectingComments=false;reconnectingInstagram=false;reconnectingAds=false;publishFacebookConnectionState(false,'Atualizando a autorização do Facebook. Aguarde e clique novamente.');void prepareFacebookLogin().then(()=>publishFacebookConnectionState(true,'Facebook pronto para conectar.')).catch(e=>publishFacebookConnectionState(false,e.message));return}
   const requestedAds=reconnectingAds;reconnectingAds=false;const requestedComments=reconnectingComments,requestedInstagram=reconnectingInstagram;reconnectingComments=false;reconnectingInstagram=false;facebookLoginBusy=true;
   const loginScopes=requestedAds?'ads_read,ads_management,business_management,pages_show_list,pages_read_engagement,pages_manage_ads,leads_retrieval':requestedInstagram?'ads_read,business_management,pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_engagement,instagram_basic,instagram_manage_comments':requestedComments?'ads_read,business_management,pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_engagement':'ads_read,business_management';
   facebookConnect.disabled=true;facebookStatus.textContent='Autorize o acesso na janela do Facebook.';
@@ -2131,7 +2133,8 @@ facebookConnect.onclick=()=>{
       if(requestedComments){commentsData=[];renderComments();facebookSettings=await personalRequest('/api/meta/connection');facebookStatus.textContent='ConexÃ£o atualizada. Verificando o acesso Ã s pÃ¡ginas...';const result=await fetchCommentsPages();if(!result){facebookStatus.textContent='Facebook reconectado, mas a verificaÃ§Ã£o das pÃ¡ginas falhou. Tente Atualizar pÃ¡ginas.';await prepareFacebookLogin();return}const missing=result.missingPermissions||[];facebookStatus.textContent=missing.length?'O Facebook reconectou, mas nÃ£o concedeu todas as permissÃµes de ComentÃ¡rios. Confira o aviso abaixo.':'ConexÃ£o atualizada. PÃ¡ginas autorizadas sincronizadas.';if(commentsPage&&!missing.includes('pages_read_user_content')&&!missing.includes('pages_read_engagement'))void loadAdComments();await prepareFacebookLogin();return}const selectedPage=userStorage.getItem('hurtz-comments-page');forgetPersonalCache();if(selectedPage)userStorage.setItem('hurtz-comments-page',selectedPage);location.reload();
     }catch(error){facebookLoginBusy=false;renderFacebookConnection();facebookStatus.textContent=error.message;try{await prepareFacebookLogin()}catch{}}
   })().catch(error=>{facebookLoginBusy=false;renderFacebookConnection();facebookStatus.textContent=error.message;facebookConnect.disabled=false})},{scope:loginScopes,auth_type:'rerequest',return_scopes:true})}catch{facebookLoginBusy=false;renderFacebookConnection();facebookStatus.textContent='NÃ£o foi possÃ­vel abrir o Facebook. Permita a janela de login e tente novamente.';facebookConnect.disabled=false}
-};
+}
+facebookConnect.onclick=openFacebookLogin;
 facebookDisconnect.onclick=async()=>{
   facebookDisconnect.disabled=true;
   try{await personalRequest('/api/meta/connection',{method:'DELETE'});forgetPersonalCache();location.reload()}
@@ -2153,11 +2156,11 @@ if(personalIdentity?.personal){
     renderFacebookConnection();overviewComposer?.refresh();
     facebookDisconnect.hidden=!facebookSettings.connected;
     if(facebookSettings.connected){facebookConnect.disabled=false;void(async()=>{const found=await findMetaAccounts(false);if(found){await loadAccountProfiles();loadPlans();await hydrateAlertPlans();loadAccountMonitoring();}})().catch(error=>{facebookStatus.textContent='Facebook conectado. NÃ£o foi possÃ­vel atualizar as contas: '+error.message})}
-    await loadFacebookSdk(facebookSettings);await prepareFacebookLogin();
-  }catch(error){facebookStatus.textContent=error.message}})();
+    await loadFacebookSdk(facebookSettings);await prepareFacebookLogin();publishFacebookConnectionState(true,'Facebook pronto para conectar.');
+  }catch(error){facebookStatus.textContent=error.message;publishFacebookConnectionState(false,error.message)}})();
 }
 setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date.now()-facebookNonceAt>5*60000)void prepareFacebookLogin().catch(()=>{})},60000);
-if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260917-facebook-flow');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
+if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260917-facebook-ready');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
 const campaignModule=await import('./campaign-manager-ui.js?v=20260916-creative-picker');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);
