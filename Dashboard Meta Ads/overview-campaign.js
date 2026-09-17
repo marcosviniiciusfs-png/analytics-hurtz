@@ -41,13 +41,13 @@ export function initializeOverviewCampaign({mount,getAccounts,isReady,isConnecte
   // relatedTarget identifies the actual destination without removing the clicked row.
   picker.addEventListener('focusout',event=>{if(pickerOpen&&event.relatedTarget&&!picker.contains(event.relatedTarget))closePicker()});
   function setBusy(value){preparing=value;form.setAttribute('aria-busy',String(value));form.classList.toggle('is-preparing',value);loading.hidden=!value;button.disabled=value;description.readOnly=value;selector.disabled=value;picker.inert=value;connection.disabled=value;button.textContent=value?'Preparando campanha…':choosing?'Preparar campanha':'Continuar →'}
-  function refresh(){if(choosing&&!preparing)options(catalog());if(!preparing){connection.hidden=!needsAuthorization&&isConnected()&&isReady()&&catalog().length>0;connection.textContent=needsAuthorization?'Autorizar gerenciamento':isConnected()?'Atualizar contas':'Conectar Facebook'}}
+  function refresh(){if(choosing&&!preparing)options(catalog());if(!preparing){connection.hidden=true;connection.textContent=needsAuthorization?'Autorizar gerenciamento':isConnected()?'Atualizar contas':'Conectar Facebook'}}
   description.addEventListener('input',()=>{description.setCustomValidity('');$('#overviewCount').textContent=description.value.length+' / 1500';status.textContent=''});
   connection.onclick=async()=>{if(!isConnected()||needsAuthorization){connect();return}connection.disabled=true;status.textContent='Atualizando suas contas…';try{const result=await reload();status.textContent=result&&isReady()?'Contas atualizadas. Continue para preparar a campanha.':'Não foi possível carregar as contas. Tente novamente.'}catch(error){status.textContent=error.message}finally{connection.disabled=false;refresh()}};
   form.onsubmit=async event=>{
     event.preventDefault();if(preparing)return;
     const text=description.value.trim();if(text.length<12){description.setCustomValidity('Descreva a campanha com pelo menos 12 caracteres.');description.reportValidity();return}
-    if(!isConnected()){status.textContent='Conecte seu Facebook para escolher a conta da campanha.';refresh();return}
+    if(!isConnected()){status.textContent='Conecte seu Facebook em Configurações para escolher a conta da campanha.';refresh();return}
     if(!isReady()){status.textContent='As contas ainda não foram carregadas. Aguarde ou atualize as contas.';refresh();return}
     const rows=catalog();if(!rows.length){status.textContent='Nenhuma conta de anúncio disponível. Confira o acesso das suas contas no Facebook.';refresh();return}
     let account;

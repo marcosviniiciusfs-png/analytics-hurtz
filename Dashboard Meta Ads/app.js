@@ -2073,6 +2073,7 @@ if(requestedView==='comments')showDashboardView('comments');
 const facebookBar=document.createElement('section');
 facebookBar.className='facebook-connection-bar';
 facebookBar.setAttribute('aria-label','Sua conexÃ£o com o Facebook');
+facebookBar.hidden=true;
 facebookBar.innerHTML='<div><strong id="facebookConnectionTitle">Conecte seu Facebook</strong><p id="facebookConnectionStatus" role="status">Entre no Traffic pocket para conectar suas contas de anÃºncio.</p></div><div class="facebook-connection-actions"><button type="button" id="connectPersonalFacebook" class="facebook-connect-primary" disabled>Conectar Facebook</button><button type="button" id="disconnectPersonalFacebook" class="facebook-disconnect" hidden>Desconectar</button></div>';
 document.querySelector('main').prepend(facebookBar);
 const facebookStatus=document.querySelector('#facebookConnectionStatus'),facebookConnect=document.querySelector('#connectPersonalFacebook'),facebookDisconnect=document.querySelector('#disconnectPersonalFacebook'),analyticsLogout=document.querySelector('#logoutPersonalAnalytics');
@@ -2155,7 +2156,7 @@ if(personalIdentity?.personal){
   }catch(error){facebookStatus.textContent=error.message}})();
 }
 setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date.now()-facebookNonceAt>5*60000)void prepareFacebookLogin().catch(()=>{})},60000);
-if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260909-traffic-pocket');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
+if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260917-account-settings');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
 const campaignModule=await import('./campaign-manager-ui.js?v=20260916-creative-picker');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);

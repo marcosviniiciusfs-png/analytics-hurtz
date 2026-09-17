@@ -173,6 +173,16 @@ http.createServer((req,res)=>{
       if(!recoveryToken)return jsonResponse(res,401,{error:'O link de recuperação é inválido ou expirou.'});
       return supabaseAuthRequest('user',{method:'PUT',accessToken:recoveryToken,body:{password}}).then(()=>jsonResponse(res,200,{ok:true,message:'Senha atualizada. Entre com a nova senha.'})).catch(authError=>jsonResponse(res,authError.status||502,{error:authError.message}));
     }
+    if(action==='change-password'){
+      const currentPassword=String(payload?.current_password||''),newPassword=String(payload?.new_password||''),bearer=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
+      if(newPassword.length<8)return jsonResponse(res,400,{error:'A nova senha deve ter pelo menos 8 caracteres.'});
+      let session;try{session=personalMeta.session(bearer)}catch{return jsonResponse(res,401,{error:'Sua sessão expirou. Entre novamente.'})}
+      if(!currentPassword)return jsonResponse(res,400,{error:'Informe sua senha atual.'});
+      return supabaseAuthRequest('token?grant_type=password',{body:{email:session.email,password:currentPassword}}).then(login=>{
+        if(login?.user?.id!==session.id)throw Object.assign(new Error('Não foi possível confirmar sua conta.'),{status:401});
+        return supabaseAuthRequest('user',{method:'PUT',accessToken:login.access_token,body:{password:newPassword}});
+      }).then(()=>jsonResponse(res,200,{ok:true,message:'Senha atualizada com sucesso.'})).catch(authError=>jsonResponse(res,authError.status===400?401:authError.status||502,{error:authError.message||'Não foi possível atualizar a senha.'}));
+    }
     if(action==='exchange'){
       const accessToken=String(payload?.access_token||'');if(!accessToken)return jsonResponse(res,401,{error:'Confirmação inválida ou expirada.'});
       return supabaseAuthRequest('user',{method:'GET',accessToken}).then(user=>jsonResponse(res,200,{ok:true,token:personalMeta.issueSession(user),user:{id:user.id,email:user.email}})).catch(authError=>jsonResponse(res,authError.status||502,{error:authError.message}));
@@ -185,6 +195,20 @@ http.createServer((req,res)=>{
     try{personalSession=personalMeta.session(bearer)}catch{return jsonResponse(res,401,{error:'Sessão inválida. Entre novamente.'})}
     if(personalSession){
       if(requestUrl.pathname==='/api/session'&&req.method==='GET')return jsonResponse(res,200,{ok:true,user:{id:personalSession.id,email:personalSession.email},personal:true,tools:true});
+      if(requestUrl.pathname==='/api/profile'){
+        const settings=()=>personalMeta.read('settings',personalSession.id)||{};
+        if(req.method==='GET'){const profile=settings().profile||{};return jsonResponse(res,200,{email:personalSession.email,display_name:String(profile.display_name||''),username:String(profile.username||''),avatar_data_url:String(profile.avatar_data_url||'')})}
+        if(req.method==='PUT')return readBody(req,(error,payload)=>{
+          if(error)return jsonResponse(res,400,{error:'Dados do perfil inválidos.'});
+          const displayName=String(payload?.display_name||'').trim().slice(0,60),username=String(payload?.username||'').trim().toLowerCase(),avatar=String(payload?.avatar_data_url||'');
+          if(displayName.length<2)return jsonResponse(res,400,{error:'Informe um nome com pelo menos 2 caracteres.'});
+          if(!/^[a-z0-9._]{3,24}$/.test(username))return jsonResponse(res,400,{error:'Use de 3 a 24 caracteres: letras minúsculas, números, ponto ou sublinhado.'});
+          if(avatar&&(!/^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(avatar)||avatar.length>400000))return jsonResponse(res,400,{error:'Use uma imagem JPG, PNG ou WebP de até 280 KB.'});
+          const previous=settings();personalMeta.write('settings',personalSession.id,{...previous,profile:{display_name:displayName,username,avatar_data_url:avatar}});
+          return jsonResponse(res,200,{ok:true,email:personalSession.email,display_name:displayName,username,avatar_data_url:avatar});
+        });
+        return jsonResponse(res,405,{error:'Método não permitido.'});
+      }
       const handler=taskCollaborationRoutes.has(requestUrl.pathname)||taskDataRoute(requestUrl.pathname)?handlePersonalTaskRoute(req,res,requestUrl,personalSession):personalMeta.handle(req,res,personalSession,requestUrl,jsonResponse);return Promise.resolve(handler).catch(error=>{if(!res.headersSent)jsonResponse(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir a solicitação.'})})
     }
     if(bearer.startsWith('pa_'))return jsonResponse(res,401,{error:'Sua sessão expirou. Entre novamente.'});
