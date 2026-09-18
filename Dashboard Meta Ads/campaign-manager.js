@@ -53,6 +53,8 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       const available=await pages(conn,account);if(!available.length)throw fail(403,'Esta conta não possui uma Página disponível para anunciar.');
       const page=available.find(item=>item.id===p.page)||available[0];planning.add(user.id);try{
         const analysis=await analyzeVideo(file,{fetchImpl,config:plannerConfiguration()}),description=videoDescription(analysis),draft=await planCampaign({page:page.name,pages:available.map(item=>item.name),currency:accountInfo.currency,description,allowInterests:false,examples:[]});
+        // O criativo pode não mencionar investimento. Comece pelo mínimo permitido e deixe a decisão final na revisão.
+        draft.dailyBudget=1;
         if(analysis.destination!=='unknown')draft.destination=analysis.destination;
         if(analysis.location)draft.locationQuery=analysis.location;
         if(analysis.audience.ageMin!=null&&analysis.audience.ageMax!=null&&analysis.audience.ageMin<=analysis.audience.ageMax){draft.ageMin=analysis.audience.ageMin;draft.ageMax=analysis.audience.ageMax}

@@ -96,6 +96,8 @@ Como usuário, quero revisar e alterar qualquer sugestão antes de publicar, par
 - **FR-005**: O sistema deve permitir revisão e alteração manual de todas as sugestões antes da publicação.
 - **FR-006**: Falha, indisponibilidade ou limite da IA não deve criar campanha nem impedir o usuário de tentar novamente.
 - **FR-007**: A configuração final de Página, conta, WhatsApp, orçamento, criativo e publicação continua sujeita às validações existentes.
+- **FR-008**: Para campanhas iniciadas por vídeo, o orçamento diário deve iniciar no mínimo aceito pelo produto e permanecer editável antes da publicação.
+- **FR-009**: A revisão deve permitir alterar o nome da campanha, orçamento, Página, Instagram e destino; destinos de WhatsApp e formulário devem apresentar somente ativos autorizados e compatíveis com a Página escolhida.
 
 *Example of marking unclear requirements:*
 
