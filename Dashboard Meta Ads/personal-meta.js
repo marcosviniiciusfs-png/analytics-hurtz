@@ -69,7 +69,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       payload = await response.json();
     } catch { throw fail(502, 'A Meta não respondeu. Tente novamente.'); }
     if (!response.ok || payload.error) {
-      console.warn(JSON.stringify({event:'meta_graph_error',endpoint,status:response.status,code:payload.error?.code,subcode:payload.error?.error_subcode,trace:payload.error?.fbtrace_id}));
+      console.warn(JSON.stringify({event:'meta_graph_error',endpoint,status:response.status,code:payload.error?.code,subcode:payload.error?.error_subcode,message:payload.error?.message,trace:payload.error?.fbtrace_id}));
       if (payload.error?.code === 190) throw fail(409, 'Sua conexão com o Facebook expirou. Conecte novamente.');
       if(response.status===429||[4,17,32,613].includes(payload.error?.code)||(payload.error?.code>=80000&&payload.error?.code<=80014)||payload.error?.error_subcode===1504022){
         const strikes=previous&&Date.now()-previous.last<3600000?previous.strikes+1:1;
