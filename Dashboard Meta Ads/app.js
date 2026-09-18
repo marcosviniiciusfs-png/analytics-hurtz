@@ -2167,6 +2167,7 @@ await import('./campaign-whatsapp-selector.js?v=20260917-page-linked-whatsapp');
 const campaignModule=await import('./campaign-manager-ui.js?v=20260918-video-analysis');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
 const prepareCampaignWithAccount=campaignManagerUI.prepare;campaignManagerUI.prepare=(destination,...args)=>{window.hurtzCampaignAccount=destination?.id||'';return prepareCampaignWithAccount(destination,...args)};
+const prepareVideoCampaignWithAccount=campaignManagerUI.prepareVideo;campaignManagerUI.prepareVideo=(destination,...args)=>{window.hurtzCampaignAccount=destination?.id||'';return prepareVideoCampaignWithAccount(destination,...args)};
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);
 const priorAccountTab=setAccountTab;setAccountTab=function(tab){campaignManagerUI.panel.hidden=tab!=='manage';document.querySelectorAll('#accountModal .modal-toolbar,#modalSummary,#planStrip').forEach(el=>el.hidden=tab==='manage');if(tab==='manage'){activeAccountTab=tab;document.querySelectorAll('[data-account-tab]').forEach(b=>b.classList.toggle('active',b.dataset.accountTab===tab));document.querySelector('#campaignTabPanel').hidden=true;document.querySelector('#accountAnalysisPanel').hidden=true;campaignManagerUI.open()}else{priorAccountTab(tab);renderModal();loadSelectedAccountAudit()}};campaignTab.onclick=()=>setAccountTab('manage');
 // Account details are a routed page. Preserve the existing reports and payment controls.
@@ -2185,9 +2186,9 @@ document.querySelector('.sidebar nav').addEventListener('click',event=>{if(event
 routeAccount();
 window.addEventListener('storage',event=>{if(event.key===MONITOR_SESSION_KEY)location.reload()});
 /* Description-first campaign entry; monitoring loads only in Accounts. */
-const overviewModule=await import('./overview-campaign.js?v=20260915-minimal-campaign-flow');
+const overviewModule=await import('./overview-campaign.js?v=20260918-video-entry');
 const overviewMount=document.createElement('section');overviewMount.id='overviewCampaign';overviewMount.hidden=true;document.querySelector('main>header').after(overviewMount);
-overviewComposer=overviewModule.initializeOverviewCampaign({mount:overviewMount,getAccounts:()=>accounts,isReady:()=>accountCatalogReady,isConnected:()=>!!facebookSettings?.connected,prepare:(...args)=>campaignManagerUI.prepare(...args),connect:()=>window.dispatchEvent(new Event('hurtz-connect-ads')),reload:()=>findMetaAccounts(false)});
+overviewComposer=overviewModule.initializeOverviewCampaign({mount:overviewMount,getAccounts:()=>accounts,isReady:()=>accountCatalogReady,isConnected:()=>!!facebookSettings?.connected,prepareVideo:(...args)=>campaignManagerUI.prepareVideo(...args),connect:()=>window.dispatchEvent(new Event('hurtz-connect-ads')),reload:()=>findMetaAccounts(false)});
 const trafficViewRouter=showDashboardView;
 showDashboardView=function(view){
   if(campaignManagerUI.busy())return;

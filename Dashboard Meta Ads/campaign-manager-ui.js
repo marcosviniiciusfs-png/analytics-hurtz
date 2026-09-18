@@ -131,5 +131,20 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
     canManage=true;await edit(result.draft);
     if(!isCurrent()&&stamp===generation)dispose();
   }
-  return {panel,prepare,close(){if(busy)return;dispose();if(chooser.open)chooser.close();generation++},open(){const a=getAccount();if(!a)return;destinationAccount={...a};if(account!==a.id){dispose();account=a.id;level='campaign';parent=null;campaign=null;canManage=false;$('[data-cm="new"]').disabled=true}load()},busy:()=>busy};
+  async function prepareVideo(destination,file,isCurrent=()=>true,onProgress=()=>{}){
+    if(busy)throw new Error('Aguarde a publicação em andamento.');
+    if(!file||file.type!=='video/mp4'||file.size>100*1024*1024)throw new Error('Selecione um vídeo MP4 de até 100 MB.');
+    dispose();if(chooser.open)chooser.close();const stamp=++generation;
+    account=destination.id;destinationAccount={...destination};currency=destination.currency||'';canManage=false;level='campaign';parent=null;campaign=null;
+    onProgress(12,'Enviando o vídeo para análise');const analysisData=new FormData();analysisData.append('file',file,file.name);
+    const result=await api('analyze',{},analysisData,destination.id);
+    if(!isCurrent()||stamp!==generation||account!==destination.id)return;
+    if(!result?.draft)throw new Error('Não foi possível analisar o vídeo. Tente novamente.');
+    onProgress(68,'Análise concluída. Salvando o criativo');const uploadData=new FormData();uploadData.append('file',file,file.name);
+    const media=await api('upload',{},uploadData,destination.id);
+    if(!isCurrent()||stamp!==generation||account!==destination.id)return;
+    onProgress(92,'Montando a revisão da campanha');canManage=true;await edit({...result.draft,media:media.key});
+    if(!isCurrent()&&stamp===generation)dispose();
+  }
+  return {panel,prepare,prepareVideo,close(){if(busy)return;dispose();if(chooser.open)chooser.close();generation++},open(){const a=getAccount();if(!a)return;destinationAccount={...a};if(account!==a.id){dispose();account=a.id;level='campaign';parent=null;campaign=null;canManage=false;$('[data-cm="new"]').disabled=true}load()},busy:()=>busy};
 }
