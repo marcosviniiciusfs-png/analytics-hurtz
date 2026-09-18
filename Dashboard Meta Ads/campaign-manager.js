@@ -7,7 +7,7 @@ const text=(value,max=200)=>{if(typeof value!=='string'||!value.trim()||value.le
 const link=value=>{try{const u=new URL(value);if(u.protocol==='https:'&&!u.username&&!u.password)return u.href}catch{}throw fail(400,'Informe um endereço HTTPS válido.')};
 async function body(req,limit=140*1024*1024){let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>limit)throw fail(413,'Arquivo acima do limite de 100 MB.');chunks.push(chunk)}const raw=Buffer.concat(chunks),type=String(req.headers?.['content-type']||'');if(!type.startsWith('multipart/form-data'))try{return JSON.parse(raw.toString())}catch{throw fail(400,'Dados inválidos.')}const boundary=type.match(/boundary=([^;]+)/)?.[1];if(!boundary)throw fail(400,'Upload inválido.');const parts=raw.toString('latin1').split('--'+boundary).slice(1,-1),result={};for(const part of parts){const cut=part.indexOf('\r\n\r\n');if(cut<0)continue;const header=part.slice(0,cut),name=header.match(/name="([^"]+)"/)?.[1],filename=header.match(/filename="([^"]*)"/)?.[1];if(!name)continue;const value=Buffer.from(part.slice(cut+4).replace(/\r\n$/,''),'latin1');result[name]=filename?{name:filename,type:header.match(/Content-Type: ([^\r]+)/i)?.[1]||'',data:value}:value.toString()}return result}
 
-function createCampaignManager({graph,rows,authorizeAccounts,connection,read,write,fetchImpl,planCampaign=require("./campaign-planner").plan,requiredDetails=require("./campaign-planner").missingRequiredDetails}){
+function createCampaignManager({graph,rows,authorizeAccounts,connection,read,write,fetchImpl,planCampaign=require("./campaign-planner").plan,requiredDetails=require("./campaign-planner").missingRequiredDetails,analyzeVideo=require("./video-campaign-analysis").analyzeCampaignVideo,videoDescription=require("./video-campaign-analysis").analysisDescription,plannerConfiguration=require("./campaign-planner").configuration}){
   const locks=new Set(), planning=new Set(), uploads=createUploadStore();
   const current=(user,conn)=>{if(connection(user).revision!==conn.revision)throw fail(409,'A conexão mudou. Reabra esta conta antes de continuar.')};
   async function access(user,account,manage=false){const {conn,accounts}=await authorizeAccounts(user,[account]);if(manage&&!conn.scopes?.includes('ads_management'))throw fail(403,'Autorize o gerenciamento de anúncios. O app precisa ter ads_management aprovado para seu acesso.');return {conn,account:accounts.find(a=>a.id===account)}}
@@ -46,6 +46,21 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     }
     if(req.method!=='POST')throw fail(405,'Método não permitido.');
     const p=await body(req,action==='upload-part'?2*1024*1024:140*1024*1024);
+    if(action==='analyze'){
+      if(planning.has(user.id))throw fail(409,'Já existe uma campanha sendo preparada. Aguarde.');
+      const file=p.file&&Buffer.isBuffer(p.file.data)?p.file:null;
+      if(!file||file.type!=='video/mp4')throw fail(400,'Selecione um vídeo MP4 para analisar.');
+      const available=await pages(conn,account);if(!available.length)throw fail(403,'Esta conta não possui uma Página disponível para anunciar.');
+      const page=available.find(item=>item.id===p.page)||available[0];planning.add(user.id);try{
+        const analysis=await analyzeVideo(file,{fetchImpl,config:plannerConfiguration()}),description=videoDescription(analysis),draft=await planCampaign({page:page.name,pages:available.map(item=>item.name),currency:accountInfo.currency,description,allowInterests:false,examples:[]});
+        if(analysis.destination!=='unknown')draft.destination=analysis.destination;
+        if(analysis.location)draft.locationQuery=analysis.location;
+        if(analysis.audience.ageMin!=null&&analysis.audience.ageMax!=null&&analysis.audience.ageMin<=analysis.audience.ageMax){draft.ageMin=analysis.audience.ageMin;draft.ageMax=analysis.audience.ageMax}
+        const location=await locationFor(conn,draft.locationQuery||'Brasil');current(user,conn);
+        const saved=read('ads-locations',user.id)||[];write('ads-locations',user.id,[...saved.filter(item=>item.key!==location.key||item.type!==location.type),location].slice(-200));
+        return {draft:{...draft,page:page.id,countries:[location.country],location,interests:[],analysis},reviewRequired:true};
+      }finally{planning.delete(user.id)}
+    }
     if(action==='plan'){
       if(planning.has(user.id))throw fail(409,'Já existe uma campanha sendo preparada. Aguarde.');
       const last=read('ads-plan-time',user.id);if(last&&Date.now()-last<15000)throw fail(429,'Aguarde alguns segundos antes de gerar novamente.');

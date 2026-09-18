@@ -2164,7 +2164,7 @@ setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date
 if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260917-facebook-button-state');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
 await import('./text-encoding-repair.js?v=20260917-ui-text');
 await import('./campaign-whatsapp-selector.js?v=20260917-page-linked-whatsapp');
-const campaignModule=await import('./campaign-manager-ui.js?v=20260916-creative-picker');
+const campaignModule=await import('./campaign-manager-ui.js?v=20260918-video-analysis');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
 const prepareCampaignWithAccount=campaignManagerUI.prepare;campaignManagerUI.prepare=(destination,...args)=>{window.hurtzCampaignAccount=destination?.id||'';return prepareCampaignWithAccount(destination,...args)};
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);
