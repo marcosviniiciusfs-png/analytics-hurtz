@@ -8,10 +8,11 @@ function secretValues(){
 }
 function configuration(){
   const values=secretValues();
-  const key=process.env.GROQ_API_KEY||values.GROQ_API_KEY;
-  const groq={key,model:process.env.CAMPAIGN_AI_MODEL||values.CAMPAIGN_AI_MODEL||'openai/gpt-oss-20b',url:'https://api.groq.com/openai/v1/chat/completions'};
+  const openrouterKey=process.env.OPENROUTER_API_KEY||values.OPENROUTER_API_KEY;
+  const key=openrouterKey||process.env.GROQ_API_KEY||values.GROQ_API_KEY;
+  const groq={key,model:openrouterKey?(process.env.OPENROUTER_MODEL||values.OPENROUTER_MODEL||'openrouter/free'):(process.env.CAMPAIGN_AI_MODEL||values.CAMPAIGN_AI_MODEL||'openai/gpt-oss-20b'),url:openrouterKey?'https://openrouter.ai/api/v1/chat/completions':'https://api.groq.com/openai/v1/chat/completions'};
   const ollama={url:process.env.OLLAMA_URL||values.OLLAMA_URL||'http://127.0.0.1:11434/api/chat',model:process.env.OLLAMA_MODEL||values.OLLAMA_MODEL||'qwen2.5:0.5b'};
-  return {groq,ollama,key:groq.key,model:groq.model,url:groq.url};
+  return {groq,ollama,key:groq.key,model:groq.model,url:groq.url,provider:openrouterKey?'openrouter-free':'groq'};
 }
 function missingRequiredDetails(description){
   const value=String(description||'');
