@@ -52,15 +52,15 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       const file=p.file&&Buffer.isBuffer(p.file.data)?p.file:null;
       if(!file||file.type!=='video/mp4')throw fail(400,'Selecione um vídeo MP4 para analisar.');
       const available=await pages(conn,account);if(!available.length)throw fail(403,'Esta conta não possui uma Página disponível para anunciar.');
-      const page=available.find(item=>item.id===p.page)||available[0];planning.add(user.id);try{
+      const page=available.find(item=>item.id===p.page)||available[0];planning.add(user.id);let stage='analisando o vídeo';try{
         const analysis=await analyzeVideo(file,{fetchImpl,config:plannerConfiguration()}),draft=draftFromVideoAnalysis(analysis);
         if(analysis.destination!=='unknown')draft.destination=analysis.destination;
         if(analysis.location)draft.locationQuery=analysis.location;
         if(analysis.audience.ageMin!=null&&analysis.audience.ageMax!=null&&analysis.audience.ageMin<=analysis.audience.ageMax){draft.ageMin=analysis.audience.ageMin;draft.ageMax=analysis.audience.ageMax}
-        const location=await locationFor(conn,draft.locationQuery||'Brasil');current(user,conn);
+        stage='validando a localização sugerida';let location;try{location=await locationFor(conn,draft.locationQuery||'Brasil')}catch(error){console.warn('[campaign-video] localização sugerida indisponível; usando Brasil como padrão.',{account,user:user.id,message:error?.message||'erro sem mensagem'});location={key:'BR',type:'country',name:'Brasil',country:'BR',region:''};draft.locationQuery='Brasil'}current(user,conn);
         const saved=read('ads-locations',user.id)||[];write('ads-locations',user.id,[...saved.filter(item=>item.key!==location.key||item.type!==location.type),location].slice(-200));
         return {draft:{...draft,page:page.id,countries:[location.country],location,interests:[],analysis},reviewRequired:true};
-      }finally{planning.delete(user.id)}
+      }catch(error){console.error('[campaign-video] falha ao preparar revisão.',{stage,account,user:user.id,status:error?.status||500,message:error?.message||'erro sem mensagem'});throw error?.status?error:fail(502,'Não foi possível preparar a revisão do vídeo. Tente novamente.')}finally{planning.delete(user.id)}
     }
     if(action==='plan'){
       if(planning.has(user.id))throw fail(409,'Já existe uma campanha sendo preparada. Aguarde.');
