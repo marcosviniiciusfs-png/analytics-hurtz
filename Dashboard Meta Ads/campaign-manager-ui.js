@@ -3,11 +3,15 @@ export function showCampaignPublishLoader(dialog,initialStage='Enviando criativo
   const existing=dialog.querySelector('.cm-publish-loader');if(existing)return existing.publishLoader;
   const editor=dialog.querySelector('#cmEditor'),wasInert=editor.inert;
   const loader=document.createElement('section');loader.className='cm-publish-loader';loader.tabIndex=-1;loader.setAttribute('role','status');loader.setAttribute('aria-live','polite');loader.setAttribute('aria-label','Publicando na Meta. Criando campanha, conjunto e anúncio pausados. Aguarde a confirmação.');
-  loader.innerHTML='<div class="cm-stage-loader-card"><span class="cm-stage-spinner" aria-hidden="true"></span><p class="cm-stage-kicker">PUBLICAÇÃO NA META</p><strong class="cm-publish-caption">'+initialStage+'</strong><p class="cm-stage-copy">Estamos criando a campanha, o conjunto e o anúncio. Esta etapa pode levar alguns instantes.</p><ol class="cm-stage-steps" aria-hidden="true"><li>Campanha</li><li>Conjunto</li><li>Anúncio</li></ol></div>';
+  loader.innerHTML='<div class="cm-stage-loader-card"><span class="cm-stage-spinner" aria-hidden="true"></span><p class="cm-stage-kicker">PUBLICAÇÃO NA META</p><strong class="cm-publish-caption">'+initialStage+'</strong><p class="cm-stage-copy">Estamos criando a campanha, o conjunto e o anúncio. Esta etapa pode levar alguns instantes.</p><div class="cm-upload-meter" role="progressbar" aria-label="Progresso do envio do criativo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="cm-upload-meter-heading"><span>Envio do criativo</span><strong class="cm-upload-percent">0%</strong></div><div class="cm-upload-track"><span class="cm-upload-fill"></span></div></div><ol class="cm-stage-steps" aria-hidden="true"><li>Campanha</li><li>Conjunto</li><li>Anúncio</li></ol></div>';
   editor.inert=true;dialog.setAttribute('aria-busy','true');dialog.append(loader);loader.focus({preventScroll:true});
   const setStage=stage=>{loader.querySelector('.cm-publish-caption').textContent=stage;loader.setAttribute('aria-label',stage)};
-  const stop=()=>{loader.remove();editor.inert=wasInert;dialog.removeAttribute('aria-busy');const status=editor.querySelector('#cmSendStatus');if(dialog.open&&status){status.tabIndex=-1;status.focus({preventScroll:true})}};
-  stop.setStage=setStage;loader.publishLoader=stop;return stop;
+  const setProgress=value=>{const progress=Math.max(0,Math.min(100,Math.round(Number(value)||0))),meter=loader.querySelector('.cm-upload-meter');meter.style.setProperty('--cm-upload-progress',String(progress/100));meter.setAttribute('aria-valuenow',String(progress));meter.querySelector('.cm-upload-percent').textContent=progress+'%'};
+  const statusMessage=editor.querySelector('#cmSendStatus');
+  const syncProgress=()=>{const message=statusMessage?.textContent||'',match=message.match(/Enviando criativo\.\.\.\s*(\d+)%/);if(match)setProgress(match[1]);else if(/^(Confirmando criativo|Criando campanha|Vídeo sendo processado)/.test(message)){setProgress(100);setStage(message)}};
+  const statusObserver=statusMessage&&new MutationObserver(syncProgress);statusObserver?.observe(statusMessage,{childList:true,subtree:true,characterData:true});syncProgress();
+  const stop=()=>{statusObserver?.disconnect();loader.remove();editor.inert=wasInert;dialog.removeAttribute('aria-busy');if(dialog.open&&statusMessage){statusMessage.tabIndex=-1;statusMessage.focus({preventScroll:true})}};
+  stop.setStage=setStage;stop.setProgress=setProgress;loader.publishLoader=stop;return stop;
 }
 
 function formatCampaignReview(review,mediaBox){
@@ -43,8 +47,8 @@ export function showCampaignConfirmation(dialog,{campaign,account,currency,creat
 const mediaTransfers=new WeakMap();
 export async function uploadCampaignMedia(request,file,type,onProgress=()=>{}){
   // Small files retain the original transport. Large files avoid proxy body deadlines.
-  if(file.size<=1024*1024){const data=new FormData();data.append('file',file.type?file:new Blob([file],{type}),file.name);return request('upload',data)}
-  let transfer=mediaTransfers.get(file);
+  if(file.size<=1024*1024){onProgress(0);const data=new FormData();data.append('file',file.type?file:new Blob([file],{type}),file.name);const result=await request('upload',data);onProgress(100);return result}
+  onProgress(0);let transfer=mediaTransfers.get(file);
   if(!transfer){transfer={...await request('upload-start',{size:file.size,type:file.type||type}),offset:0};mediaTransfers.set(file,transfer)}
   try{
     while(transfer.offset<file.size){const data=new FormData();data.append('upload',transfer.upload);data.append('offset',String(transfer.offset));data.append('file',file.slice(transfer.offset,transfer.offset+transfer.chunkSize),'part');
