@@ -18,55 +18,45 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
   const requestedInterests=description=>/\binteress(?:e|es|ado|ada|ados|adas)\b/i.test(String(description||''));
   async function instagramProfiles(conn,account,available){const profiles=[];for(const page of available){try{const result=await graph(conn.token,page.id,{fields:'instagram_business_account{id,username,profile_picture_url}'}),item=result.instagram_business_account;if(item?.id)profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:page.id})}catch{}}try{for(const item of await rows(conn.token,account+'/instagram_accounts',{fields:'id,username,profile_pic'}))if(!profiles.some(profile=>profile.id===item.id))profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:''})}catch{}return profiles}
   async function whatsappNumbers(conn,account,available,accountInfo={}){
-    const linked=[],failures=[],numbers=[];
+    const failures=[],numbers=[];
     const addNumber=(value,page,details={})=>{
       const phone=String(value||'').replace(/\D/g,'');
       if(!/^\d{10,15}$/.test(phone)||numbers.some(item=>item.phone===phone&&item.pageId===String(page.id)))return;
-      numbers.push({id:String(details.id||phone),phone,label:String(details.label||phone),pageId:String(page.id),pageName:String(page.name||page.id),businessId:String(details.businessId||''),...(details.source?{source:details.source}:{})});
+      numbers.push({id:String(details.id||phone),phone,label:String(details.label||phone),pageId:String(page.id),pageName:String(page.name||page.id),businessId:String(details.businessId||'')});
     };
     const pageById=new Map(available.map(page=>[String(page.id),page]));
-    for(const page of available){
-      const pageToken=conn.pageTokens?.[page.id]||conn.token;
-      let business;
-      try{business=(await graph(pageToken,page.id,{fields:'whatsapp_business_account{id,name}'})).whatsapp_business_account}catch(error){failures.push(error)}
-      // Algumas versões/permissões da Graph API não expõem a relação como campo da Página,
-      // mas aceitam a mesma relação como edge. As duas consultas são complementares.
-      if(!business?.id)try{business=await graph(pageToken,page.id+'/whatsapp_business_account',{fields:'id,name'})}catch(error){failures.push(error)}
-      if(business?.id)linked.push({id:String(business.id),name:String(business.name||''),pageId:String(page.id),pageName:String(page.name||page.id),token:pageToken});
-    }
-    const businessId=String(accountInfo.business?.id||accountInfo.business_id||accountInfo.business||'').trim(),authorized=new Set(),checks=[];
-    const collect=async(token,edge)=>{try{const items=await rows(token,edge,{fields:'id,name'});checks.push(true);for(const item of items)if(item?.id)authorized.add(String(item.id))}catch(error){checks.push(false);failures.push(error)}};
-    if(businessId&&/^\d+$/.test(businessId)){await collect(conn.token,businessId+'/owned_whatsapp_business_accounts');await collect(conn.token,businessId+'/client_whatsapp_business_accounts')}
-    await collect(conn.token,account+'/whatsapp_business_accounts');
-    const verified=checks.some(Boolean),eligible=verified&&authorized.size?linked.filter(item=>authorized.has(item.id)):linked;
-    for(const business of eligible){
-      let phones=[];
-      try{phones=await rows(business.token,business.id+'/phone_numbers',{fields:'id,display_phone_number,verified_name'})}
-      catch{try{phones=await rows(conn.token,business.id+'/phone_numbers',{fields:'id,display_phone_number,verified_name'})}catch(error){failures.push(error);continue}}
-      for(const phone of phones)addNumber(phone.display_phone_number,{id:business.pageId,name:business.pageName},{id:phone.id,label:phone.verified_name||phone.display_phone_number,businessId:business.id});
-    }
-    // Fallback seguro: um anúncio existente no MESMO conjunto Página + conta de anúncio
-    // só pode ter sido aprovado pela Meta para aquele destino. Isso mantém o fluxo utilizável
-    // quando o campo de WABA da Página não é publicado pela versão/permissão da Graph API.
+    // A Graph v25 não publica mais os fields/edges de WABA da Página nem da conta de anúncio.
+    // A associação confiável Página + número vem do object_story_spec de anúncios já aprovados
+    // nesta mesma conta; a BM apenas confirma o ativo e melhora sua identificação.
     try{
       const ads=await rows(conn.token,account+'/ads',{fields:'creative{object_story_spec}'});
       const collectPhones=(value,pageContext)=>{
         if(typeof value==='string'){
-          for(const match of value.matchAll(/(?:wa\.me\/|api\.whatsapp\.com\/send\?[^\s"']*phone=|whatsapp:\/\/send\?[^\s"']*phone=)(\d{10,15})/ig))if(pageContext)addNumber(match[1],pageContext,{label:'WhatsApp vinculado à Página',source:'approved-ad'});
+          for(const match of value.matchAll(/(?:wa\.me\/|api\.whatsapp\.com\/send\?[^\s"']*phone=|whatsapp:\/\/send\?[^\s"']*phone=)(\d{10,15})/ig))if(pageContext)addNumber(match[1],pageContext,{label:'WhatsApp vinculado à Página'});
           return;
         }
         if(Array.isArray(value)){for(const item of value)collectPhones(item,pageContext);return}
         if(!value||typeof value!=='object')return;
         const page=pageById.get(String(value.page_id||''))||pageContext;
         for(const [key,item] of Object.entries(value)){
-          if(page&&/(?:whatsapp_)?phone_number$/i.test(key))addNumber(item,page,{label:'WhatsApp vinculado à Página',source:'approved-ad'});
+          if(page&&/(?:whatsapp_)?phone_number$/i.test(key))addNumber(item,page,{label:'WhatsApp vinculado à Página'});
           collectPhones(item,page);
         }
       };
       for(const ad of ads)collectPhones(ad.creative?.object_story_spec);
     }catch(error){failures.push(error)}
-    if(numbers.length)return {state:'ready',items:numbers,message:verified?'':'Os números disponíveis foram confirmados pela Página e anúncios já autorizados nesta conta.',retryable:failures.length>0};
-    if(failures.length)return {state:'unavailable',items:[],message:'Não foi possível verificar os números autorizados para esta Página e BM. Reconecte o Facebook para conceder o acesso ao WhatsApp e tente novamente.',retryable:true};
+    const businessId=String(accountInfo.business?.id||accountInfo.business_id||accountInfo.business||'').trim(),wabas=[],checks=[];
+    const collect=async(edge)=>{try{const items=await rows(conn.token,edge,{fields:'id,name'});checks.push(true);for(const item of items)if(item?.id&&!wabas.some(waba=>waba.id===String(item.id)))wabas.push({id:String(item.id),name:String(item.name||'')})}catch(error){checks.push(false);failures.push(error)}};
+    if(businessId&&/^\d+$/.test(businessId)){await collect(businessId+'/owned_whatsapp_business_accounts');await collect(businessId+'/client_whatsapp_business_accounts')}
+    const phonesByNumber=new Map();
+    for(const business of wabas){
+      let phones=[];
+      try{phones=await rows(conn.token,business.id+'/phone_numbers',{fields:'id,display_phone_number,verified_name'})}catch(error){failures.push(error);continue}
+      for(const phone of phones){const value=String(phone.display_phone_number||'').replace(/\D/g,'');if(/^\d{10,15}$/.test(value))phonesByNumber.set(value,{id:String(phone.id||value),label:String(phone.verified_name||phone.display_phone_number||value),businessId:business.id})}
+    }
+    const items=checks.some(Boolean)&&wabas.length&&!phonesByNumber.size?[]:numbers.map(item=>phonesByNumber.has(item.phone)?{...item,...phonesByNumber.get(item.phone)}:item);
+    if(items.length)return {state:'ready',items,message:checks.some(Boolean)?'Os números foram confirmados em anúncios autorizados para esta Página e conta.':'Os números foram confirmados em anúncios autorizados para esta Página e conta; a confirmação adicional da BM ficará disponível ao atualizar a conexão.',retryable:failures.length>0};
+    if(failures.length)return {state:'unavailable',items:[],message:'Não foi possível verificar os números autorizados para esta Página e BM. Atualize as permissões do Facebook e tente novamente.',retryable:true};
     return {state:'empty',items:[],message:'Nenhum WhatsApp autorizado foi encontrado para a Página e a BM desta conta.',retryable:false};
   }
   async function pageAccess(conn,account,page){if(!(await pages(conn,account)).some(p=>p.id===id(page)))throw fail(403,'Esta Página não está disponível para anunciar nesta conta.')}
