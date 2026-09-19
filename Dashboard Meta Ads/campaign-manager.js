@@ -25,9 +25,12 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       numbers.push({id:String(details.id||phone),phone,label:String(details.label||phone),pageId:String(page.id),pageName:String(page.name||page.id),businessId:String(details.businessId||'')});
     };
     const pageById=new Map(available.map(page=>[String(page.id),page]));
-    // A Graph v25 não publica mais os fields/edges de WABA da Página nem da conta de anúncio.
-    // A associação confiável Página + número vem do object_story_spec de anúncios já aprovados
-    // nesta mesma conta; a BM apenas confirma o ativo e melhora sua identificação.
+    // A v25 removeu este field da Página. A v22 ainda o oferece e é usada somente
+    // para identificar o vínculo Página → WABA; a BM continua sendo a fonte dos telefones.
+    const linkedWabas=[];
+    for(const page of available){
+      try{const result=await graph(conn.pageTokens?.[page.id]||conn.token,page.id,{fields:'whatsapp_business_account{id,name}'},'v22.0'),business=result.whatsapp_business_account;if(business?.id)linkedWabas.push({id:String(business.id),page})}catch(error){failures.push(error)}
+    }
     try{
       const ads=await rows(conn.token,account+'/ads',{fields:'creative{object_story_spec}'});
       const collectPhones=(value,pageContext)=>{
@@ -48,11 +51,14 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     const businessId=String(accountInfo.business?.id||accountInfo.business_id||accountInfo.business||'').trim(),wabas=[],checks=[];
     const collect=async(edge)=>{try{const items=await rows(conn.token,edge,{fields:'id,name'});checks.push(true);for(const item of items)if(item?.id&&!wabas.some(waba=>waba.id===String(item.id)))wabas.push({id:String(item.id),name:String(item.name||'')})}catch(error){checks.push(false);failures.push(error)}};
     if(businessId&&/^\d+$/.test(businessId)){await collect(businessId+'/owned_whatsapp_business_accounts');await collect(businessId+'/client_whatsapp_business_accounts')}
+    const verifiedWabas=checks.some(Boolean)&&wabas.length?new Set(wabas.map(waba=>waba.id)):null,phoneSources=[];
+    for(const item of linkedWabas)if(!verifiedWabas||verifiedWabas.has(item.id))if(!phoneSources.some(source=>source.id===item.id))phoneSources.push({id:item.id});
+    for(const item of wabas)if(!phoneSources.some(source=>source.id===item.id))phoneSources.push(item);
     const phonesByNumber=new Map();
-    for(const business of wabas){
+    for(const business of phoneSources){
       let phones=[];
       try{phones=await rows(conn.token,business.id+'/phone_numbers',{fields:'id,display_phone_number,verified_name'})}catch(error){failures.push(error);continue}
-      for(const phone of phones){const value=String(phone.display_phone_number||'').replace(/\D/g,'');if(/^\d{10,15}$/.test(value))phonesByNumber.set(value,{id:String(phone.id||value),label:String(phone.verified_name||phone.display_phone_number||value),businessId:business.id})}
+      for(const phone of phones){const value=String(phone.display_phone_number||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(value))continue;phonesByNumber.set(value,{id:String(phone.id||value),label:String(phone.verified_name||phone.display_phone_number||value),businessId:business.id});for(const linked of linkedWabas.filter(item=>item.id===business.id))addNumber(value,linked.page,{id:phone.id,label:phone.verified_name||phone.display_phone_number,businessId:business.id})}
     }
     const items=checks.some(Boolean)&&wabas.length&&!phonesByNumber.size?[]:numbers.map(item=>phonesByNumber.has(item.phone)?{...item,...phonesByNumber.get(item.phone)}:item);
     if(items.length)return {state:'ready',items,message:checks.some(Boolean)?'Os números foram confirmados em anúncios autorizados para esta Página e conta.':'Os números foram confirmados em anúncios autorizados para esta Página e conta; a confirmação adicional da BM ficará disponível ao atualizar a conexão.',retryable:failures.length>0};

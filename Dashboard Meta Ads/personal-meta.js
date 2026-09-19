@@ -58,10 +58,11 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     const promise=(async()=>{const upgraded=await exchangeToken(conn.token,conn.facebookId);const latest=read('connection',user.id);if(!latest||latest.revision!==conn.revision)return latest;const improves=upgraded&&(upgraded.noFixedExpiry||!latest.expiresAt||upgraded.expiresAt>latest.expiresAt);const result={...latest,...(improves?upgraded:{}),exchangeAttemptAt:Date.now()};write('connection',user.id,result);return result})().finally(()=>exchanges.delete(user.id));exchanges.set(user.id,promise);return promise;
   }
   const graphPauses = new Map();
-  async function graph(token, endpoint, params = {}) {
+  async function graph(token, endpoint, params = {}, version = VERSION) {
     const pauseKey = hash(token), previous = graphPauses.get(pauseKey);
     if (previous?.until > Date.now()) throw Object.assign(fail(429, 'A Meta limitou temporariamente as consultas. Aguarde antes de atualizar.'), {retryAfter: Math.ceil((previous.until - Date.now()) / 1000)});
-    const url = new URL(`https://graph.facebook.com/${VERSION}/${endpoint}`);
+    if (!/^v\d+\.\d+$/.test(version)) throw fail(500, 'Versão inválida da consulta Meta.');
+    const url = new URL(`https://graph.facebook.com/${version}/${endpoint}`);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
     let response, payload;
     try {
