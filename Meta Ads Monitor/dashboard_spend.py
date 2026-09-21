@@ -11,7 +11,9 @@ from meta_query_guard import get_json
 from result_metrics import result_metrics, serializable_metrics
 
 VERSION = os.environ.get("META_API_VERSION", "v25.0")
-TOKEN = os.environ["META_ACCESS_TOKEN"]
+# Accounts configured in connections.json use their own credentials.  A global
+# token is optional and remains the fallback for accounts without one.
+TOKEN = os.environ.get("META_ACCESS_TOKEN", "")
 ACCOUNTS = [
     "act_478905369997301",
     "act_767057339654401",
