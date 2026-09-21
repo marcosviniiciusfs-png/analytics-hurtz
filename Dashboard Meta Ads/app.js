@@ -764,7 +764,7 @@ const analysisObjectiveName=value=>({OUTCOME_LEADS:'Leads',OUTCOME_ENGAGEMENT:'E
 let analysisComparisons=[];
 const normalizedCampaignText=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();
 const isEmploymentCampaign=ad=>/\b(?:VAGA|VAGAS|EMPREGO|RECRUTAMENTO|CONTRATACAO|TRABALHE CONOSCO)\b/.test(normalizedCampaignText(`${ad.campaign_name||''} ${ad.ad_name||''}`));
-const inferredProduct=name=>{const text=normalizedCampaignText(name);for(const [label,patterns] of [['Vaga de emprego',[/\bVAGA(?:S)?\b|EMPREGO|RECRUTAMENTO|CONTRATACAO/]],['Crédito rural',[/CREDITO RURAL|CRED RURAL|RURAL/]],['Caminhão',[/CAMINH(?:AO|A0|O|ES)?/,/CAMIAO|CAMINAHO|CAMNHAO/]],['Maquinário',[/MAQ(?:UIN|IN|UNI)AR(?:IO|IA)?/,/MAQUINA|EQUIPAMENTO/]],['Imóvel',[/IMOV(?:EL|EIS|EU|IL)/,/APARTAM|TERRENO|CASA\b/]],['Veículo',[/VEIC(?:ULO|ULOS|OLO)/,/VEICL|VEICUO|AUTOMOVEL/]],['Carro',[/CARRO|CARROS/]],['Moto',[/MOTO|MOTOS/]],['Consórcio',[/CONSORC|CONSOC|CONSORSS/]]])if(patterns.some(pattern=>pattern.test(text)))return label;return 'Não identificado'};
+const inferredProduct=name=>{const text=normalizedCampaignText(name);for(const [label,patterns] of [['RD Scurpi',[/\bRD\s*(?:SCURPI|SCORPI)\b/,/\bSCURPI\b/]],['Blefaro',[/\bBLEFAR(?:O|OPLASTIA)?\b/]],['Vaga de emprego',[/\bVAGA(?:S)?\b|EMPREGO|RECRUTAMENTO|CONTRATACAO/]],['Crédito rural',[/CREDITO RURAL|CRED RURAL|RURAL/]],['Caminhão',[/CAMINH(?:AO|A0|O|ES)?/,/CAMIAO|CAMINAHO|CAMNHAO/]],['Maquinário',[/MAQ(?:UIN|IN|UNI)AR(?:IO|IA)?/,/MAQUINA|EQUIPAMENTO/]],['Imóvel',[/IMOV(?:EL|EIS|EU|IL)/,/APARTAM|TERRENO|CASA\b/]],['Veículo',[/VEIC(?:ULO|ULOS|OLO)/,/VEICL|VEICUO|AUTOMOVEL/]],['Carro',[/CARRO|CARROS/]],['Moto',[/MOTO|MOTOS/]],['Consórcio',[/CONSORC|CONSOC|CONSORSS/]]])if(patterns.some(pattern=>pattern.test(text)))return label;return 'Não identificado'};
 const qualificationTier=product=>({'Imóvel':1,'Carro':2,'Veículo':2,'Moto':2,'Caminhão':3,'Maquinário':4,'Crédito rural':5})[product]||0;
 function comparisonSummaries(ads){const groups=new Map();ads.filter(ad=>ad.spend>0&&ad.result_type!=='Sem resultado atribuído'&&!isEmploymentCampaign(ad)).forEach(ad=>{const key=`${ad.account_id}|${ad.objective}|${ad.result_type}`,row=groups.get(key)||{account_id:ad.account_id,objective:ad.objective,result_type:ad.result_type,spend:0,results:0,impressions:0,clicks:0,products:new Map(),formats:new Map(),ads:[]};row.spend+=Number(ad.spend)||0;row.results+=Number(ad.results)||0;row.impressions+=Number(ad.impressions)||0;row.clicks+=Number(ad.clicks)||0;const product=inferredProduct(ad.campaign_name),format=ad.format||'Não identificado';row.products.set(product,(row.products.get(product)||0)+Number(ad.spend||0));row.formats.set(format,(row.formats.get(format)||0)+Number(ad.spend||0));row.ads.push(ad);groups.set(key,row)});return [...groups.values()].map(row=>{const top=map=>[...map].sort((a,b)=>b[1]-a[1])[0]||['Não identificado',0];row.name=monitoredAnalysisAccounts.find(item=>item.id===row.account_id)?.name||row.account_id;row.cpl=row.results?row.spend/row.results:null;row.resultsPer100=row.spend?row.results/row.spend*100:0;row.ctr=row.impressions?row.clicks/row.impressions*100:0;[row.topProduct,row.topProductSpend]=top(row.products);[row.topFormat,row.topFormatSpend]=top(row.formats);row.productShare=row.spend?row.topProductSpend/row.spend*100:0;row.formatShare=row.spend?row.topFormatSpend/row.spend*100:0;row.qualificationTier=qualificationTier(row.topProduct);return row})}
 function comparisonVerdict(first,second){let firstWins=0,secondWins=0;const reasons=[];if(first.cpl!=null||second.cpl!=null){const costWinner=first.cpl!=null&&(second.cpl==null||first.cpl<second.cpl)?first:second;costWinner===first?firstWins++:secondWins++;reasons.push(`menor CPL: ${costWinner.name}`)}if(first.results!==second.results){const volumeWinner=first.results>second.results?first:second;volumeWinner===first?firstWins++:secondWins++;reasons.push(`maior volume: ${volumeWinner.name}`)}if(first.qualificationTier&&second.qualificationTier&&first.qualificationTier!==second.qualificationTier){const qualityWinner=first.qualificationTier>second.qualificationTier?first:second;qualityWinner===first?firstWins++:secondWins++;reasons.push(`maior qualificação esperada: ${qualityWinner.name}`)}const winner=firstWins===secondWins?(first.cpl!=null&&(second.cpl==null||first.cpl<second.cpl)?first:second):(firstWins>secondWins?first:second);return{winner,loser:winner===first?second:first,reasons}}
@@ -830,7 +830,7 @@ function reportGroupName(campaign){const product=inferredProduct(campaign.campai
 
 function reportCampaignCity(text){const normalized=String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();if(/\bCANAA(?:\s+DOS\s+CARAJAS)?\b/.test(normalized))return 'CANAÃ';if(/\b(?:PARAUAPEBAS|PARAUPEBAS)\b/.test(normalized))return 'PARAUAPEBAS';return ''}
 const reportGroupNameByProductChannel=reportGroupName;
-reportGroupName=function(campaign){const original=String(campaign.campaign_name||campaign.name||'').trim();if(original&&inferredProduct(original)==='N\u00e3o identificado')return original;const base=reportGroupNameByProductChannel(campaign),city=reportCampaignCity(campaign.campaign_name||campaign.name);return city?`${base} - ${city}`:base};
+reportGroupName=function(campaign){const original=String(campaign.campaign_name||campaign.name||'').trim(),product=inferredProduct(original);return original&&product==='N\u00e3o identificado'?original:product.toUpperCase()};
 function reportGroupsForRow(row){const groups=new Map();(row.campaigns||[]).forEach(campaign=>{const name=reportGroupName(campaign),group=groups.get(name)||{name,productLabel:inferredProduct(campaign.campaign_name||campaign.name)==='N\u00e3o identificado'?name:inferredProduct(campaign.campaign_name||campaign.name).toUpperCase(),spend:0,results:0,complete:true};group.spend+=Number(campaign.spend||0);if(campaign.results==null)group.complete=false;else group.results+=Number(campaign.results||0);groups.set(name,group)});return [...groups.values()]}
 let currentReportContext=null,currentPngAccountId=null;
 const reportPngEdits=new Map();
@@ -1089,17 +1089,14 @@ async function fetchReportBatch(accountIds,from,to){
   const query=`from=${localIso(from)}&to=${localIso(to)}&accounts=${encodeURIComponent(accountIds.join(','))}`;
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),190000);
   try{
-    const [spendResponse,analysisResponse]=await Promise.all([
-      fetch(`/api/meta-spend?${query}`,{signal:controller.signal}),
-      fetch(`/api/meta-analysis?${query}&report=1`,{signal:controller.signal})
-    ]);
-    const [spend,analysis]=await Promise.all([spendResponse.json(),analysisResponse.json()]);
+    const spendResponse=await fetch(`/api/meta-spend?${query}`,{signal:controller.signal});
+    const spend=await spendResponse.json();
     if(!spendResponse.ok)throw new Error(spend.error||'Falha ao consultar gastos e campanhas.');
-    if(!analysisResponse.ok)throw new Error(analysis.error||'Falha ao consultar métricas analíticas.');
-    if([spend,analysis].some(result=>result.since!==localIso(from)||result.until!==localIso(to)))throw new Error('A consulta retornou um período diferente do selecionado. Gere o relatório novamente.');
-    const missing=accountIds.filter(id=>!spend.accounts?.[id]||!analysis.accounts?.[id]);
+    if(spend.since!==localIso(from)||spend.until!==localIso(to))throw new Error('A consulta retornou um período diferente do selecionado. Gere o relatório novamente.');
+    const analysis={accounts:Object.fromEntries(accountIds.map(id=>[id,{id,reconciled:false,account:{ctr:0},ads:[]}]))};
+    const missing=accountIds.filter(id=>!spend.accounts?.[id]);
     if(missing.length)throw new Error(`A Meta não retornou ${missing.length} conta(s) deste lote.`);
-    const unreconciled=accountIds.filter(id=>!spend.accounts[id].reconciled||!analysis.accounts[id].reconciled);
+    const unreconciled=accountIds.filter(id=>!spend.accounts[id].reconciled);
     if(unreconciled.length)throw new Error(`Auditoria divergente em ${unreconciled.length} conta(s) deste lote.`);
     return {spend,analysis};
   }catch(error){
@@ -1182,7 +1179,7 @@ async function createReportResilient(event){
       renderReportRunSummary(selectedIds.length,successfulIds.length,failures);setReportLoaderOutcome(successfulIds.length,failures.length,processed,selectedIds.length,processed===selectedIds.length?'montando relatórios finais':'preparando próximo lote');
       if(processed<selectedIds.length)await new Promise(resolve=>setTimeout(resolve,450));
     }
-    const auditedIds=successfulIds.filter(id=>{const row=payload.accounts[id],campaignSum=(row?.campaigns||[]).reduce((sum,campaign)=>sum+Number(campaign.spend||0),0),valid=row?.reconciled&&analysis.accounts[id]?.reconciled&&Math.abs(Number(row.spend||0)-campaignSum)<.01;if(!valid)failures.push({id,name:reportAccountName(id),reason:'A reconciliação final da conta não coincidiu com a soma das campanhas.'});return valid});
+    const auditedIds=successfulIds.filter(id=>{const row=payload.accounts[id],campaignSum=(row?.campaigns||[]).reduce((sum,campaign)=>sum+Number(campaign.spend||0),0),valid=row?.reconciled&&Math.abs(Number(row.spend||0)-campaignSum)<.01;if(!valid)failures.push({id,name:reportAccountName(id),reason:'A reconciliação final da conta não coincidiu com a soma das campanhas.'});return valid});
     renderReportRunSummary(selectedIds.length,auditedIds.length,failures);
     if(!auditedIds.length){output.hidden=true;status.textContent=`Nenhum relatório foi liberado. ${failures.length} conta(s) não passaram pela auditoria.`;return}
     currentReportContext={payload,analysis,from,to,selectedIds:auditedIds};
