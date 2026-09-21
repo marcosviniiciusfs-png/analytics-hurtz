@@ -92,7 +92,8 @@ async function personalReportFetch(input,options={}){
   const promise=execute();if(!options.signal)pendingReportRequests.set(key,promise);
   try{return (await promise).clone()}finally{if(pendingReportRequests.get(key)===promise)pendingReportRequests.delete(key)}
 }
-window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input?.url||'',isMonitorApi=url.startsWith('/api/');return isMonitorApi?(personalIdentity?.personal&&/^\/api\/meta-(spend|analysis)\?/.test(url)?personalReportFetch(url,options):cachedMetadataFetch(input,options)):browserFetch(input,options)};
+const personalMetaRoutes=new Set(['/api/meta-accounts','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync']);
+window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input?.url||'',route=url.split('?')[0],isMonitorApi=url.startsWith('/api/'),isPersonalMetaRoute=personalMetaRoutes.has(route);if(!isMonitorApi)return browserFetch(input,options);if(isPersonalMetaRoute){const personalOptions={...options,headers:{...(options.headers||{}),'X-Require-Personal-Meta':'1'}};return personalIdentity?.personal&&/^\/api\/meta-(spend|analysis)\?/.test(url)?personalReportFetch(url,personalOptions):monitorApiFetch(input,personalOptions)}return cachedMetadataFetch(input,options)};
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 async function fetchJsonWithRetry(url,{attempts=3,delay=700,...options}={}){
   let lastError;
