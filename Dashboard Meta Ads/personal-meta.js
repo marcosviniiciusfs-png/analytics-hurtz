@@ -224,6 +224,16 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       try { return send(res, 200, await report(user, route.endsWith('spend') ? 'spend' : 'analysis', url)); }
       catch (error) { if (error.status !== 429) throw error; const retryAfter = error.retryAfter || 120; res.setHeader?.('Retry-After', String(retryAfter)); return send(res, 429, {error: error.message, retry_after: retryAfter}); }
     }
+    if (route === '/api/report-product-rules') {
+      const settings = read('settings', user.id) || {};
+      if (req.method === 'GET') return send(res, 200, {items: Array.isArray(settings.report_product_rules) ? settings.report_product_rules : []});
+      if (req.method !== 'PUT') throw fail(405, 'Método não permitido.');
+      const payload = await body(req), items = Array.isArray(payload.items) ? payload.items : null;
+      if (!items || items.length > 100 || items.some(item => !item || typeof item.label !== 'string' || typeof item.match !== 'string' || item.label.trim().length < 2 || item.label.trim().length > 60 || item.match.trim().length < 2 || item.match.trim().length > 80)) throw fail(400, 'Regras de produto inválidas.');
+      const clean = items.map(item => ({id: typeof item.id === 'string' ? item.id.slice(0,80) : crypto.randomUUID(), label: item.label.trim(), match: item.match.trim()}));
+      write('settings', user.id, {...settings, report_product_rules: clean});
+      return send(res, 200, {items: clean});
+    }
     if (['/api/alert-plans', '/api/account-profiles'].includes(route)) {
       const key = route === '/api/alert-plans' ? 'plans' : 'profiles', settings = read('settings', user.id) || {};
       if (req.method === 'GET') return send(res, 200, settings[key] || (key === 'plans' ? {plans: {}} : {items: [], activeId: null}));
