@@ -9,5 +9,6 @@ COPY ["Dashboard Meta Ads/", "/app/Dashboard Meta Ads/"]
 COPY ["Meta Ads Monitor/", "/app/monitor/"]
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8091
 ENV META_MONITOR_DIR=/app/monitor
+ENV META_PERSONAL_RUNNER=/app/monitor/personal_report.py
 WORKDIR /app/Dashboard Meta Ads
 CMD ["node", "preview-server.js"]
