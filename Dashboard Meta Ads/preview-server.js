@@ -37,7 +37,7 @@ const readJsonFile = (file,fallback={}) => { try{return JSON.parse(fs.readFileSy
 const writeJsonFile = (file,value) => { fs.mkdirSync(path.dirname(file),{recursive:true});const temporary=`${file}.tmp`;fs.writeFileSync(temporary,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',mode:0o600});fs.renameSync(temporary,file) };
 const readBody = (req,callback) => {if(localRuntime)callback=localRuntime.bind(callback);let body='';req.on('data',chunk=>{body+=chunk;if(body.length>512*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
 const readLargeBody = (req,callback) => {if(localRuntime)callback=localRuntime.bind(callback);let body='';req.on('data',chunk=>{body+=chunk;if(body.length>8*1024*1024)req.destroy()});req.on('end',()=>{try{callback(null,JSON.parse(body||'{}'))}catch(error){callback(error)}})};
-const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});res.end(JSON.stringify(payload))};
+const jsonResponse = (res,status,payload) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization,X-Require-Personal-Meta'});res.end(JSON.stringify(payload))};
 const authFile=process.env.API_AUTH_FILE||'/opt/meta-ads-cli/secrets/analytics-api-basic.env';
 const authConfig=()=>{const values={};try{fs.readFileSync(authFile,'utf8').split(/\r?\n/).forEach(line=>{const index=line.indexOf('=');if(index>0)values[line.slice(0,index)]=line.slice(index+1)})}catch{}return values};
 const supabaseAuthCredentials=()=>{
@@ -142,10 +142,10 @@ http.createServer((req,res)=>{
   if(requestUrl.pathname.startsWith('/api/')){
     res.setHeader('Access-Control-Allow-Origin','*');
     res.setHeader('Access-Control-Allow-Methods','GET,PUT,POST,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');
+    res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization,X-Require-Personal-Meta');
     res.setHeader('Vary','Origin');
   }
-  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});return res.end()}
+  if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,PUT,POST,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization,X-Require-Personal-Meta'});return res.end()}
   if(isCreativeAgentRoute){
     const configured=secretValue('CREATIVE_AGENT_TOKEN','CREATIVE_AGENT_TOKEN__FILE'),submitted=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
     if(!configured||!safeEqual(submitted,configured))return jsonResponse(res,401,{error:'Agente local não autorizado.'});
