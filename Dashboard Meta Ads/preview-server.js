@@ -19,6 +19,7 @@ const ANALYSIS_CACHE_TTL = 15 * 60 * 1000;
 const spendResponseCache = new Map();
 const spendRequestsInFlight = new Map();
 const SPEND_CACHE_TTL = 60 * 1000;
+const metaMonitorDir = process.env.META_MONITOR_DIR || '/opt/meta-ads-cli/monitor';
 const userTaskCaches=new Map(),sharedTaskCache={payload:null,expiresAt:0},taskRequestScope=new AsyncLocalStorage();
 function currentTaskCache(){const scoped=taskRequestScope.getStore()?.workspaceId;if(scoped){let cache=userTaskCaches.get(scoped);if(!cache){if(userTaskCaches.size>=200)userTaskCaches.delete(userTaskCaches.keys().next().value);cache={payload:null,expiresAt:0};userTaskCaches.set(scoped,cache)}return cache}if(!localRuntime)return sharedTaskCache;const id=localRuntime.store.user().id;let cache=userTaskCaches.get(id);if(!cache){if(userTaskCaches.size>=200)userTaskCaches.delete(userTaskCaches.keys().next().value);cache={payload:null,expiresAt:0};userTaskCaches.set(id,cache)}return cache}
 const taskDataCache=new Proxy({},{get:(_,key)=>currentTaskCache()[key],set:(_,key,value)=>{currentTaskCache()[key]=value;return true}});
@@ -508,7 +509,7 @@ function handleAuthorizedRequest(req,res,requestUrl,user=null){
     const waiting = spendRequestsInFlight.get(cacheKey);
     if (waiting) { waiting.push(res); return; }
     spendRequestsInFlight.set(cacheKey,[res]);
-    const remote = `set -a; . /opt/meta-ads-cli/secrets/.env; set +a; python3 /opt/meta-ads-cli/monitor/dashboard_spend.py ${from} ${to}${accountIds.length?` ${accountIds.join(' ')}`:''}`;
+    const remote = `python3 ${metaMonitorDir}/dashboard_spend.py ${from} ${to}${accountIds.length?` ${accountIds.join(' ')}`:''}`;
     return runMonitorCommand(remote,{timeout:120000,maxBuffer:5*1024*1024},(error,stdout,stderr)=>{
       const listeners=spendRequestsInFlight.get(cacheKey)||[res];spendRequestsInFlight.delete(cacheKey);
       if(error){const body=JSON.stringify({error:'Falha na auditoria Meta',detail:stderr.trim()});return listeners.forEach(response=>{response.writeHead(502,{'Content-Type':'application/json'});response.end(body)})}

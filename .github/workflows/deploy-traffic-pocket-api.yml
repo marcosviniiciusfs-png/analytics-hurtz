@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'Dashboard Meta Ads/**'
+      - 'Meta Ads Monitor/**'
       - '.github/workflows/deploy-traffic-pocket-api.yml'
   workflow_dispatch:
 
@@ -35,7 +36,7 @@ jobs:
 
       - name: Send API source
         run: |
-          tar --exclude='.git' --exclude='.env' -C . -czf - 'Dashboard Meta Ads' |
+          tar --exclude='.git' --exclude='.env' -C . -czf - 'Dashboard Meta Ads' 'Meta Ads Monitor' |
             ssh -i ~/.ssh/traffic-pocket-deploy -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" \
               "mkdir -p '/home/$VPS_USER/traffic-pocket' && tar -xzf - -C '/home/$VPS_USER/traffic-pocket'"
 
@@ -56,12 +57,13 @@ jobs:
             set -eu
             sudo docker build -t traffic-pocket-api:production \
               -f \"/home/$VPS_USER/traffic-pocket/Dashboard Meta Ads/Dockerfile.api\" \
-              \"/home/$VPS_USER/traffic-pocket/Dashboard Meta Ads\"
+              \"/home/$VPS_USER/traffic-pocket\"
             sudo docker rm -f traffic-pocket-api 2>/dev/null || true
             sudo docker run -d --name traffic-pocket-api --restart unless-stopped \
               --network traffic-pocket-supabase_default \
               --env-file /opt/traffic-pocket-supabase/.env \
               --env-file /opt/traffic-pocket-supabase/secrets/campaign-ai.env \
+              -v /opt/traffic-pocket-supabase/secrets:/opt/meta-ads-cli/secrets:ro \
               -e SUPABASE_URL=http://api-gw:8000 \
               -e ANALYTICS_PUBLIC_URL=https://analytics.hurtzcompany.com \
               -p 127.0.0.1:8091:8091 traffic-pocket-api:production
