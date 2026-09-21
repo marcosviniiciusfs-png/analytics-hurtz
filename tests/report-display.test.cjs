@@ -5,9 +5,21 @@ const sourceLine=prefix=>source.split('\n').find(line=>line.startsWith(prefix));
 test('recognizes the report product aliases',()=>{
  const context=vm.createContext({});
  const inferredProduct=vm.runInContext([sourceLine('const normalizedCampaignText='),sourceLine('const inferredProduct='),'inferredProduct'].join('\n'),context);
- assert.equal(inferredProduct('RD Scurpi setembro'),'RD Scurpi');
+ assert.equal(inferredProduct('RD Scurpi setembro'),'RD Sculpt');
+ assert.equal(inferredProduct('[WA] Rafael Dias | RD SCULPT-Elleva Max | Canaã | 2026-08-24'),'RD Sculpt');
+ assert.equal(inferredProduct('[RD SCULPT] Rafael Dias | Público Quente | Peba+Canaã | 27/08'),'RD Sculpt');
  assert.equal(inferredProduct('Campanha Blefaroplastia'),'Blefaro');
  assert.equal(inferredProduct('Imovel - formulario'),'Imóvel');
+});
+test('unifies RD Sculpt campaign variants into one product group',()=>{
+ const context=vm.createContext({});
+ vm.runInContext([sourceLine('const normalizedCampaignText='),sourceLine('const inferredProduct='),functionLine('reportGroupName'),sourceLine('reportGroupName=function'),functionLine('reportGroupsForRow')].join('\n'),context);
+ const groups=context.reportGroupsForRow({campaigns:[
+  {campaign_name:'[WA] Rafael Dias | RD SCULPT-Elleva Max | Canaã | 2026-08-24',spend:138.56,results:8},
+  {campaign_name:'[WA] Rafael Dias | RD SCULPT-Elleva Max | Canaã | 2026-08-24 — Cópia',spend:174.12,results:12},
+  {campaign_name:'[RD SCULPT] Rafael Dias | Público Quente | Peba+Canaã | 27/08',spend:172.64,results:13},
+ ]});
+ assert.equal(groups.length,1);assert.equal(groups[0].name,'RD SCULPT');assert.equal(groups[0].results,33);assert.equal(groups[0].spend,485.32);assert.equal(groups[0].spend/groups[0].results,14.706666666666667);
 });
 test('long campaign names keep their beginning and fit the available width',()=>{const context=vm.createContext({});vm.runInContext(functionLine('reportFittedName'),context);const canvas={measureText:text=>({width:Array.from(text).length*10})};assert.equal(context.reportFittedName(canvas,'Oferta curta',200),'Oferta curta');assert.equal(context.reportFittedName(canvas,'Oferta Procedimento | Canaã - Campanha de setembro',200),'Oferta Procedimento…');assert.equal(context.reportFittedName(canvas,'😀😀😀😀😀',30),'😀😀…');});
 test('only unidentified report campaigns use their full original names',()=>{
