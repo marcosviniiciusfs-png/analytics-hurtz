@@ -509,7 +509,7 @@ function handleAuthorizedRequest(req,res,requestUrl,user=null){
     const waiting = spendRequestsInFlight.get(cacheKey);
     if (waiting) { waiting.push(res); return; }
     spendRequestsInFlight.set(cacheKey,[res]);
-    const remote = `python3 ${metaMonitorDir}/dashboard_spend.py ${from} ${to}${accountIds.length?` ${accountIds.join(' ')}`:''}`;
+    const remote = `if [ -f /opt/meta-ads-cli/secrets/.env ]; then set -a; . /opt/meta-ads-cli/secrets/.env; set +a; fi; python3 ${metaMonitorDir}/dashboard_spend.py ${from} ${to}${accountIds.length?` ${accountIds.join(' ')}`:''}`;
     return runMonitorCommand(remote,{timeout:120000,maxBuffer:5*1024*1024},(error,stdout,stderr)=>{
       const listeners=spendRequestsInFlight.get(cacheKey)||[res];spendRequestsInFlight.delete(cacheKey);
       if(error){const body=JSON.stringify({error:'Falha na auditoria Meta',detail:stderr.trim()});return listeners.forEach(response=>{response.writeHead(502,{'Content-Type':'application/json'});response.end(body)})}

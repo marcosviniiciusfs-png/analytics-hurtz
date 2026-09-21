@@ -63,7 +63,7 @@ jobs:
               --network traffic-pocket-supabase_default \
               --env-file /opt/traffic-pocket-supabase/.env \
               --env-file /opt/traffic-pocket-supabase/secrets/campaign-ai.env \
-              -v /opt/traffic-pocket-supabase/secrets:/opt/meta-ads-cli/secrets:ro \
+              -v /opt/meta-ads-cli/secrets:/opt/meta-ads-cli/secrets:ro \
               --mount type=volume,src=traffic-pocket-api-data,dst=/var/lib/traffic-pocket \
               -e META_PERSONAL_DATA_DIR=/var/lib/traffic-pocket/personal \
               -e META_QUERY_STATE_DIR=/var/lib/traffic-pocket \
