@@ -64,6 +64,8 @@ jobs:
               --env-file /opt/traffic-pocket-supabase/.env \
               --env-file /opt/traffic-pocket-supabase/secrets/campaign-ai.env \
               -v /opt/traffic-pocket-supabase/secrets:/opt/meta-ads-cli/secrets:ro \
+              --mount type=volume,src=traffic-pocket-api-data,dst=/var/lib/traffic-pocket \
+              -e META_PERSONAL_DATA_DIR=/var/lib/traffic-pocket/personal \
               -e SUPABASE_URL=http://api-gw:8000 \
               -e ANALYTICS_PUBLIC_URL=https://analytics.hurtzcompany.com \
               -p 127.0.0.1:8091:8091 traffic-pocket-api:production
