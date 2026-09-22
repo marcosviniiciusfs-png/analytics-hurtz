@@ -18,7 +18,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
   const requestedInterests=description=>/\binteress(?:e|es|ado|ada|ados|adas)\b/i.test(String(description||''));
   async function instagramProfiles(conn,account,available){const profiles=[];for(const page of available){try{const result=await graph(conn.token,page.id,{fields:'instagram_business_account{id,username,profile_picture_url}'}),item=result.instagram_business_account;if(item?.id)profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:page.id})}catch{}}try{for(const item of await rows(conn.token,account+'/instagram_accounts',{fields:'id,username,profile_pic'}))if(!profiles.some(profile=>profile.id===item.id))profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:''})}catch{}return profiles}
   async function whatsappNumbers(user,conn,account,available,accountInfo={}){
-    const failures=[],numbers=[];
+    const failures=[],numbers=[],audited=new Set();
     const addNumber=(value,page,details={})=>{
       const phone=String(value||'').replace(/\D/g,'');
       if(!/^\d{10,15}$/.test(phone)||numbers.some(item=>item.phone===phone&&item.pageId===String(page.id)))return;
@@ -62,12 +62,12 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     for(const business of phoneSources){
       let phones=[];
       try{phones=await rows(conn.token,business.id+'/phone_numbers',{fields:'id,display_phone_number,verified_name'})}catch(error){failures.push(error);continue}
-      for(const phone of phones){const value=String(phone.display_phone_number||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(value))continue;phonesByNumber.set(value,{id:String(phone.id||value),label:String(phone.verified_name||phone.display_phone_number||value),businessId:business.id});for(const linked of linkedWabas.filter(item=>item.id===business.id))addNumber(value,linked.page,{id:phone.id,label:phone.verified_name||phone.display_phone_number,businessId:business.id})}
+      for(const phone of phones){const value=String(phone.display_phone_number||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(value))continue;phonesByNumber.set(value,{id:String(phone.id||value),label:String(phone.verified_name||phone.display_phone_number||value),businessId:business.id});for(const linked of linkedWabas.filter(item=>item.id===business.id)){addNumber(value,linked.page,{id:phone.id,label:phone.verified_name||phone.display_phone_number,businessId:business.id});if(verifiedWabas?.has(String(business.id)))audited.add(String(linked.page.id)+'|'+value)}}
     }
     const items=checks.some(Boolean)&&wabas.length&&!phonesByNumber.size?[]:numbers.map(item=>phonesByNumber.has(item.phone)?{...item,...phonesByNumber.get(item.phone)}:item);
-    if(items.length)return {state:'ready',items,message:checks.some(Boolean)?'Os números foram confirmados em anúncios autorizados para esta Página e conta.':'Os números foram confirmados em anúncios autorizados para esta Página e conta; a confirmação adicional da BM ficará disponível ao atualizar a conexão.',retryable:failures.length>0};
-    if(failures.length)return {state:'unavailable',items:[],message:'Não foi possível verificar os números autorizados para esta Página e BM. Atualize as permissões do Facebook e tente novamente.',retryable:true};
-    return {state:'empty',items:[],message:'Nenhum WhatsApp autorizado foi encontrado para a Página e a BM desta conta.',retryable:false};
+    if(items.length)return {state:'ready',items,audited:[...audited],message:checks.some(Boolean)?'Os números foram confirmados em anúncios autorizados para esta Página e conta.':'Os números foram confirmados em anúncios autorizados para esta Página e conta; a confirmação adicional da BM ficará disponível ao atualizar a conexão.',retryable:failures.length>0};
+    if(failures.length)return {state:'unavailable',items:[],audited:[...audited],message:'Não foi possível verificar os números autorizados para esta Página e BM. Tente atualizar os números.',retryable:true};
+    return {state:'empty',items:[],audited:[...audited],message:'Nenhum WhatsApp autorizado foi encontrado para a Página e a BM desta conta.',retryable:false};
   }
   async function pageAccess(conn,account,page){if(!(await pages(conn,account)).some(p=>p.id===id(page)))throw fail(403,'Esta Página não está disponível para anunciar nesta conta.')}
   async function locationFor(conn,query){const result=await graph(conn.token,'search',{type:'adgeolocation',location_types:JSON.stringify(['city','region','country']),q:query,limit:10});const item=(result.data||[]).find(x=>['city','region','country'].includes(x.type)&&x.key&&/^[A-Z]{2}$/.test(x.country_code||x.key));if(!item)throw fail(400,'A Meta não encontrou a localização sugerida. Descreva a cidade, estado ou país com mais precisão.');return {key:String(item.key),type:item.type,name:item.name,country:item.country_code||item.key,region:item.region||''}}
@@ -104,10 +104,12 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       const page=id(p.page);await pageAccess(conn,account,page);
       const phone=String(p.phone||'').replace(/\D/g,'');
       if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe o número com DDI e DDD.');
-      const label=String(p.label||'WhatsApp informado').trim().slice(0,80)||'WhatsApp informado';
+      const label=String(p.label||'WhatsApp informado').trim().slice(0,80)||'WhatsApp informado',auditKey=page+'|'+phone;
+      const discovery=await whatsappNumbers(user,conn,account,await pages(conn,account),accountInfo);
+      if(!discovery.audited?.includes(auditKey))return {...discovery,audit:{state:discovery.retryable?'unavailable':'rejected',message:discovery.retryable?'A Meta não conseguiu concluir a auditoria agora. Tente novamente.':'A Meta não confirmou este número na Página e na Business Manager selecionadas.'}};
       const saved=(read('ads-whatsapp-numbers',user.id)||[]).filter(item=>item&&!(item.account===account&&String(item.page)===page&&String(item.phone).replace(/\D/g,'')===phone));
       write('ads-whatsapp-numbers',user.id,[...saved,{id:crypto.randomUUID(),account,page,phone,label,created:Date.now()}].slice(-200));
-      return whatsappNumbers(user,conn,account,await pages(conn,account),accountInfo);
+      return {...await whatsappNumbers(user,conn,account,await pages(conn,account),accountInfo),audit:{state:'verified',message:'Número auditado e liberado para esta Página e BM.'}};
     }
     if(action==='analyze'){
       if(planning.has(user.id))throw fail(409,'Já existe uma campanha sendo preparada. Aguarde.');
