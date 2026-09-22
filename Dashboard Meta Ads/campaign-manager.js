@@ -17,14 +17,14 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
   async function pages(conn,account){return rows(conn.token,account+'/promote_pages',{fields:'id,name'})}
   const requestedInterests=description=>/\binteress(?:e|es|ado|ada|ados|adas)\b/i.test(String(description||''));
   async function instagramProfiles(conn,account,available){const profiles=[];for(const page of available){try{const result=await graph(conn.token,page.id,{fields:'instagram_business_account{id,username,profile_picture_url}'}),item=result.instagram_business_account;if(item?.id)profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:page.id})}catch{}}try{for(const item of await rows(conn.token,account+'/instagram_accounts',{fields:'id,username,profile_pic'}))if(!profiles.some(profile=>profile.id===item.id))profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:''})}catch{}return profiles}
-  async function whatsappNumbers(user,conn,account,available,accountInfo={}){
+  async function whatsappNumbers(user,conn,account,available,accountInfo={},auditPage=''){
     const failures=[],numbers=[],audited=new Set();
     const addNumber=(value,page,details={})=>{
       const phone=String(value||'').replace(/\D/g,'');
       if(!/^\d{10,15}$/.test(phone)||numbers.some(item=>item.phone===phone&&item.pageId===String(page.id)))return;
       numbers.push({id:String(details.id||phone),phone,label:String(details.label||phone),pageId:String(page.id),pageName:String(page.name||page.id),businessId:String(details.businessId||'')});
     };
-    const pageById=new Map(available.map(page=>[String(page.id),page]));
+    const pageById=new Map(available.map(page=>[String(page.id),page])),discoveryPages=auditPage?available.filter(page=>String(page.id)===String(auditPage)):available;
     for(const item of read('ads-whatsapp-numbers',user.id)||[]){
       const page=pageById.get(String(item?.page||''));
       if(item&&item.account===account&&page)addNumber(item.phone,page,{id:item.id,label:item.label||'WhatsApp informado',businessId:'manual'});
@@ -32,10 +32,10 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     // A v25 removeu este field da Página. A v22 ainda o oferece e é usada somente
     // para identificar o vínculo Página → WABA; a BM continua sendo a fonte dos telefones.
     const linkedWabas=[];
-    for(const page of available){
+    for(const page of discoveryPages){
       try{const result=await graph(conn.pageTokens?.[page.id]||conn.token,page.id,{fields:'whatsapp_business_account{id,name}'},'v22.0'),business=result.whatsapp_business_account;if(business?.id)linkedWabas.push({id:String(business.id),page})}catch(error){failures.push(error)}
     }
-    try{
+    if(!auditPage)try{
       const ads=await rows(conn.token,account+'/ads',{fields:'creative{object_story_spec}'});
       const collectPhones=(value,pageContext)=>{
         if(typeof value==='string'){
@@ -54,7 +54,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     }catch(error){failures.push(error)}
     const businessId=String(accountInfo.business?.id||accountInfo.business_id||accountInfo.business||'').trim(),wabas=[],checks=[];
     const collect=async(edge)=>{try{const items=await rows(conn.token,edge,{fields:'id,name'});checks.push(true);for(const item of items)if(item?.id&&!wabas.some(waba=>waba.id===String(item.id)))wabas.push({id:String(item.id),name:String(item.name||'')})}catch(error){checks.push(false);failures.push(error)}};
-    if(businessId&&/^\d+$/.test(businessId)){await collect(businessId+'/owned_whatsapp_business_accounts');await collect(businessId+'/client_whatsapp_business_accounts')}
+    if(businessId&&/^\d+$/.test(businessId))await Promise.all([collect(businessId+'/owned_whatsapp_business_accounts'),collect(businessId+'/client_whatsapp_business_accounts')]);
     const verifiedWabas=checks.some(Boolean)&&wabas.length?new Set(wabas.map(waba=>waba.id)):null,phoneSources=[];
     for(const item of linkedWabas)if(!verifiedWabas||verifiedWabas.has(item.id))if(!phoneSources.some(source=>source.id===item.id))phoneSources.push({id:item.id});
     for(const item of wabas)if(!phoneSources.some(source=>source.id===item.id))phoneSources.push(item);
@@ -105,11 +105,11 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       const phone=String(p.phone||'').replace(/\D/g,'');
       if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe o número com DDI e DDD.');
       const label=String(p.label||'WhatsApp informado').trim().slice(0,80)||'WhatsApp informado',auditKey=page+'|'+phone;
-      const discovery=await whatsappNumbers(user,conn,account,await pages(conn,account),accountInfo);
+      const discovery=await whatsappNumbers(user,conn,account,await pages(conn,account),accountInfo,page);
       if(!discovery.audited?.includes(auditKey))return {...discovery,audit:{state:discovery.retryable?'unavailable':'rejected',message:discovery.retryable?'A Meta não conseguiu concluir a auditoria agora. Tente novamente.':'A Meta não confirmou este número na Página e na Business Manager selecionadas.'}};
       const saved=(read('ads-whatsapp-numbers',user.id)||[]).filter(item=>item&&!(item.account===account&&String(item.page)===page&&String(item.phone).replace(/\D/g,'')===phone));
       write('ads-whatsapp-numbers',user.id,[...saved,{id:crypto.randomUUID(),account,page,phone,label,created:Date.now()}].slice(-200));
-      return {...await whatsappNumbers(user,conn,account,await pages(conn,account),accountInfo),audit:{state:'verified',message:'Número auditado e liberado para esta Página e BM.'}};
+      return {...discovery,audit:{state:'verified',message:'Número auditado e liberado para esta Página e BM.'}};
     }
     if(action==='analyze'){
       if(planning.has(user.id))throw fail(409,'Já existe uma campanha sendo preparada. Aguarde.');
