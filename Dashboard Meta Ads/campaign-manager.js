@@ -17,7 +17,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
   async function pages(conn,account){return rows(conn.token,account+'/promote_pages',{fields:'id,name'})}
   const requestedInterests=description=>/\binteress(?:e|es|ado|ada|ados|adas)\b/i.test(String(description||''));
   async function instagramProfiles(conn,account,available){const profiles=[];for(const page of available){try{const result=await graph(conn.token,page.id,{fields:'instagram_business_account{id,username,profile_picture_url}'}),item=result.instagram_business_account;if(item?.id)profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:page.id})}catch{}}try{for(const item of await rows(conn.token,account+'/instagram_accounts',{fields:'id,username,profile_pic'}))if(!profiles.some(profile=>profile.id===item.id))profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:''})}catch{}return profiles}
-  async function whatsappNumbers(conn,account,available,accountInfo={}){
+  async function whatsappNumbers(user,conn,account,available,accountInfo={}){
     const failures=[],numbers=[];
     const addNumber=(value,page,details={})=>{
       const phone=String(value||'').replace(/\D/g,'');
@@ -25,6 +25,10 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       numbers.push({id:String(details.id||phone),phone,label:String(details.label||phone),pageId:String(page.id),pageName:String(page.name||page.id),businessId:String(details.businessId||'')});
     };
     const pageById=new Map(available.map(page=>[String(page.id),page]));
+    for(const item of read('ads-whatsapp-numbers',user.id)||[]){
+      const page=pageById.get(String(item?.page||''));
+      if(item&&item.account===account&&page)addNumber(item.phone,page,{id:item.id,label:item.label||'WhatsApp informado',businessId:'manual'});
+    }
     // A v25 removeu este field da Página. A v22 ainda o oferece e é usada somente
     // para identificar o vínculo Página → WABA; a BM continua sendo a fonte dos telefones.
     const linkedWabas=[];
@@ -87,14 +91,24 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       if(action==='campaigns') {const items=await rows(conn.token,account+'/campaigns',{fields:'id,name,objective,status,effective_status,daily_budget,lifetime_budget'});current(user,conn);return {items,currency:accountInfo.currency||'',canManage:conn.scopes?.includes('ads_management')||false}}
       if(action==='adsets'){await owned(conn,account,url.searchParams.get('campaign'));return {items:await rows(conn.token,id(url.searchParams.get('campaign'))+'/adsets',{fields:'id,name,account_id,campaign_id,status,effective_status,daily_budget,destination_type,optimization_goal,promoted_object'})}}
       if(action==='ads'){await owned(conn,account,url.searchParams.get('adset'));return {items:await rows(conn.token,id(url.searchParams.get('adset'))+'/ads',{fields:'id,name,status,effective_status,creative{thumbnail_url}'})}}
-      if(action==='whatsapps'){const p=await pages(conn,account);return whatsappNumbers(conn,account,p,accountInfo)}
-      if(action==='assets'){const p=await pages(conn,account),[instagram,whatsapp]=await Promise.all([instagramProfiles(conn,account,p),whatsappNumbers(conn,account,p,accountInfo)]);return {pages:p,instagram,whatsapps:whatsapp.items,whatsapp,warning:whatsapp.state==='unavailable'?whatsapp.message:''}}
+      if(action==='whatsapps'){const p=await pages(conn,account);return whatsappNumbers(user,conn,account,p,accountInfo)}
+      if(action==='assets'){const p=await pages(conn,account),[instagram,whatsapp]=await Promise.all([instagramProfiles(conn,account,p),whatsappNumbers(user,conn,account,p,accountInfo)]);return {pages:p,instagram,whatsapps:whatsapp.items,whatsapp,warning:whatsapp.state==='unavailable'?whatsapp.message:''}}
       if(action==='forms'){const page=url.searchParams.get('page'),pageId=id(page);await pageAccess(conn,account,pageId);const pageToken=conn.pageTokens?.[pageId]||conn.token;return {items:await rows(pageToken,pageId+'/leadgen_forms',{fields:'id,name,status'})}}
       if(action==='operations')return {items:(read('ads-operations',user.id)||[]).filter(x=>x.account===account).map(({key,account,state,created,error,updated})=>({key,account,state,created,error,updated}))};
       throw fail(404,'Consulta não encontrada.');
     }
     if(req.method!=='POST')throw fail(405,'Método não permitido.');
     const p=await body(req,action==='upload-part'?2*1024*1024:140*1024*1024);
+    if(action==='whatsapps'){
+      if(p.operation!=='register')throw fail(400,'Operação de WhatsApp inválida.');
+      const page=id(p.page);await pageAccess(conn,account,page);
+      const phone=String(p.phone||'').replace(/\D/g,'');
+      if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe o número com DDI e DDD.');
+      const label=String(p.label||'WhatsApp informado').trim().slice(0,80)||'WhatsApp informado';
+      const saved=(read('ads-whatsapp-numbers',user.id)||[]).filter(item=>item&&!(item.account===account&&String(item.page)===page&&String(item.phone).replace(/\D/g,'')===phone));
+      write('ads-whatsapp-numbers',user.id,[...saved,{id:crypto.randomUUID(),account,page,phone,label,created:Date.now()}].slice(-200));
+      return whatsappNumbers(user,conn,account,await pages(conn,account),accountInfo);
+    }
     if(action==='analyze'){
       if(planning.has(user.id))throw fail(409,'Já existe uma campanha sendo preparada. Aguarde.');
       const file=p.file&&Buffer.isBuffer(p.file.data)?p.file:null;
@@ -148,7 +162,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       let instagram;if(p.instagram){instagram=id(p.instagram);if(!(await instagramProfiles(conn,account,await pages(conn,account))).some(x=>x.id===instagram))throw fail(403,'Instagram não autorizado nesta conta.')}
       const media=(read('ads-media',user.id)||[]).find(x=>x.key===p.media&&x.account===account);if(!media)throw fail(400,'Envie o criativo nesta conta.');
       let target,cta,form;if(destination==='site'){target=link(p.url);cta={type:'LEARN_MORE',value:{link:target}}}
-      if(destination==='whatsapp'){const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Selecione um WhatsApp vinculado à Página.');const phoneDiscovery=await whatsappNumbers(conn,account,await pages(conn,account),accountInfo);if(phoneDiscovery.state==='unavailable')throw fail(502,phoneDiscovery.message);if(!phoneDiscovery.items.some(item=>item.pageId===page&&item.phone===phone))throw fail(403,'O WhatsApp selecionado não está vinculado à Página desta conta de anúncio.');p.phone=phone;target='https://wa.me/'+phone;cta={type:'WHATSAPP_MESSAGE',value:{link:target}}}
+      if(destination==='whatsapp'){const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Selecione ou informe um WhatsApp com DDI e DDD.');const phoneDiscovery=await whatsappNumbers(user,conn,account,await pages(conn,account),accountInfo);if(phoneDiscovery.state==='unavailable')throw fail(502,phoneDiscovery.message);if(!phoneDiscovery.items.some(item=>item.pageId===page&&item.phone===phone))throw fail(403,'O WhatsApp selecionado não está vinculado à Página desta conta de anúncio.');p.phone=phone;target='https://wa.me/'+phone;cta={type:'WHATSAPP_MESSAGE',value:{link:target}}}
       if(destination==='form'){form=id(p.form);const pageToken=conn.pageTokens?.[page]||conn.token;if(!(await rows(pageToken,page+'/leadgen_forms',{fields:'id,status'})).some(x=>x.id===form&&x.status==='ACTIVE'))throw fail(400,'Selecione um formulário ativo desta Página.');target='https://www.facebook.com/'+page;cta={type:'SIGN_UP',value:{lead_gen_form_id:form}}}
       let existing;if(p.adset){existing=await owned(conn,account,p.adset,'id,account_id,campaign_id,destination_type,promoted_object');const expected={site:'WEBSITE',whatsapp:'WHATSAPP',form:'ON_AD'}[destination];if(existing.destination_type!==expected)throw fail(400,'O conjunto selecionado usa outro destino.');if(existing.promoted_object?.page_id&&existing.promoted_object.page_id!==page)throw fail(400,'O conjunto utiliza outra Página.');}
       let budget,targeting,categories;if(!existing){if(!['BRL','USD','EUR','GBP'].includes(accountInfo.currency))throw fail(400,'Criação de conjuntos disponível para contas em BRL, USD, EUR e GBP.');budget=Number(p.dailyBudget);if(!Number.isFinite(budget)||budget<=0||budget>100000)throw fail(400,'Informe um orçamento diário válido, até 100.000 na moeda da conta.');const category=p.category||'';if(!['','HOUSING','EMPLOYMENT','FINANCIAL_PRODUCTS_SERVICES','ISSUES_ELECTIONS_POLITICS'].includes(category))throw fail(400,'Categoria especial inválida.');categories=category?[category]:[];const countries=Array.isArray(p.countries)?p.countries:[];if(!countries.length||countries.length>10||countries.some(x=>!/^[A-Z]{2}$/.test(x)))throw fail(400,'Informe os países do público com códigos de duas letras.');const min=Number(p.ageMin),max=Number(p.ageMax);if(!Number.isInteger(min)||!Number.isInteger(max)||min<18||max>65||min>max)throw fail(400,'Confira a faixa etária.');const interests=Array.isArray(p.interests)?p.interests:[];if(interests.length>5||interests.some(x=>!x||!/^\d+$/.test(String(x.id||''))||typeof x.name!=='string'||x.name.length>120))throw fail(400,'Os interesses precisam ser confirmados pela Meta. Gere o plano novamente.');const automatic=p.placements==='automatic';if(!automatic&&p.placements!=='feeds'&&p.placements!==undefined)throw fail(400,'Posicionamento inválido.');targeting={geo_locations:{countries},age_min:categories.length?18:min,age_max:categories.length?65:max,...(interests.length?{flexible_spec:[{interests:interests.map(x=>({id:String(x.id),name:x.name}))}]}:{}),...(automatic?{}:{publisher_platforms:instagram?['facebook','instagram']:['facebook'],facebook_positions:['feed'],...(instagram?{instagram_positions:['stream']}:{})})};}
