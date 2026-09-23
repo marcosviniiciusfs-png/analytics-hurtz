@@ -105,7 +105,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       const phone=String(p.phone||'').replace(/\D/g,'');
       if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe o número com DDI e DDD.');
       const label=String(p.label||'WhatsApp informado').trim().slice(0,80)||'WhatsApp informado',auditKey=page+'|'+phone;
-      const discovery=await whatsappNumbers(user,conn,account,await pages(conn,account),accountInfo,page);
+      const discovery=await Promise.race([whatsappNumbers(user,conn,account,await pages(conn,account),accountInfo,page),new Promise((_,reject)=>setTimeout(()=>reject(fail(504,'A Meta demorou para concluir a auditoria deste número. Tente novamente em alguns instantes.')),25000))]);
       if(!discovery.audited?.includes(auditKey))return {...discovery,audit:{state:discovery.retryable?'unavailable':'rejected',message:discovery.retryable?'A Meta não conseguiu concluir a auditoria agora. Tente novamente.':'A Meta não confirmou este número na Página e na Business Manager selecionadas.'}};
       const saved=(read('ads-whatsapp-numbers',user.id)||[]).filter(item=>item&&!(item.account===account&&String(item.page)===page&&String(item.phone).replace(/\D/g,'')===phone));
       write('ads-whatsapp-numbers',user.id,[...saved,{id:crypto.randomUUID(),account,page,phone,label,created:Date.now()}].slice(-200));
