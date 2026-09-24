@@ -74,7 +74,7 @@ const runMonitorCommand = (command,options,callback) => {
   }
   return execFile('/bin/bash',['-lc',command],options,callback);
 };
-const taskScopedTables=new Set(['task_columns','tasks','task_subtasks','task_comments','task_attachments','task_activities','task_notifications']);
+const taskScopedTables=new Set(['task_columns','task_projects','tasks','task_subtasks','task_comments','task_attachments','task_activities','task_notifications']);
 const scopeTaskResource=(resource,options)=>{const context=taskRequestScope.getStore(),table=String(resource).split('?')[0],method=String(options.method||'GET').toUpperCase();if(!context?.workspaceId||!taskScopedTables.has(table))return[resource,options];const separator=resource.includes('?')?'&':'?',scopedResource=method==='POST'?resource:`${resource}${separator}workspace_id=eq.${context.workspaceId}`;if(!options.body||!['POST','PUT','PATCH'].includes(method))return[scopedResource,options];try{const value=JSON.parse(options.body),apply=item=>({...item,workspace_id:context.workspaceId});return[scopedResource,{...options,body:JSON.stringify(Array.isArray(value)?value.map(apply):apply(value))}]}catch{return[scopedResource,options]}};
 const supabaseRequest = async (resource, options={}) => {
   [resource,options]=scopeTaskResource(resource,options);
@@ -127,11 +127,17 @@ const cleanupExpiredTasks=async()=>{
 if(!localRuntime)setTimeout(cleanupExpiredTasks,1500).unref();
 if(!localRuntime)setInterval(cleanupExpiredTasks,15*60*1000).unref();
 const taskCollaborationRoutes=new Set(['/api/task-context','/api/task-workspaces','/api/task-members','/api/task-invites']);
-const taskDataRoute=pathname=>pathname==='/api/tasks'||/^\/api\/task-(columns|order|notifications|subtasks|comments|attachments)$/.test(pathname);
+const taskDataRoute=pathname=>pathname==='/api/tasks'||/^\/api\/task-(columns|order|notifications|subtasks|comments|attachments|projects)$/.test(pathname);
 const taskRouteMinimum=(pathname,method)=>method==='GET'?'viewer':pathname==='/api/task-columns'?'admin':'member';
 const handlePersonalTaskRoute=async(req,res,url,user)=>{
   if(taskCollaborationRoutes.has(url.pathname))return taskCollaboration.handle(req,res,user,url,jsonResponse);
-  const workspaceId=url.searchParams.get('workspace'),membership=await taskCollaboration.authorize(user,workspaceId,taskRouteMinimum(url.pathname,req.method));
+  // A task request is the first contact many users have with the feature.  Make
+  // that request provision the personal workspace, then use it when the client
+  // has not explicitly selected a collaborative project yet.  Authorization is
+  // still performed for the resolved workspace below.
+  const context=await taskCollaboration.context(user);
+  const workspaceId=url.searchParams.get('workspace')||context.workspaces[0]?.id;
+  const membership=await taskCollaboration.authorize(user,workspaceId,taskRouteMinimum(url.pathname,req.method));
   return taskRequestScope.run({workspaceId,role:membership.role,user},()=>handleAuthorizedRequest(req,res,url,user));
 };
 
