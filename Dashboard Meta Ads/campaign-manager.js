@@ -23,13 +23,13 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
   // asset id first. Do the same when the connected account exposes it. This is
   // a best-effort lookup: a user may still enter a number and Meta remains the
   // source of truth when that association cannot be read by this app.
-  async function whatsappDestinationId(conn,page,phone){
-    try{
-      const result=await graph(conn.pageTokens?.[page]||conn.token,page,{fields:'whatsapp_business_account{id}'},'v22.0'),business=result.whatsapp_business_account;
-      if(!business?.id)return '';
-      const numbers=await rows(conn.token,String(business.id)+'/phone_numbers',{fields:'id,display_phone_number'}),match=numbers.find(item=>String(item.display_phone_number||'').replace(/\D/g,'')===phone);
-      return match?.id?String(match.id):'';
-    }catch{return ''}
+  async function whatsappDestinationId(conn,page,phone,accountInfo={}){
+    const businesses=new Set(),bm=String(accountInfo.business?.id||accountInfo.business_id||accountInfo.business||'').trim();
+    try{const result=await graph(conn.pageTokens?.[page]||conn.token,page,{fields:'whatsapp_business_account{id}'},'v22.0');if(result.whatsapp_business_account?.id)businesses.add(String(result.whatsapp_business_account.id))}catch{}
+    if(/^\d+$/.test(bm))for(const edge of ['owned_whatsapp_business_accounts','client_whatsapp_business_accounts'])try{for(const item of await rows(conn.token,bm+'/'+edge,{fields:'id'}))if(item?.id)businesses.add(String(item.id))}catch{}
+    for(const business of businesses)try{const match=(await rows(conn.token,business+'/phone_numbers',{fields:'id,display_phone_number'})).find(item=>String(item.display_phone_number||'').replace(/\D/g,'')===phone);if(match?.id)return String(match.id)}catch{}
+    try{const adsets=await rows(conn.token,String(accountInfo.id||accountInfo.account_id||'')+'/adsets',{fields:'destination_type,promoted_object'}),match=adsets.find(item=>item.destination_type==='WHATSAPP'&&String(item.promoted_object?.page_id||'')===String(page)&&/^\d{10,25}$/.test(String(item.promoted_object?.whats_app_business_phone_number_id||'')));if(match)return String(match.promoted_object.whats_app_business_phone_number_id)}catch{}
+    return '';
   }
   const requestedInterests=description=>/\binteress(?:e|es|ado|ada|ados|adas)\b/i.test(String(description||''));
   async function instagramProfiles(conn,account,available){const profiles=[];for(const page of available){try{const result=await graph(conn.token,page.id,{fields:'instagram_business_account{id,username,profile_picture_url}'}),item=result.instagram_business_account;if(item?.id)profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:page.id})}catch{}}try{for(const item of await rows(conn.token,account+'/instagram_accounts',{fields:'id,username,profile_pic'}))if(!profiles.some(profile=>profile.id===item.id))profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:''})}catch{}return profiles}
@@ -168,8 +168,13 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     }
     if(action!=='create')throw fail(404,'Operação não encontrada.');
     if(!/^[a-f0-9-]{36}$/.test(p.key||'')||p.confirm!==true)throw fail(400,'Revise e confirme o anúncio antes de enviar.');
-    const opKey=user.id+':'+p.key,previous=(read('ads-operations',user.id)||[]).find(x=>x.key===p.key);
-    if(previous){if(previous.account!==account)throw fail(403,'Operação de outra conta.');if(previous.state==='complete')return previous;throw fail(409,'Esta tentativa já foi registrada. Consulte as operações e os itens criados antes de iniciar outro anúncio.');}
+    let previous=(read('ads-operations',user.id)||[]).find(x=>x.key===p.key);
+    /* A rejection must never make the review screen permanently unpublishable.
+       Completed operations remain idempotent; a failed/review-required attempt gets
+       a new operation id so a corrected number can be submitted again. */
+    if(previous?.state==='needs_review'){p.key=crypto.randomUUID();previous=null;}
+    const opKey=user.id+':'+p.key;
+    if(previous){if(previous.account!==account)throw fail(403,'Operação de outra conta.');if(previous.state==='complete')return previous;throw fail(409,'Criação em andamento. Aguarde a conclusão antes de tentar novamente.');}
     if(locks.has(opKey))throw fail(409,'Criação em andamento.');locks.add(opKey);
     let operation;
     const save=()=>{operation.updated=Date.now();const items=read('ads-operations',user.id)||[];write('ads-operations',user.id,[...items.filter(x=>x.key!==p.key),operation].slice(-500))};
@@ -197,7 +202,14 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       // Meta errors remain immediate and are never retried.
       const createWhatsappAdset=async(endpoint,data)=>{const waits=[0,1500,3000,6000,9000,12000];let last;for(let attempt=0;attempt<waits.length;attempt++){if(waits[attempt])await sleep(waits[attempt]);try{return await create('adset',endpoint,data)}catch(error){last=error;const message=String(error.message||'');if(!/conta pessoal|conta do WhatsApp Business|n[ãa]o est[áa] vinculado (?:à|a) sua conta/i.test(message)||attempt===waits.length-1)throw error;operation.stage='waiting_whatsapp_destination';operation.whatsappAttempt=attempt+1;save()}}throw last};
       let campaign=existing?.campaign_id,adset=existing?.id;
-      if(!existing){campaign=await create('campaign',account+'/campaigns',{name,objective:{site:'OUTCOME_TRAFFIC',whatsapp:'OUTCOME_ENGAGEMENT',form:'OUTCOME_LEADS'}[destination],special_ad_categories:categories,...(categories.length?{special_ad_category_country:p.countries}:{}),status:'ACTIVE',is_adset_budget_sharing_enabled:false});const whatsappPhoneId=destination==='whatsapp'?await whatsappDestinationId(conn,page,p.phone):'';const adsetData={name:name+' — Público',campaign_id:campaign,daily_budget:Math.round(budget*100),billing_event:'IMPRESSIONS',optimization_goal:{site:'LINK_CLICKS',whatsapp:'LINK_CLICKS',form:'LEAD_GENERATION'}[destination],destination_type:{site:'WEBSITE',whatsapp:'WHATSAPP',form:'ON_AD'}[destination],bid_strategy:'LOWEST_COST_WITHOUT_CAP',targeting,...(destination!=='site'?{promoted_object:{page_id:page,...(destination==='whatsapp'?(whatsappPhoneId?{whats_app_business_phone_number_id:whatsappPhoneId}:{whatsapp_phone_number:p.phone}):{})}}:{}),...(destination==='whatsapp'?{conversion_locations:['WHATSAPP']}:{}),status:'ACTIVE'};adset=destination==='whatsapp'?await createWhatsappAdset(account+'/adsets',adsetData):await create('adset',account+'/adsets',adsetData)}
+      if(!existing){
+        campaign=await create('campaign',account+'/campaigns',{name,objective:{site:'OUTCOME_TRAFFIC',whatsapp:'OUTCOME_ENGAGEMENT',form:'OUTCOME_LEADS'}[destination],special_ad_categories:categories,...(categories.length?{special_ad_category_country:p.countries}:{}),status:'ACTIVE',is_adset_budget_sharing_enabled:false});
+        /* The number typed/selected by the advertiser is passed to Meta unchanged.
+           Meta is the only eligibility authority at publishing time; do not block on
+           a separate WhatsApp-account lookup. */
+        const adsetData={name:name+' — Público',campaign_id:campaign,daily_budget:Math.round(budget*100),billing_event:'IMPRESSIONS',optimization_goal:{site:'LINK_CLICKS',whatsapp:'LINK_CLICKS',form:'LEAD_GENERATION'}[destination],destination_type:{site:'WEBSITE',whatsapp:'WHATSAPP',form:'ON_AD'}[destination],bid_strategy:'LOWEST_COST_WITHOUT_CAP',targeting,...(destination!=='site'?{promoted_object:{page_id:page,...(destination==='whatsapp'?{whatsapp_phone_number:p.phone}:{})}}:{}),...(destination==='whatsapp'?{conversion_locations:['WHATSAPP']}:{}),status:'ACTIVE'};
+        adset=destination==='whatsapp'?await createWhatsappAdset(account+'/adsets',adsetData):await create('adset',account+'/adsets',adsetData)
+      }
       const story={page_id:page,...(instagram?{instagram_user_id:instagram}:{})};if(media.kind==='image')story.link_data={image_hash:media.value,link:target,message,name:headline,call_to_action:cta};else story.video_data={video_id:media.value,image_url:videoImage,message,title:headline,call_to_action:cta};
       const creative=await create('creative',account+'/adcreatives',{name,object_story_spec:story});await create('ad',account+'/ads',{name,adset_id:adset,creative:{creative_id:creative},status:'ACTIVE'});operation.state='complete';operation.campaign=campaign;operation.adset=adset;save();return operation;
     }catch(e){if(operation){operation.state='needs_review';operation.error=e.message;save();throw fail(e.status||502,e.message+' Alguns itens já podem estar ativos. Consulte Operações antes de repetir.')}throw e}finally{locks.delete(opKey)}
