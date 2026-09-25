@@ -2172,7 +2172,7 @@ if(personalIdentity?.personal){
 setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date.now()-facebookNonceAt>5*60000)void prepareFacebookLogin().catch(()=>{})},60000);
 if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260917-facebook-button-state');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
 await import('./text-encoding-repair.js?v=20260917-ui-text');
-const campaignModule=await import('./campaign-manager-ui.js?v=20260923-direct-whatsapp');
+const campaignModule=await import('./campaign-manager-ui.js?v=20260925-page-number-whatsapp');
 const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
 const prepareCampaignWithAccount=campaignManagerUI.prepare;campaignManagerUI.prepare=(destination,...args)=>{window.hurtzCampaignAccount=destination?.id||'';return prepareCampaignWithAccount(destination,...args)};
 const prepareVideoCampaignWithAccount=campaignManagerUI.prepareVideo;campaignManagerUI.prepareVideo=(destination,...args)=>{window.hurtzCampaignAccount=destination?.id||'';return prepareVideoCampaignWithAccount(destination,...args)};
