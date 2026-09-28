@@ -196,11 +196,11 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       let videoImage;if(media.kind==='video'){const info=await graph(conn.token,media.value,{fields:'status'});if(['error','failed'].includes(info.status?.video_status))throw fail(400,'A Meta não conseguiu processar este vídeo. Envie outro MP4 ou exporte o arquivo novamente.');if(info.status?.video_status!=='ready')throw fail(409,'O vídeo ainda está sendo processado pela Meta. Aguarde e tente novamente.');const thumbs=await rows(conn.token,media.value+'/thumbnails',{fields:'uri'});videoImage=thumbs[0]?.uri;if(!videoImage)throw fail(409,'A capa do vídeo ainda não está disponível. Aguarde.');}
       operation={key:p.key,account,state:'creating',created:{},updated:Date.now()};save();
       const create=async(kind,endpoint,data)=>{operation.stage=kind;save();const result=await post(user,conn,endpoint,data);if(!result.id)throw fail(502,'A Meta não retornou o ID de '+kind);operation.created[kind]=result.id;save();return result.id};
-      // The Ads Manager UI keeps checking a just-selected Page number while
-      // Meta finishes synchronizing its messaging destination. Mirror that
-      // behavior only after the user has requested publication; all other
-      // Meta errors remain immediate and are never retried.
-      const createWhatsappAdset=async(endpoint,data)=>{const waits=[0,1500,3000,6000,9000,12000];let last;for(let attempt=0;attempt<waits.length;attempt++){if(waits[attempt])await sleep(waits[attempt]);try{return await create('adset',endpoint,data)}catch(error){last=error;const message=String(error.message||'');if(!/conta pessoal|conta do WhatsApp Business|n[ãa]o est[áa] vinculado (?:à|a) sua conta/i.test(message)||attempt===waits.length-1)throw error;operation.stage='waiting_whatsapp_destination';operation.whatsappAttempt=attempt+1;save()}}throw last};
+      // Mirror Ads Manager's delayed second submit. The campaign is created first
+      // and remains visible in Ads Manager even when Meta rejects the destination.
+      // A Meta response can be transient, so retry the exact Page + typed number once
+      // after ten seconds regardless of its initial error message.
+      const createWhatsappAdset=async(endpoint,data)=>{let last;for(let attempt=0;attempt<2;attempt++){if(attempt){operation.stage='retrying_whatsapp_destination';operation.whatsappAttempt=attempt+1;save();await sleep(10000)}try{return await create('adset',endpoint,data)}catch(error){last=error}}throw last};
       let campaign=existing?.campaign_id,adset=existing?.id;
       if(!existing){
         campaign=await create('campaign',account+'/campaigns',{name,objective:{site:'OUTCOME_TRAFFIC',whatsapp:'OUTCOME_ENGAGEMENT',form:'OUTCOME_LEADS'}[destination],special_ad_categories:categories,...(categories.length?{special_ad_category_country:p.countries}:{}),status:'ACTIVE',is_adset_budget_sharing_enabled:false});
