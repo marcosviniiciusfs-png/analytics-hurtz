@@ -10,10 +10,34 @@ const integrationDefaults = require('./integration-config').defaults();
 // Reaproveita o cofre já usado pelos alertas; nenhuma chave é enviada ao cliente.
 if (!process.env.EVOLUTION_API_URL && integrationDefaults.evolutionUrl) process.env.EVOLUTION_API_URL = integrationDefaults.evolutionUrl;
 if (!process.env.EVOLUTION_API_KEY && integrationDefaults.evolutionKey) process.env.EVOLUTION_API_KEY = integrationDefaults.evolutionKey;
+const {createServices}=require('./local-services');
 const personalMeta = createPersonalMeta(process.env.META_PERSONAL_DATA_DIR?{directory:process.env.META_PERSONAL_DATA_DIR}:process.platform === 'win32' ? {directory: path.join(__dirname, '..', '.codex-tmp', 'personal-secrets')} : {});
 const localOnly=process.env.ANALYTICS_LOCAL_ONLY==='1';
 const personalTools=process.env.ANALYTICS_PERSONAL_TOOLS==='1';
 const localRuntime=(localOnly||personalTools)?require('./local-runtime').createRuntime(personalMeta,{production:!localOnly}):null;
+
+// Personal accounts use the same comments service as the administrative
+// dashboard, but every read/write is scoped to that signed-in user and their
+// own Facebook connection. There is no Traffic Pocket administrator gate.
+const personalCommentRoutes=new Set(['/api/meta-comments','/api/meta-comment-pages','/api/meta-comment-instagram','/api/meta-comment-archive','/api/meta-comment-history']);
+const personalJsonBody=req=>new Promise((resolve,reject)=>{let size=0,chunks=[];req.on('data',chunk=>{size+=chunk.length;if(size>512*1024){reject(Object.assign(new Error('Dados acima do limite.'),{status:413}));req.destroy();return}chunks.push(chunk)});req.on('end',()=>{try{resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}'))}catch{reject(Object.assign(new Error('JSON inválido.'),{status:400}))}});req.on('error',reject)});
+function personalCommentService(user){
+  const store={
+    user:()=>user,
+    get:(key,fallback)=>{const value=personalMeta.read(key,user.id);return value===null?fallback:value},
+    put:(key,value)=>personalMeta.write(key,user.id,value)
+  };
+  const vault={
+    connection:()=>personalMeta.connection(user),
+    graph:(...args)=>personalMeta.graph(...args),
+    rows:(...args)=>personalMeta.rows(...args),
+    catalog:()=>personalMeta.catalog(user),
+    authorizeAccounts:(_requestedUser,ids)=>personalMeta.authorizeAccounts(user,ids),
+    read:(key)=>personalMeta.read(key,user.id),
+    write:(key,value)=>personalMeta.write(key,user.id,value)
+  };
+  return createServices({vault,store,folder:()=>personalMeta.directory,body:personalJsonBody});
+}
 
 const root = __dirname;
 const port = Number(process.env.PORT || 8091);
@@ -231,7 +255,7 @@ http.createServer((req,res)=>{
         });
         return jsonResponse(res,405,{error:'Método não permitido.'});
       }
-      const handler=taskCollaborationRoutes.has(requestUrl.pathname)||taskDataRoute(requestUrl.pathname)?handlePersonalTaskRoute(req,res,requestUrl,personalSession):personalMeta.handle(req,res,personalSession,requestUrl,jsonResponse);return Promise.resolve(handler).catch(error=>{if(!res.headersSent)jsonResponse(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir a solicitação.'})})
+      const handler=taskCollaborationRoutes.has(requestUrl.pathname)||taskDataRoute(requestUrl.pathname)?handlePersonalTaskRoute(req,res,requestUrl,personalSession):personalCommentRoutes.has(requestUrl.pathname)?personalCommentService(personalSession).handle(req,requestUrl):personalMeta.handle(req,res,personalSession,requestUrl,jsonResponse);return Promise.resolve(handler).then(result=>{if(personalCommentRoutes.has(requestUrl.pathname)&&!res.headersSent)jsonResponse(res,200,result)}).catch(error=>{if(!res.headersSent)jsonResponse(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir a solicitação.'})})
     }
     // Ferramentas do usuário não podem cair no fallback administrativo.
     const personalToolRoute=['/api/meta-accounts','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync','/api/report-product-rules'].includes(requestUrl.pathname)||requestUrl.pathname==='/api/flows'||requestUrl.pathname.startsWith('/api/flows/')||requestUrl.pathname.startsWith('/api/flow/');
