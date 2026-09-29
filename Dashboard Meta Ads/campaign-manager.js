@@ -165,6 +165,9 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       const edge={campaign:'campaigns',adset:'adsets',ad:'ads'}[p.kind];const items=await rows(conn.token,account+'/'+edge,{fields:'id,name,status'});if(!items.some(x=>x.id===id(p.id)))throw fail(403,'Item não autorizado nesta conta.');
       const result=await post(user,conn,id(p.id),{status:p.status});if(result.success!==true)throw fail(502,'A Meta não confirmou a alteração.');const updated=await owned(conn,account,p.id);return {item:updated};
     }
+    if(action==='whatsapp-preflight'){
+      const page=id(p.page);await pageAccess(conn,account,page);const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe um WhatsApp com DDI e DDD.');const phoneId=await whatsappSelector(conn,account,page,phone,accountInfo);if(!phoneId)throw fail(400,'A Meta não retornou o identificador interno deste número na Business Manager da conta. Atualize a conexão da Meta e confirme que o número está associado à Página selecionada antes de publicar.');return {ready:true,page,phone,phone_id:phoneId};
+    }
     if(action!=='create')throw fail(404,'Operação não encontrada.');
     if(!/^[a-f0-9-]{36}$/.test(p.key||'')||p.confirm!==true)throw fail(400,'Revise e confirme o anúncio antes de enviar.');
     let previous=(read('ads-operations',user.id)||[]).find(x=>x.key===p.key);
