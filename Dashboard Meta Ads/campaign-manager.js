@@ -210,7 +210,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       // WhatsApp is a native messages destination. The phone belongs to the
       // selected Page; it must never be downgraded to a wa.me website campaign.
       let whatsappPromotedObject;
-      if(destination==='whatsapp'){const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe um WhatsApp com DDI e DDD.');p.phone=phone;const internalPhoneId=await whatsappSelector(conn,account,page,phone,accountInfo);if(!internalPhoneId)throw fail(400,'A Meta não retornou o identificador interno deste número na Business Manager da conta. Atualize a conexão da Meta e confirme que o número está associado à Página selecionada antes de publicar.');whatsappPromotedObject={page_id:page,whatsapp_phone_number:phone,whats_app_business_phone_number_id:internalPhoneId};target='https://wa.me/'+phone;cta={type:'WHATSAPP_MESSAGE',value:{link:target}}}
+      if(destination==='whatsapp'){const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe um WhatsApp com DDI e DDD.');p.phone=phone;target='https://api.whatsapp.com/send';cta={type:'WHATSAPP_MESSAGE',value:{app_destination:'WHATSAPP',link:target}}}
       if(destination==='form'){form=id(p.form);const pageToken=conn.pageTokens?.[page]||conn.token;if(!(await rows(pageToken,page+'/leadgen_forms',{fields:'id,status'})).some(x=>x.id===form&&x.status==='ACTIVE'))throw fail(400,'Selecione um formulário ativo desta Página.');target='https://www.facebook.com/'+page;cta={type:'SIGN_UP',value:{lead_gen_form_id:form}}}
       // Match the Page-level selector returned by the account's working native
       // WhatsApp ad set: no Business Manager or internal-number identifier.
@@ -233,9 +233,6 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
         const adsetData={name:name+' — Público',campaign_id:campaign,daily_budget:Math.round(budget*100),billing_event:'IMPRESSIONS',optimization_goal:{site:'LINK_CLICKS',whatsapp:'CONVERSATIONS',form:'LEAD_GENERATION'}[destination],destination_type:{site:'WEBSITE',whatsapp:'WHATSAPP',form:'ON_AD'}[destination],bid_strategy:'LOWEST_COST_WITHOUT_CAP',targeting,...(destination==='whatsapp'?{promoted_object:whatsappPromotedObject}:destination==='form'?{promoted_object:{page_id:page}}:{}),status:'ACTIVE'};
         adset=await create('adset',account+'/adsets',adsetData)
       }
-      // Native WhatsApp CTA does not accept a link inside its value. The ad set
-      // already selects the Page-owned destination with its promoted object.
-      if(destination==='whatsapp')cta={type:'WHATSAPP_MESSAGE',value:{}};
       const story={page_id:page,...(instagram?{instagram_user_id:instagram}:{})};if(media.kind==='image')story.link_data={image_hash:media.value,link:target,message,name:headline,call_to_action:cta};else story.video_data={video_id:media.value,image_url:videoImage,message,title:headline,call_to_action:cta};
       const creative=await create('creative',account+'/adcreatives',{name,object_story_spec:story});await create('ad',account+'/ads',{name,adset_id:adset,creative:{creative_id:creative},status:'ACTIVE'});operation.state='complete';operation.campaign=campaign;operation.adset=adset;save();return operation;
     }catch(e){if(operation){operation.state='needs_review';operation.error=e.message;save();throw fail(e.status||502,e.message+' Alguns itens já podem estar ativos. Consulte Operações antes de repetir.')}throw e}finally{locks.delete(opKey)}
