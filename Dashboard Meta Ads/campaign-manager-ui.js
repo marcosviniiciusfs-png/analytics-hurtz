@@ -63,6 +63,8 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
   panel.innerHTML='<header class="cm-heading"><div><h3>Campanhas e anúncios</h3><p>Gerencie os anúncios desta conta com o seu acesso do Facebook.</p></div><div class="cm-actions"><button type="button" data-cm="refresh">Atualizar</button><button type="button" data-cm="new" class="cm-primary">Criar anúncio</button></div></header><p class="cm-notice" id="cmPermission" hidden>Seu acesso atual permite consultar. Para criar e gerenciar anúncios, <button type="button" data-cm="authorize">autorize o gerenciamento no Facebook</button>.</p><p id="cmStatus" role="status" aria-live="polite"></p><nav id="cmBreadcrumb" aria-label="Navegação das campanhas"></nav><div id="cmItems"></div><details><summary>Operações de criação</summary><div id="cmOperations"></div></details><section id="cmEditor" hidden></section>';
   const editorDialog=document.createElement('dialog');editorDialog.className='cm-editor-dialog';editorDialog.setAttribute('aria-labelledby','cmEditorTitle');editorDialog.append(panel.querySelector('#cmEditor'));document.body.append(editorDialog);let editorTurn=0,editorTrigger=null;editorDialog.addEventListener('keydown',event=>{if(event.key==='Escape')event.stopPropagation()});editorDialog.addEventListener('cancel',event=>{if(busy)event.preventDefault()});editorDialog.addEventListener('close',()=>{editorTurn++;editorTrigger?.focus({preventScroll:true})});const $=s=>editorDialog.querySelector(s)||panel.querySelector(s);let destinationAccount=null;const currentAccount=()=>destinationAccount||getAccount();let account=null,currency='',canManage=false,level='campaign',parent=null,campaign=null,items=[],generation=0,draftKey=null,previewUrl=null,busy=false;
   editorDialog.addEventListener('campaign-created',event=>showCampaignConfirmation(editorDialog,event.detail));
+  const enforceMinimumBudget=()=>editorDialog.querySelectorAll('[name="dailyBudget"],[data-review-field="dailyBudget"]').forEach(input=>{input.min='6';if(!input.value||Number(input.value)<6)input.value='6'});
+  new MutationObserver(enforceMinimumBudget).observe(editorDialog,{childList:true,subtree:true});
   const cache=new Map(),labels={campaign:'Campanha',adset:'Conjunto',ad:'Anúncio'},statusName={ACTIVE:'Ativo',PAUSED:'Pausado',CAMPAIGN_PAUSED:'Campanha pausada',ADSET_PAUSED:'Conjunto pausado',PENDING_REVIEW:'Em análise',DISAPPROVED:'Reprovado',WITH_ISSUES:'Com problemas',IN_PROCESS:'Processando',ARCHIVED:'Arquivado',DELETED:'Excluído'};
   let api=(action,params={},payload,owner=account)=>request('/api/ads-manager/'+action+'?'+new URLSearchParams({account:owner,...params}),payload?{method:'POST',body:payload instanceof FormData?payload:JSON.stringify(payload)}:{});
   const apiRequest=api;
@@ -141,6 +143,7 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
     account=destination.id;destinationAccount={...destination};currency=destination.currency||'';canManage=false;level='campaign';parent=null;campaign=null;
     const result=await api('plan',{}, {description},destination.id);
     if(!isCurrent()||stamp!==generation||account!==destination.id)return;
+    if(result?.draft)result.draft.dailyBudget=Math.max(6,Number(result.draft.dailyBudget)||6);
     if(!result?.draft)throw new Error('N\u00e3o foi poss\u00edvel preparar o plano. Tente novamente.');
     canManage=true;await edit(result.draft);
     if(!isCurrent()&&stamp===generation)dispose();
@@ -153,6 +156,7 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
     onProgress(12,'Enviando o vídeo para análise');const analysisData=new FormData();analysisData.append('file',file,file.name);
     const result=await api('analyze',{},analysisData,destination.id);
     if(!isCurrent()||stamp!==generation||account!==destination.id)return;
+    if(result?.draft)result.draft.dailyBudget=Math.max(6,Number(result.draft.dailyBudget)||6);
     if(!result?.draft)throw new Error('Não foi possível analisar o vídeo. Tente novamente.');
     onProgress(68,'Análise concluída. Salvando o criativo');const uploadData=new FormData();uploadData.append('file',file,file.name);
     const media=await api('upload',{},uploadData,destination.id);
