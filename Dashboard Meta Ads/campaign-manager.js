@@ -221,6 +221,9 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
         const adsetData={name:name+' — Público',campaign_id:campaign,daily_budget:Math.round(budget*100),billing_event:'IMPRESSIONS',optimization_goal:{site:'LINK_CLICKS',whatsapp:'CONVERSATIONS',form:'LEAD_GENERATION'}[destination],destination_type:{site:'WEBSITE',whatsapp:'WHATSAPP',form:'ON_AD'}[destination],bid_strategy:'LOWEST_COST_WITHOUT_CAP',targeting,...(destination==='whatsapp'?{promoted_object:whatsappPromotedObject}:destination==='form'?{promoted_object:{page_id:page}}:{}),status:'ACTIVE'};
         adset=await create('adset',account+'/adsets',adsetData)
       }
+      // Native WhatsApp CTA does not accept a link inside its value. The ad set
+      // already selects the Page-owned destination with its promoted object.
+      if(destination==='whatsapp')cta={type:'WHATSAPP_MESSAGE',value:{}};
       const story={page_id:page,...(instagram?{instagram_user_id:instagram}:{})};if(media.kind==='image')story.link_data={image_hash:media.value,link:target,message,name:headline,call_to_action:cta};else story.video_data={video_id:media.value,image_url:videoImage,message,title:headline,call_to_action:cta};
       const creative=await create('creative',account+'/adcreatives',{name,object_story_spec:story});await create('ad',account+'/ads',{name,adset_id:adset,creative:{creative_id:creative},status:'ACTIVE'});operation.state='complete';operation.campaign=campaign;operation.adset=adset;save();return operation;
     }catch(e){if(operation){operation.state='needs_review';operation.error=e.message;save();throw fail(e.status||502,e.message+' Alguns itens já podem estar ativos. Consulte Operações antes de repetir.')}throw e}finally{locks.delete(opKey)}
