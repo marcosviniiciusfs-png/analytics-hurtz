@@ -41,6 +41,26 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     const pageToken = conn.pageTokens?.[flow.facebook.pageId];
     return pageToken ? {...flow, pageToken} : null;
   }
+  function flowIds(user) {
+    const settings = read('settings', user.id) || {};
+    let ids = Array.isArray(settings.flow_ids) ? settings.flow_ids.filter(id => typeof id === 'string' && /^[a-f0-9-]{36}$/i.test(id)) : [];
+    // Migra o único fluxo criado na primeira versão para a estrutura de projetos.
+    if (!ids.length && settings.lead_flow) {
+      const id = crypto.randomUUID(), legacy = settings.lead_flow;
+      const project = {id, userId: user.id, name: 'Fluxo principal', createdAt: Date.now(), updatedAt: Date.now(), ...legacy};
+      write('lead-flow-project', id, project);
+      if (legacy.facebook?.formId) write('lead-flow', legacy.facebook.formId, project);
+      ids = [id]; write('settings', user.id, {...settings, flow_ids: ids});
+    }
+    return ids;
+  }
+  function project(user, id) {
+    if (!/^[a-f0-9-]{36}$/i.test(id || '') || !flowIds(user).includes(id)) throw fail(404, 'Fluxo não encontrado.');
+    const value = read('lead-flow-project', id);
+    if (!value || value.userId !== user.id) throw fail(404, 'Fluxo não encontrado.');
+    return value;
+  }
+  const publicFlow = value => ({id: value.id, name: value.name, enabled: Boolean(value.enabled), createdAt: value.createdAt, updatedAt: value.updatedAt, facebook: value.facebook || {}, whatsapp: value.whatsapp || {}});
   function issueSession(user) {
     if (!user?.id) throw fail(401, 'Usuário não identificado.');
     const token = `pa_${crypto.randomBytes(32).toString('base64url')}`;
@@ -208,7 +228,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     }
     if (route === '/api/meta/connection' && req.method === 'DELETE') {
       const settings=read('settings', user.id) || {},profile=settings.profile;
-      if (settings.lead_flow?.facebook?.formId) remove('lead-flow', settings.lead_flow.facebook.formId);
+      for (const id of flowIds(user)) { const saved = read('lead-flow-project', id); if (saved?.facebook?.formId) remove('lead-flow', saved.facebook.formId); }
       remove('connection', user.id);
       if(profile)write('settings', user.id, {profile});else remove('settings', user.id);
       return send(res, 200, {ok: true});
@@ -226,7 +246,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
         rows(conn.token, 'me/adaccounts', {fields: 'id,name'}),
         rows(conn.token, 'me/accounts', {fields: 'id,name'}),
       ]);
-      return send(res, 200, {accounts: accounts.map(({id, name}) => ({id, name: name || id})), pages: pages.map(({id, name}) => ({id, name: name || id}))});
+      return send(res, 200, {connected: true, accounts: accounts.map(({id, name}) => ({id, name: name || id})), pages: pages.map(({id, name}) => ({id, name: name || id}))});
     }
     if (route === '/api/flow/meta/forms' && req.method === 'GET') {
       const pageId = String(url.searchParams.get('pageId') || '');
@@ -273,25 +293,37 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const state = payload?.instance?.state || payload?.instance?.status || payload?.state || 'unknown';
       return send(res, 200, {instance, state, connected: ['open', 'connected'].includes(String(state).toLowerCase())});
     }
-    if (route === '/api/flow/config') {
-      const settings = read('settings', user.id) || {};
-      if (req.method === 'GET') return send(res, 200, settings.lead_flow || {enabled: false, facebook: {}, whatsapp: {}});
+    if (route === '/api/flows') {
+      if (req.method === 'GET') return send(res, 200, {flows: flowIds(user).map(id => read('lead-flow-project', id)).filter(value => value?.userId === user.id).sort((a, b) => b.updatedAt - a.updatedAt).map(publicFlow)});
+      if (req.method !== 'POST') throw fail(405, 'Método não permitido.');
+      const name = String((await body(req)).name || '').trim();
+      if (name.length < 2 || name.length > 80) throw fail(400, 'Dê ao fluxo um nome entre 2 e 80 caracteres.');
+      const id = crypto.randomUUID(), value = {id, userId: user.id, name, enabled: false, facebook: {}, whatsapp: {}, createdAt: Date.now(), updatedAt: Date.now()};
+      const settings = read('settings', user.id) || {}, ids = flowIds(user);
+      write('lead-flow-project', id, value); write('settings', user.id, {...settings, flow_ids: [...ids, id]});
+      return send(res, 201, publicFlow(value));
+    }
+    const flowMatch = route.match(/^\/api\/flows\/([a-f0-9-]{36})$/i);
+    if (flowMatch) {
+      const id = flowMatch[1], previous = project(user, id);
+      if (req.method === 'GET') return send(res, 200, publicFlow(previous));
       if (req.method !== 'PUT') throw fail(405, 'Método não permitido.');
-      const payload = await body(req), previous = settings.lead_flow || {};
-      const flow = {enabled: Boolean(payload.enabled), facebook: {adAccountId: String(payload.facebook?.adAccountId || ''), pageId: String(payload.facebook?.pageId || ''), formId: String(payload.facebook?.formId || '')}, whatsapp: {instance: String(payload.whatsapp?.instance || ''), groupJid: String(payload.whatsapp?.groupJid || '')}};
+      const payload = await body(req), settings = read('settings', user.id) || {};
+      const flow = {...previous, enabled: Boolean(payload.enabled), facebook: {adAccountId: String(payload.facebook?.adAccountId || ''), pageId: String(payload.facebook?.pageId || ''), formId: String(payload.facebook?.formId || '')}, whatsapp: {instance: String(payload.whatsapp?.instance || ''), groupJid: String(payload.whatsapp?.groupJid || '')}, updatedAt: Date.now()};
       if (flow.enabled && (!flow.facebook.pageId || !flow.facebook.formId || !flow.whatsapp.instance || !flow.whatsapp.groupJid)) throw fail(400, 'Selecione Página, formulário e grupo antes de ativar o fluxo.');
       if (flow.enabled) {
         if (settings.flow_whatsapp_instance !== flow.whatsapp.instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar o fluxo.');
+        const conflict = read('lead-flow', flow.facebook.formId);
+        if (conflict && conflict.id !== id) throw fail(409, 'Este formulário já está conectado a outro fluxo. Escolha outro formulário.');
         const conn = connection(user), pageToken = conn.pageTokens?.[flow.facebook.pageId];
         if (!pageToken) throw fail(403, 'A Página selecionada não pertence à sua conexão Facebook atual.');
-        // A inscrição do leadgen é automática ao ativar, sem etapa extra para o usuário.
         await graph(pageToken, `${flow.facebook.pageId}/subscribed_apps`, {subscribed_fields: 'leadgen'}, VERSION, 'POST');
-        write('lead-flow', flow.facebook.formId, {userId: user.id, ...flow});
+        write('lead-flow', flow.facebook.formId, flow);
       }
       if (previous.facebook?.formId && previous.facebook.formId !== flow.facebook.formId) remove('lead-flow', previous.facebook.formId);
       if (!flow.enabled && previous.facebook?.formId) remove('lead-flow', previous.facebook.formId);
-      write('settings', user.id, {...settings, lead_flow: flow});
-      return send(res, 200, flow);
+      write('lead-flow-project', id, flow);
+      return send(res, 200, publicFlow(flow));
     }
     if (route === '/api/meta-monitor-config' && req.method === 'GET') {
       accountAuthorizations.delete(user.id);

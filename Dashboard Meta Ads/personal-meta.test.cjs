@@ -169,6 +169,16 @@ test('unavailable business photo does not prevent loading authorized accounts', 
 
 test('campaign manager routes retain personal authentication and write permissions',async t=>{const f=fixture(t);await f.connect(f.sessionA,f.tokens.a);assert.equal((await f.request(f.sessionA,'/api/ads-manager/campaigns?account=act_111')).status,200);assert.equal((await f.request(f.sessionB,'/api/ads-manager/campaigns?account=act_111')).status,409);assert.equal((await f.request(f.sessionA,'/api/ads-manager/create?account=act_111','POST',{})).status,403)});
 
+test('flow projects are private and support more than one draft per user',async t=>{
+ const f=fixture(t);await f.connect(f.sessionA,f.tokens.a);
+ const first=await f.request(f.sessionA,'/api/flows','POST',{name:'Leads imobiliária'}),second=await f.request(f.sessionA,'/api/flows','POST',{name:'Leads clínica'});
+ assert.equal(first.status,201);assert.equal(second.status,201);assert.notEqual(first.body.id,second.body.id);
+ const mine=await f.request(f.sessionA,'/api/flows');assert.equal(mine.status,200);assert.equal(mine.body.flows.length,2);
+ const other=await f.request(f.sessionB,`/api/flows/${first.body.id}`);assert.equal(other.status,404);
+ const saved=await f.request(f.sessionA,`/api/flows/${first.body.id}`,'PUT',{enabled:false,facebook:{adAccountId:'act_111',pageId:'12345',formId:'67890'},whatsapp:{instance:'flow-test',groupJid:'120363000000@g.us'}});
+ assert.equal(saved.status,200);assert.equal(saved.body.facebook.formId,'67890');assert.equal((await f.request(f.sessionA,`/api/flows/${second.body.id}`)).body.facebook.formId,undefined);
+});
+
 test('long-lived connection survives logout, a new session and server restart without exposing secrets',async t=>{
  const f=fixture(t,null,{oauthConfig:{appId:'2093320124537661',secret:'test-app-secret'}});await f.connect(f.sessionA,f.tokens.a);
  const stored=f.api.read('connection','user-a');assert.equal(stored.longLived,true);assert.ok(stored.expiresAt>Date.now()+59*86400000);assert.ok(stored.token.endsWith('-long'));
