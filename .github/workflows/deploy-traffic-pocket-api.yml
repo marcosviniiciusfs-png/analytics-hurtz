@@ -61,6 +61,7 @@ jobs:
             sudo docker rm -f traffic-pocket-api 2>/dev/null || true
             sudo docker run -d --name traffic-pocket-api --restart unless-stopped \
               --network traffic-pocket-supabase_default \
+              --add-host=host.docker.internal:host-gateway \
               --env-file /opt/traffic-pocket-supabase/.env \
               --env-file /opt/traffic-pocket-supabase/secrets/campaign-ai.env \
               --env-file /opt/meta-ads-cli/secrets/.env \
