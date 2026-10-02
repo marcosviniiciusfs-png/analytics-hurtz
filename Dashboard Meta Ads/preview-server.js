@@ -6,6 +6,10 @@ const { AsyncLocalStorage } = require('node:async_hooks');
 const { execFile } = require('child_process');
 const { Readable } = require('stream');
 const { createPersonalMeta } = require('./personal-meta');
+const integrationDefaults = require('./integration-config').defaults();
+// Reaproveita o cofre já usado pelos alertas; nenhuma chave é enviada ao cliente.
+if (!process.env.EVOLUTION_API_URL && integrationDefaults.evolutionUrl) process.env.EVOLUTION_API_URL = integrationDefaults.evolutionUrl;
+if (!process.env.EVOLUTION_API_KEY && integrationDefaults.evolutionKey) process.env.EVOLUTION_API_KEY = integrationDefaults.evolutionKey;
 const personalMeta = createPersonalMeta(process.env.META_PERSONAL_DATA_DIR?{directory:process.env.META_PERSONAL_DATA_DIR}:process.platform === 'win32' ? {directory: path.join(__dirname, '..', '.codex-tmp', 'personal-secrets')} : {});
 const localOnly=process.env.ANALYTICS_LOCAL_ONLY==='1';
 const personalTools=process.env.ANALYTICS_PERSONAL_TOOLS==='1';
@@ -64,6 +68,16 @@ const supabaseAuthRequest=async(route,{method='POST',body,accessToken}={})=>{
 };
 const authPublicUrl=()=>String(process.env.ANALYTICS_PUBLIC_URL||'https://analytics.hurtzcompany.com').replace(/\/$/,'');
 const safeEqual=(left,right)=>{const a=Buffer.from(String(left||'')),b=Buffer.from(String(right||''));return a.length===b.length&&crypto.timingSafeEqual(a,b)};
+const flowLeadIds=new Set(),FLOW_LEAD_LIMIT=5000;
+const flowWait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const formatFlowLead=lead=>{const fields=(lead.field_data||[]).map(field=>`*${field.name||'campo'}:* ${(field.values||[]).join(', ')}`),received=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Belem',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(lead.created_time));return ['🔔 *Novo lead!*','',...fields,'',`📅 Recebido em: ${received}`].join('\n')};
+async function deliverFlowLead(leadgenId,value){
+  if(flowLeadIds.has(leadgenId))return;const flow=personalMeta.leadFlow(value.form_id);if(!flow)return;
+  flowLeadIds.add(leadgenId);if(flowLeadIds.size>FLOW_LEAD_LIMIT)flowLeadIds.delete(flowLeadIds.values().next().value);
+  try{const lead=await personalMeta.graph(flow.pageToken,String(leadgenId),{fields:'field_data,created_time'}),base=String(process.env.EVOLUTION_API_URL||'').replace(/\/$/,''),key=String(process.env.EVOLUTION_API_KEY||'');if(!base||!key)throw new Error('Evolution API não configurada.');const url=`${base}/message/sendText/${encodeURIComponent(flow.whatsapp.instance)}`,body={number:flow.whatsapp.groupJid,text:formatFlowLead(lead)};let sent=false;for(let attempt=1;attempt<=3;attempt++){try{const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',apikey:key},body:JSON.stringify(body)});if(!response.ok)throw new Error(`Evolution respondeu ${response.status}`);sent=true;break}catch(error){if(attempt===3)throw error;await flowWait(500*2**(attempt-1))}}if(sent)console.log(`[Fluxo] Lead ${leadgenId} entregue.`)}catch(error){flowLeadIds.delete(leadgenId);console.error(`[Fluxo] Falha ao entregar lead ${leadgenId}: ${error.message}`)}}
+function handleFlowWebhook(req,res,url){
+  if(req.method==='GET'){const valid=url.searchParams.get('hub.mode')==='subscribe'&&url.searchParams.get('hub.verify_token')===String(process.env.META_VERIFY_TOKEN||process.env.VERIFY_TOKEN||'');return valid?(res.writeHead(200),res.end(url.searchParams.get('hub.challenge')||'')):(res.writeHead(403),res.end());}
+  if(req.method!=='POST'){res.writeHead(405);return res.end();}const chunks=[];let size=0;req.on('data',chunk=>{size+=chunk.length;if(size<=1024*1024)chunks.push(chunk);else req.destroy()});req.on('end',()=>{const raw=Buffer.concat(chunks),signature=String(req.headers['x-hub-signature-256']||''),expected=`sha256=${crypto.createHmac('sha256',String(process.env.META_APP_SECRET||'')).update(raw).digest('hex')}`;if(!process.env.META_APP_SECRET||!safeEqual(signature,expected)){res.writeHead(403);return res.end();}res.writeHead(200);res.end();try{const payload=JSON.parse(raw.toString('utf8'));for(const entry of payload.entry||[])for(const change of entry.changes||[])if(change.field==='leadgen'&&change.value?.leadgen_id)void deliverFlowLead(change.value.leadgen_id,change.value)}catch{console.error('[Fluxo] Webhook recebeu JSON inválido.')}});}
 const loginAttempts=new Map();
 const clientIp=req=>String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();
 const runMonitorCommand = (command,options,callback) => {
@@ -143,6 +157,7 @@ const handlePersonalTaskRoute=async(req,res,url,user)=>{
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+  if(requestUrl.pathname==='/webhook')return handleFlowWebhook(req,res,requestUrl);
   if(localRuntime&&(localOnly||!requestUrl.pathname.startsWith('/api/auth/')))return localRuntime.dispatch(req,res,requestUrl,jsonResponse,()=>handleAuthorizedRequest(req,res,requestUrl));
   const isCreativeAgentRoute=requestUrl.pathname.startsWith('/api/creative-audit/agent');
   if(requestUrl.pathname.startsWith('/api/')){

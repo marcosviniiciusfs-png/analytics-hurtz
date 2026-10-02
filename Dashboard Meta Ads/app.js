@@ -92,7 +92,7 @@ async function personalReportFetch(input,options={}){
   const promise=execute();if(!options.signal)pendingReportRequests.set(key,promise);
   try{return (await promise).clone()}finally{if(pendingReportRequests.get(key)===promise)pendingReportRequests.delete(key)}
 }
-const personalMetaRoutes=new Set(['/api/meta-accounts','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync','/api/report-product-rules']);
+const personalMetaRoutes=new Set(['/api/meta-accounts','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync','/api/report-product-rules','/api/flow/meta/catalog','/api/flow/meta/forms','/api/flow/whatsapp/groups','/api/flow/whatsapp/instance','/api/flow/whatsapp/qr','/api/flow/whatsapp/status','/api/flow/config']);
 window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input?.url||'',route=url.split('?')[0],isMonitorApi=url.startsWith('/api/'),isPersonalMetaRoute=personalMetaRoutes.has(route);if(!isMonitorApi)return browserFetch(input,options);if(isPersonalMetaRoute){const personalOptions={...options,headers:{...(options.headers||{}),'X-Require-Personal-Meta':'1'}};return personalIdentity?.personal&&/^\/api\/meta-(spend|analysis)\?/.test(url)?personalReportFetch(url,personalOptions):monitorApiFetch(input,personalOptions)}return cachedMetadataFetch(input,options)};
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 async function fetchJsonWithRetry(url,{attempts=3,delay=700,...options}={}){
@@ -1800,20 +1800,20 @@ function renderTaskStructures(){
 }
 const showDashboardViewBeforeTasks=showDashboardView;
 showDashboardView=function(view){
-  const tasks=document.querySelector('#tasks');
-  if(view!=='tasks'){tasks.hidden=true;return showDashboardViewBeforeTasks(view)}
+  const flow=document.querySelector('#flow');
+  if(view!=='flow'){flow.hidden=true;return showDashboardViewBeforeTasks(view)}
   document.querySelector('main>header').hidden=true;
   document.querySelector('#analysis').hidden=true;
   document.querySelector('#reports').hidden=true;
   document.querySelector('#alerts').hidden=true;
   document.querySelector('#summaryCards').hidden=true;
   document.querySelector('#accounts').hidden=true;
-  tasks.hidden=false;
-  document.querySelectorAll('.sidebar nav a').forEach(link=>link.classList.toggle('active',link.id==='tasksNav'));
-  initializeNativeTasks();
+  document.querySelector('#tasks').hidden=true;
+  flow.hidden=false;
+  document.querySelectorAll('.sidebar nav a').forEach(link=>link.classList.toggle('active',link.id==='flowNav'));
 };
-document.querySelector('#tasksNav').onclick=event=>{event.preventDefault();history.replaceState(null,'','?view=tasks');showDashboardView('tasks')};
-if(requestedView==='analysis')showDashboardView('analysis');else if(requestedView==='reports')showDashboardView('reports');else if(requestedView==='alerts')showDashboardView('alerts');else if(requestedView==='tasks')showDashboardView('tasks');
+document.querySelector('#flowNav').onclick=event=>{event.preventDefault();history.replaceState(null,'','?view=flow');showDashboardView('flow')};
+if(requestedView==='analysis')showDashboardView('analysis');else if(requestedView==='reports')showDashboardView('reports');else if(requestedView==='alerts')showDashboardView('alerts');else if(requestedView==='flow')showDashboardView('flow');
 if(!personalIdentity)showAlertLogin();
 async function initializeEmailAuthCallback(){
   const hash=new URLSearchParams(location.hash.replace(/^#/,'')),query=new URLSearchParams(location.search),type=hash.get('type'),accessToken=hash.get('access_token');
@@ -1838,7 +1838,7 @@ const showDashboardViewBeforeCreativeSearch=showDashboardView;
 showDashboardView=function(view){
   const creative=document.querySelector('#creativeSearch');
   if(view!=='creative-search'){creative.hidden=true;return showDashboardViewBeforeCreativeSearch(view)}
-  document.querySelector('main>header').hidden=true;['analysis','reports','alerts','tasks','summaryCards','accounts'].forEach(id=>document.querySelector(`#${id}`).hidden=true);creative.hidden=false;document.querySelectorAll('.sidebar nav a').forEach(link=>link.classList.toggle('active',link.id==='creativeSearchNav'));initializeCreativeLibrary();
+  document.querySelector('main>header').hidden=true;['analysis','reports','alerts','tasks','flow','summaryCards','accounts'].forEach(id=>document.querySelector(`#${id}`).hidden=true);creative.hidden=false;document.querySelectorAll('.sidebar nav a').forEach(link=>link.classList.toggle('active',link.id==='creativeSearchNav'));initializeCreativeLibrary();
 };
 document.querySelector('#creativeSearchNav').onclick=event=>{event.preventDefault();history.replaceState(null,'','?view=creative-search');showDashboardView('creative-search')};
 renderCreativeLibrary=function(){
@@ -2073,7 +2073,7 @@ function requestCommentsDelete(ids){if(!ids.length)return;commentsPendingDelete=
 function initializeComments(){if(commentsInitialized){refreshCommentsPagesIfNeeded();return}commentsInitialized=true;document.querySelector('#commentsInstagramAuthorize').onclick=()=>window.dispatchEvent(new Event('hurtz-connect-instagram'));for(const [id,tab] of [['commentsCurrentTab','current'],['commentsDeletedTab','deleted']]){const button=document.getElementById(id);button.onclick=()=>{commentsArchiveRequest++;commentsDialogTab=tab;setCommentsTabs();renderCommentsDialog()};button.onkeydown=event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();const other=document.getElementById(event.key==='Home'?'commentsCurrentTab':event.key==='End'?'commentsDeletedTab':tab==='current'?'commentsDeletedTab':'commentsCurrentTab');other.click();other.focus()}}}document.querySelector('#commentsAdDialog').append(document.querySelector('#commentsConfirmModal'));document.querySelector('#commentsDialogBulk').append(document.querySelector('#commentsBulkBar'));document.querySelector('#commentsResults').onclick=event=>{const card=event.target.closest('[data-comment-ad]');if(card)openCommentsDialog(card.dataset.commentAd,card)};document.querySelector('#commentsDialogClose').onclick=closeCommentsDialog;document.querySelector('#commentsAdDialog').oncancel=event=>{event.preventDefault();closeCommentsDialog()};document.querySelector('#commentsPageSelect').onchange=event=>{commentsPage=commentsPages.find(p=>p.id===event.target.value)||null;if(commentsPage)userStorage.setItem('hurtz-comments-page',commentsPage.id);else userStorage.removeItem('hurtz-comments-page');commentsData=[];renderComments();void loadCommentsInstagram();if(commentsPage)void loadAdComments()};document.querySelector('#commentsPagesRefresh').onclick=fetchCommentsPages;document.querySelector('#commentsPagesAuthorize').onclick=()=>window.dispatchEvent(new Event('hurtz-connect-comments'));void fetchCommentsPages();document.querySelector('#commentsFilterForm').onsubmit=event=>{event.preventDefault();loadAdComments()};document.querySelector('#commentsVisibility').onchange=renderComments;document.querySelector('#commentsSearch').oninput=renderComments;document.querySelector('#commentsDialogList').onchange=event=>{if(event.target.matches('[data-comment-select]'))updateCommentsSelection()};document.querySelector('#commentsDialogList').onclick=event=>{const button=event.target.closest('[data-comment-action]');if(!button)return;button.dataset.commentAction==='delete'?requestCommentsDelete([button.dataset.commentId]):moderateComments(button.dataset.commentAction,[button.dataset.commentId])};document.querySelector('#commentsSelectAll').onchange=event=>{document.querySelectorAll('[data-comment-select]').forEach(input=>input.checked=event.target.checked);updateCommentsSelection()};document.querySelector('#commentsBulkBar').onclick=event=>{const button=event.target.closest('[data-comments-action]');if(!button)return;const ids=commentsSelectedIds();button.dataset.commentsAction==='delete'?requestCommentsDelete(ids):moderateComments(button.dataset.commentsAction,ids)};document.querySelector('#commentsConfirmInput').oninput=event=>document.querySelector('#commentsConfirmDelete').disabled=event.target.value.trim().toUpperCase()!=='EXCLUIR';document.querySelector('#commentsConfirmDelete').onclick=async()=>{const ids=[...commentsPendingDelete];closeCommentsConfirm();await moderateComments('delete',ids)};document.querySelector('#commentsConfirmClose').onclick=closeCommentsConfirm;document.querySelector('#commentsConfirmCancel').onclick=closeCommentsConfirm;document.querySelector('#commentsConfirmModal').onclick=event=>{if(event.target===event.currentTarget)closeCommentsConfirm()};document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!document.querySelector('#commentsConfirmModal').hidden){event.preventDefault();event.stopPropagation();closeCommentsConfirm()}})}
 document.addEventListener('click',event=>{const trigger=event.target.closest('#commentsPageTrigger'),option=event.target.closest('[data-comments-page]');if(trigger){const dropdown=document.querySelector('#commentsPageDropdown'),open=dropdown.hidden;dropdown.hidden=!open;trigger.setAttribute('aria-expanded',String(open));if(open)document.querySelector('#commentsPageSearch').focus();return}if(option){const select=document.querySelector('#commentsPageSelect');select.value=option.dataset.commentsPage;select.dispatchEvent(new Event('change',{bubbles:true}));renderCommentsPages();document.querySelector('#commentsPageDropdown').hidden=true;document.querySelector('#commentsPageTrigger').setAttribute('aria-expanded','false')}});document.addEventListener('input',event=>{if(event.target.id==='commentsPageSearch')renderCommentsPageList()});document.addEventListener('click',event=>{const selector=document.querySelector('#commentsPageSelector');if(selector&&!selector.contains(event.target)){document.querySelector('#commentsPageDropdown').hidden=true;document.querySelector('#commentsPageTrigger').setAttribute('aria-expanded','false')}});
 const showDashboardViewBeforeComments=showDashboardView;
-showDashboardView=function(view){const comments=document.querySelector('#comments');if(view!=='comments'){comments.hidden=true;return showDashboardViewBeforeComments(view)}document.querySelector('main>header').hidden=true;['analysis','reports','alerts','tasks','creativeSearch','summaryCards','accounts'].forEach(id=>document.querySelector(`#${id}`).hidden=true);comments.hidden=false;document.querySelectorAll('.sidebar nav a').forEach(link=>link.classList.toggle('active',link.id==='commentsNav'));initializeComments();loadCommentsHistory()};
+showDashboardView=function(view){const comments=document.querySelector('#comments');if(view!=='comments'){comments.hidden=true;return showDashboardViewBeforeComments(view)}document.querySelector('main>header').hidden=true;['analysis','reports','alerts','tasks','flow','creativeSearch','summaryCards','accounts'].forEach(id=>document.querySelector(`#${id}`).hidden=true);comments.hidden=false;document.querySelectorAll('.sidebar nav a').forEach(link=>link.classList.toggle('active',link.id==='commentsNav'));initializeComments();loadCommentsHistory()};
 document.querySelector('#commentsNav').onclick=event=>{event.preventDefault();history.replaceState(null,'','?view=comments');showDashboardView('comments')};
 document.querySelector('#refreshCommentsHistory').onclick=loadCommentsHistory;
 if(requestedView==='comments')showDashboardView('comments');
@@ -2158,7 +2158,7 @@ analyticsLogout.onclick=async()=>{if(window.HURTZ_LOCAL)originalStorage.setItem(
 if(personalIdentity?.personal){
   analyticsLogout.hidden=false;
   const avatar=document.querySelector('.avatar');if(avatar)avatar.textContent=(personalIdentity.user.email||'U').slice(0,2).toUpperCase();
-  if(!window.HURTZ_LOCAL&&!personalIdentity?.tools)['alertsNav','tasksNav','creativeNav','creativeLibraryNav','creativeSearchNav','commentsNav','settingsNav'].forEach(id=>{const element=document.getElementById(id);if(element)element.hidden=true});
+  if(!window.HURTZ_LOCAL&&!personalIdentity?.tools)['alertsNav','flowNav','creativeNav','creativeLibraryNav','creativeSearchNav','commentsNav','settingsNav'].forEach(id=>{const element=document.getElementById(id);if(element)element.hidden=true});
   document.querySelector('#facebookConnectionTitle').textContent='Seu Facebook no Traffic pocket';
   void (async()=>{try{
     facebookSettings=await personalRequest('/api/meta/connection?verify=1');

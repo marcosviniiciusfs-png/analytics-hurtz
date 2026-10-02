@@ -1,0 +1,17 @@
+{
+  "name": "traffic-pocket-fluxo-webhook",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "groups": "node scripts/groups.js",
+    "test-lead": "node scripts/test-lead.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2"
+  }
+}

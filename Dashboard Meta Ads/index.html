@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles.css?v=20260911-green-brand" />
   <link rel="stylesheet" href="brand-overrides.css?v=20260922-audit-flow" />
   <link rel="stylesheet" href="task-kanban.css?v=20260915-organization" />
+  <link rel="stylesheet" href="fluxo.css" />
 </head>
 <body class="campaign-overview">
   <div class="global-progress" id="globalProgress" role="status" aria-live="polite" hidden>
@@ -26,7 +27,7 @@
         <a href="./#accounts"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c1.1 1.4 2.4 2.1 4 2.1 2.4 0 4-1.2 4-3 0-2-1.8-2.5-4-3-2.2-.5-4-1-4-3 0-1.8 1.6-3 4-3 1.6 0 2.9.6 4 1.9M12 5v14"/></svg></span><span class="nav-label">Contas</span></a>
         <a href="?view=analysis" id="analysisNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/><path d="M2 19h21"/></svg></span><span class="nav-label">Análise</span></a>
         <a href="?view=reports" id="reportsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5M9 12h7M9 16h7"/></svg></span><span class="nav-label">Relatórios</span></a>
-        <a href="?view=tasks" id="tasksNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/></svg></span><span class="nav-label">Tarefas</span></a>
+        <a href="?view=flow" id="flowNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 6h11M4 12h16M4 18h11"/><circle cx="18" cy="6" r="2"/><circle cx="8" cy="18" r="2"/></svg></span><span class="nav-label">Fluxo</span></a>
         <a href="?view=creative-search" id="creativeSearchNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5M8 11h6M11 8v6"/></svg></span><span class="nav-label">Pesquisa de criativos</span></a>
         <div class="sidebar-divider" aria-hidden="true"></div>
         <a href="?view=comments" id="commentsNav"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M20 15a4 4 0 0 1-4 4H9l-5 3v-3a4 4 0 0 1-2-4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M7 9h8M7 13h5"/></svg></span><span class="nav-label">Comentários</span></a>
@@ -156,6 +157,18 @@
         </div>
         <div class="report-status" id="reportStatus">Selecione pelo menos uma conta para iniciar.</div>
         <div class="report-output" id="reportOutput" hidden></div>
+      </section>
+
+      <section class="flow-view" id="flow" hidden>
+        <div class="flow-builder-heading"><div><p class="eyebrow">AUTOMAÇÃO VISUAL</p><h2>Construtor de fluxos</h2><p>Configure de qual formulário vem o lead e para qual grupo ele seguirá.</p></div><button type="button" class="flow-connect-facebook" id="flowConnect">Carregar minha conexão Facebook</button></div>
+        <form id="flowBuilder" class="flow-builder">
+          <div class="flow-canvas"><article class="flow-node flow-facebook"><header><span>f</span><div><small>GATILHO</small><strong>Facebook Lead Ads</strong></div></header><label>Conta de anúncio<select id="flowAdAccount"><option>Conecte o serviço</option></select></label><label>Página do formulário<select id="flowPage"><option>Escolha uma página</option></select></label><label>Formulário instantâneo<select id="flowForm"><option>Escolha um formulário</option></select></label></article><div class="flow-link"><span></span><button type="button" id="flowToggleConnection" aria-pressed="false">Conectar blocos</button><span></span></div><article class="flow-node flow-whatsapp"><header><span>◔</span><div><small>AÇÃO</small><strong>WhatsApp</strong></div></header><button class="flow-qr-button" type="button" id="flowConnectWhatsApp">Conectar WhatsApp por QR Code</button><div class="flow-qr" id="flowQrPanel" hidden><img id="flowQrImage" alt="QR Code para conectar o WhatsApp"><b id="flowQrStatus">Leia o QR Code no WhatsApp.</b></div><input id="flowInstance" type="hidden"><label>Grupo de destino<select id="flowGroup"><option>Conecte seu WhatsApp</option></select></label><p>Os dados do lead serão enviados ao grupo selecionado.</p></article></div>
+          <footer class="flow-builder-footer"><label class="flow-active"><input id="flowEnabled" type="checkbox"><span><b>Fluxo ativo</b><small>Processar novos leads deste formulário.</small></span></label><span id="flowStatus" role="status">Conecte o serviço para carregar suas contas e grupos.</span><button type="submit" class="flow-save">Salvar fluxo</button></footer>
+        </form>
+        <p class="flow-help">A página é usada para listar os formulários da Meta. Uma vez salvo, o webhook só encaminha leads do formulário conectado.</p>
+        <div class="flow-heading"><div><p class="eyebrow">AUTOMAÇÃO PRÓPRIA</p><h2>Fluxo de leads</h2><p>Receba leads dos formulários da Meta e encaminhe cada contato ao grupo certo do WhatsApp.</p></div><span class="flow-chip">Webhook seguro</span></div>
+        <div class="flow-diagram" aria-label="Meta Lead Ads para WhatsApp"><article><b>1</b><strong>Meta Lead Ads</strong><span>Evento <code>leadgen</code></span></article><i>→</i><article><b>2</b><strong>Webhook Fluxo</strong><span>Busca dados na Graph API</span></article><i>→</i><article><b>3</b><strong>Grupo WhatsApp</strong><span>Entrega pela Evolution API</span></article></div>
+        <div class="flow-grid"><article class="flow-card flow-card-primary"><div><p class="eyebrow">PRONTO PARA CONFIGURAR</p><h3>Conecte seu fluxo</h3><p>O serviço fica em <code>fluxo-webhook</code>. As chaves permanecem no arquivo <code>.env</code>, nunca no navegador.</p></div><ol><li>Copie <code>.env.example</code> para <code>.env</code>.</li><li>Preencha as credenciais da Meta e da Evolution.</li><li>Use <code>npm run groups</code> para localizar o JID do grupo.</li><li>Publique o webhook em uma URL HTTPS e configure-o na Meta.</li></ol></article><article class="flow-card"><p class="eyebrow">ENDPOINTS</p><dl><div><dt>Verificação Meta</dt><dd><code>GET /webhook</code></dd></div><div><dt>Recebimento de lead</dt><dd><code>POST /webhook</code></dd></div><div><dt>Diagnóstico</dt><dd><code>GET /health</code></dd></div></dl><a href="fluxo-webhook/README.md" target="_blank" rel="noopener">Abrir guia de configuração →</a></article><article class="flow-card"><p class="eyebrow">SEGURANÇA E RESILIÊNCIA</p><ul><li>Valida a assinatura HMAC SHA-256 da Meta.</li><li>Responde imediatamente ao evento para evitar reenvios.</li><li>Evita leads duplicados em memória.</li><li>Tenta o envio ao WhatsApp até 3 vezes.</li></ul></article></div>
       </section>
 
       <section class="tasks-view" id="tasks" hidden>
@@ -403,6 +416,7 @@
       <div class="campaign-section"><div class="campaign-title"><div><h3>Campanhas com veiculação</h3><p id="campaignPeriod"></p></div><span id="campaignCount"></span></div><form class="campaign-goal-panel" id="campaignGoalPanel" hidden><div><strong id="campaignGoalTitle">Configurar coluna</strong><small>Metas diárias desta conta para definir as cores.</small></div><div class="campaign-goal-fields" id="campaignGoalFields"></div><button type="submit">Salvar metas</button><button type="button" class="clear-goal-button" id="clearCampaignGoal">Limpar</button><button type="button" class="close-goal-button" id="closeCampaignGoal">×</button></form><div class="campaign-table-wrap"><table class="campaign-table"><thead><tr><th>Campanha</th><th>Objetivo</th><th>Status</th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="investment">Investimento <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="results">Resultados <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="cost">Custo/resultado <span>⚙</span></button></th></tr></thead><tbody id="campaignBody"></tbody><tfoot id="campaignFoot"></tfoot></table></div></div>
     </section>
   </div>
+  <script src="flow-builder.js"></script>
   <script src="app.js?v=20260921-product-rules"></script>
 </body>
 </html>

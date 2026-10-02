@@ -1,0 +1,4 @@
+.env
+node_modules/
+data/flow.json
+npm-debug.log*

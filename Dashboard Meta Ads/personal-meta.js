@@ -34,6 +34,13 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     fs.renameSync(temp, target);
   }
   function remove(kind, id) { try { fs.unlinkSync(location(kind, id)); } catch (e) { if (e.code !== 'ENOENT') throw e; } }
+  function leadFlow(formId) {
+    const flow = read('lead-flow', String(formId));
+    if (!flow?.enabled || !flow.userId || !flow.facebook?.pageId || !flow.whatsapp?.instance || !flow.whatsapp?.groupJid) return null;
+    const conn = connection({id: flow.userId});
+    const pageToken = conn.pageTokens?.[flow.facebook.pageId];
+    return pageToken ? {...flow, pageToken} : null;
+  }
   function issueSession(user) {
     if (!user?.id) throw fail(401, 'Usuário não identificado.');
     const token = `pa_${crypto.randomBytes(32).toString('base64url')}`;
@@ -58,7 +65,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     const promise=(async()=>{const upgraded=await exchangeToken(conn.token,conn.facebookId);const latest=read('connection',user.id);if(!latest||latest.revision!==conn.revision)return latest;const improves=upgraded&&(upgraded.noFixedExpiry||!latest.expiresAt||upgraded.expiresAt>latest.expiresAt);const result={...latest,...(improves?upgraded:{}),exchangeAttemptAt:Date.now()};write('connection',user.id,result);return result})().finally(()=>exchanges.delete(user.id));exchanges.set(user.id,promise);return promise;
   }
   const graphPauses = new Map();
-  async function graph(token, endpoint, params = {}, version = VERSION) {
+  async function graph(token, endpoint, params = {}, version = VERSION, method = 'GET') {
     const pauseKey = hash(token), previous = graphPauses.get(pauseKey);
     if (previous?.until > Date.now()) throw Object.assign(fail(429, 'A Meta limitou temporariamente as consultas. Aguarde antes de atualizar.'), {retryAfter: Math.ceil((previous.until - Date.now()) / 1000)});
     if (!/^v\d+\.\d+$/.test(version)) throw fail(500, 'Versão inválida da consulta Meta.');
@@ -66,7 +73,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
     let response, payload;
     try {
-      response = await fetchImpl(url, {headers: {Authorization: `Bearer ${token}`}, signal: AbortSignal.timeout(45000)});
+      response = await fetchImpl(url, {method, headers: {Authorization: `Bearer ${token}`}, signal: AbortSignal.timeout(45000)});
       payload = await response.json();
     } catch { throw fail(502, 'A Meta não respondeu. Tente novamente.'); }
     if (!response.ok || payload.error) {
@@ -200,7 +207,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       return send(res, 200, {connected: true, name: me.name, accountCount: accounts.length});
     }
     if (route === '/api/meta/connection' && req.method === 'DELETE') {
-      const profile=(read('settings', user.id) || {}).profile;
+      const settings=read('settings', user.id) || {},profile=settings.profile;
+      if (settings.lead_flow?.facebook?.formId) remove('lead-flow', settings.lead_flow.facebook.formId);
       remove('connection', user.id);
       if(profile)write('settings', user.id, {profile});else remove('settings', user.id);
       return send(res, 200, {ok: true});
@@ -209,6 +217,81 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       accountAuthorizations.delete(user.id);
       const {accounts} = await catalog(user, true);
       return send(res, 200, {account_count: accounts.length, business_count: new Set(accounts.map(a => a.business?.id).filter(Boolean)).size, accounts: accounts.map(a => ({...a, business_name: a.business?.name || '', business_id: a.business?.id || '', business_profile_picture_uri: a.business?.profile_picture_uri || ''}))});
+    }
+    // O construtor Fluxo usa a mesma conexão Meta do usuário; nenhum token vai ao navegador.
+    if (route === '/api/flow/meta/catalog' && req.method === 'GET') {
+      const conn = await upgradeConnection(user);
+      if (!conn) throw fail(409, 'Conecte seu Facebook nas Configurações antes de criar um fluxo.');
+      const [accounts, pages] = await Promise.all([
+        rows(conn.token, 'me/adaccounts', {fields: 'id,name'}),
+        rows(conn.token, 'me/accounts', {fields: 'id,name'}),
+      ]);
+      return send(res, 200, {accounts: accounts.map(({id, name}) => ({id, name: name || id})), pages: pages.map(({id, name}) => ({id, name: name || id}))});
+    }
+    if (route === '/api/flow/meta/forms' && req.method === 'GET') {
+      const pageId = String(url.searchParams.get('pageId') || '');
+      if (!/^\d{5,30}$/.test(pageId)) throw fail(400, 'Página inválida.');
+      const conn = await upgradeConnection(user);
+      if (!conn) throw fail(409, 'Conecte seu Facebook nas Configurações antes de criar um fluxo.');
+      const pageToken = conn.pageTokens?.[pageId];
+      if (!pageToken) throw fail(403, 'Essa página não faz parte da conexão Facebook atual. Reconecte e autorize a página.');
+      const forms = await rows(pageToken, `${pageId}/leadgen_forms`, {fields: 'id,name,status'});
+      return send(res, 200, {forms: forms.map(({id, name, status}) => ({id, name: name || id, status}))});
+    }
+    if (route === '/api/flow/whatsapp/groups' && req.method === 'GET') {
+      const instance = String(url.searchParams.get('instance') || '').trim();
+      if (!/^[a-zA-Z0-9_-]{1,100}$/.test(instance)) throw fail(400, 'Conecte ou informe uma instância WhatsApp válida.');
+      const settings = read('settings', user.id) || {};
+      if (settings.flow_whatsapp_instance !== instance) throw fail(403, 'Essa instância WhatsApp não pertence ao seu fluxo.');
+      const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
+      if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
+      const response = await fetchImpl(`${base}/group/fetchAllGroups/${encodeURIComponent(instance)}?getParticipants=false`, {headers: {apikey: key}, signal: AbortSignal.timeout(30000)});
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw fail(502, 'Não foi possível listar os grupos deste WhatsApp.');
+      const rows = Array.isArray(payload) ? payload : payload.data || payload.groups || [];
+      return send(res, 200, {groups: rows.map(item => ({id: item.id || item.jid, name: item.subject || item.name || item.id})).filter(item => item.id)});
+    }
+    if (route === '/api/flow/whatsapp/instance' && req.method === 'POST') {
+      const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
+      if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
+      const instance = `flow-${hash(user.id).slice(0,14)}-${crypto.randomBytes(3).toString('hex')}`;
+      const response = await fetchImpl(`${base}/instance/create`, {method: 'POST', headers: {apikey: key, 'Content-Type': 'application/json'}, body: JSON.stringify({instanceName: instance, qrcode: true, integration: 'WHATSAPP-BAILEYS'}), signal: AbortSignal.timeout(45000)});
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw fail(502, 'Não foi possível criar a conexão WhatsApp.');
+      write('settings', user.id, {...(read('settings', user.id) || {}), flow_whatsapp_instance: instance});
+      return send(res, 201, {instance, qr: payload?.qrcode?.base64 || payload?.base64 || ''});
+    }
+    if ((route === '/api/flow/whatsapp/qr' || route === '/api/flow/whatsapp/status') && req.method === 'GET') {
+      const instance = String(url.searchParams.get('instance') || ''), settings = read('settings', user.id) || {};
+      if (!instance || settings.flow_whatsapp_instance !== instance) throw fail(403, 'Essa instância WhatsApp não pertence ao seu fluxo.');
+      const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
+      if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
+      const path = route.endsWith('/qr') ? `/instance/connect/${encodeURIComponent(instance)}` : `/instance/connectionState/${encodeURIComponent(instance)}`;
+      const response = await fetchImpl(`${base}${path}`, {headers: {apikey: key}, signal: AbortSignal.timeout(30000)}), payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw fail(502, 'A Evolution API não respondeu à conexão WhatsApp.');
+      if (route.endsWith('/qr')) return send(res, 200, {instance, qr: payload?.base64 || payload?.qrcode?.base64 || ''});
+      const state = payload?.instance?.state || payload?.instance?.status || payload?.state || 'unknown';
+      return send(res, 200, {instance, state, connected: ['open', 'connected'].includes(String(state).toLowerCase())});
+    }
+    if (route === '/api/flow/config') {
+      const settings = read('settings', user.id) || {};
+      if (req.method === 'GET') return send(res, 200, settings.lead_flow || {enabled: false, facebook: {}, whatsapp: {}});
+      if (req.method !== 'PUT') throw fail(405, 'Método não permitido.');
+      const payload = await body(req), previous = settings.lead_flow || {};
+      const flow = {enabled: Boolean(payload.enabled), facebook: {adAccountId: String(payload.facebook?.adAccountId || ''), pageId: String(payload.facebook?.pageId || ''), formId: String(payload.facebook?.formId || '')}, whatsapp: {instance: String(payload.whatsapp?.instance || ''), groupJid: String(payload.whatsapp?.groupJid || '')}};
+      if (flow.enabled && (!flow.facebook.pageId || !flow.facebook.formId || !flow.whatsapp.instance || !flow.whatsapp.groupJid)) throw fail(400, 'Selecione Página, formulário e grupo antes de ativar o fluxo.');
+      if (flow.enabled) {
+        if (settings.flow_whatsapp_instance !== flow.whatsapp.instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar o fluxo.');
+        const conn = connection(user), pageToken = conn.pageTokens?.[flow.facebook.pageId];
+        if (!pageToken) throw fail(403, 'A Página selecionada não pertence à sua conexão Facebook atual.');
+        // A inscrição do leadgen é automática ao ativar, sem etapa extra para o usuário.
+        await graph(pageToken, `${flow.facebook.pageId}/subscribed_apps`, {subscribed_fields: 'leadgen'}, VERSION, 'POST');
+        write('lead-flow', flow.facebook.formId, {userId: user.id, ...flow});
+      }
+      if (previous.facebook?.formId && previous.facebook.formId !== flow.facebook.formId) remove('lead-flow', previous.facebook.formId);
+      if (!flow.enabled && previous.facebook?.formId) remove('lead-flow', previous.facebook.formId);
+      write('settings', user.id, {...settings, lead_flow: flow});
+      return send(res, 200, flow);
     }
     if (route === '/api/meta-monitor-config' && req.method === 'GET') {
       accountAuthorizations.delete(user.id);
@@ -255,6 +338,6 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     // Existing administrative routes use shared resources and are never delegated to personal sessions.
     throw fail(403, 'Esta função está disponível apenas no acesso administrativo.');
   }
-  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report};
+  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow};
 }
 module.exports = {createPersonalMeta};
