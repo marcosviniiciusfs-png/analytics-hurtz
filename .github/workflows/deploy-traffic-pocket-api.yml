@@ -55,9 +55,6 @@ jobs:
         run: |
           ssh -i ~/.ssh/traffic-pocket-deploy -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" "
             set -eu
-            set -a
-            . /opt/meta-ads-cli/secrets/.env
-            set +a
             sudo docker build -t traffic-pocket-api:production \
               -f \"/home/$VPS_USER/traffic-pocket/Dashboard Meta Ads/Dockerfile.api\" \
               \"/home/$VPS_USER/traffic-pocket\"
@@ -68,8 +65,6 @@ jobs:
               --env-file /opt/traffic-pocket-supabase/.env \
               --env-file /opt/traffic-pocket-supabase/secrets/campaign-ai.env \
               --env-file /opt/meta-ads-cli/secrets/.env \
-              -e EVOLUTION_API_URL=\"\$EVOLUTION_API_URL\" \
-              -e EVOLUTION_API_KEY=\"\$EVOLUTION_API_KEY\" \
               -v /opt/meta-ads-cli/secrets:/opt/meta-ads-cli/secrets:ro \
               --mount type=volume,src=traffic-pocket-api-data,dst=/var/lib/traffic-pocket \
               -e META_PERSONAL_DATA_DIR=/var/lib/traffic-pocket/personal \
