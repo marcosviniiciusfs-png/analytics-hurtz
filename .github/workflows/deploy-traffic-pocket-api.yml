@@ -74,5 +74,6 @@ jobs:
             sleep 2
             sudo docker ps --filter 'name=^/traffic-pocket-api$' --filter status=running --format '{{.Names}}' | grep -qx traffic-pocket-api
             curl -fsS http://127.0.0.1:8091/ >/dev/null
+            sudo docker exec traffic-pocket-api node -e "if (!process.env.EVOLUTION_API_URL || !process.env.EVOLUTION_API_KEY) process.exit(1); console.log('Evolution credentials available to API')"
             sudo docker exec supabase-caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
           "
