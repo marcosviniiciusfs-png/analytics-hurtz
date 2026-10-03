@@ -13,6 +13,7 @@ function fixture(t, runner, overrides = {}) {
   const fetchImpl = async (url, options) => {
     const who = options.headers?.Authorization?.endsWith(tokens.a) ? 'a' : 'b';
     const endpoint = new URL(url).pathname;
+    if(endpoint.startsWith('/instance/')&&overrides.evolution)return overrides.evolution(url,options);
     if(endpoint.endsWith('/debug_token')){assert.ok(overrides.oauthConfig,'only server credentials can inspect exchanged tokens');return {ok:true,json:async()=>({data:{is_valid:true,type:'USER',app_id:'2093320124537661',user_id:'a',expires_at:overrides.noFixedExpiry?0:Math.floor(Date.now()/1000)+5184000,data_access_expires_at:Math.floor(Date.now()/1000)+7776000}})}}
     overrides.requests?.push(new URL(url).searchParams.get('fields'));
     if(endpoint.endsWith('/oauth/access_token')){assert.equal(options.method,'GET');if(overrides.exchangeFailure)return {ok:false,status:400,json:async()=>({error:{code:190}})};return {ok:true,json:async()=>({access_token:tokens.a+'-long',...(overrides.missingExpiry?{}:{expires_in:5184000})})}}
@@ -187,6 +188,15 @@ test('flow projects remain available after the API restarts on the same data vol
  const req=Object.assign(Readable.from([]),{method:'GET',headers:{authorization:`Bearer ${session}`}});let result;
  await restarted.handle(req,{},restarted.session(session),new URL('http://localhost/api/flows'),(_,status,body)=>result={status,body});
  assert.equal(result.status,200);assert.equal(result.body.flows.length,1);assert.equal(result.body.flows[0].id,created.body.id);assert.equal(result.body.flows[0].name,'Fluxo persistente');
+});
+
+test('WhatsApp connection state is reused and can be disconnected without creating another instance',async t=>{
+ const previousUrl=process.env.EVOLUTION_API_URL,previousKey=process.env.EVOLUTION_API_KEY;process.env.EVOLUTION_API_URL='http://evolution.test';process.env.EVOLUTION_API_KEY='test-key';t.after(()=>{if(previousUrl===undefined)delete process.env.EVOLUTION_API_URL;else process.env.EVOLUTION_API_URL=previousUrl;if(previousKey===undefined)delete process.env.EVOLUTION_API_KEY;else process.env.EVOLUTION_API_KEY=previousKey;});
+ const calls=[],f=fixture(t,null,{evolution:async(url,options)=>{const endpoint=new URL(url).pathname;calls.push({endpoint,method:options.method||'GET'});if(endpoint.startsWith('/instance/connectionState/'))return {ok:true,status:200,json:async()=>({instance:{state:'open'}})};if(endpoint.startsWith('/instance/logout/'))return {ok:true,status:200,json:async()=>({status:'SUCCESS'})};throw new Error(`Unexpected Evolution endpoint: ${endpoint}`);}});
+ f.api.write('settings','user-a',{flow_whatsapp_instance:'flow-user-a'});
+ const state=await f.request(f.sessionA,'/api/flow/whatsapp/instance');assert.equal(state.status,200);assert.equal(state.body.connected,true);assert.equal(state.body.instance,'flow-user-a');
+ const reused=await f.request(f.sessionA,'/api/flow/whatsapp/instance','POST',{});assert.equal(reused.status,200);assert.equal(reused.body.connected,true);assert.equal(calls.some(call=>call.endpoint==='/instance/create'),false);
+ const disconnected=await f.request(f.sessionA,'/api/flow/whatsapp/instance','DELETE');assert.equal(disconnected.status,200);assert.equal(disconnected.body.connected,false);assert.ok(calls.some(call=>call.endpoint==='/instance/logout/flow-user-a'&&call.method==='DELETE'));
 });
 
 test('long-lived connection survives logout, a new session and server restart without exposing secrets',async t=>{
