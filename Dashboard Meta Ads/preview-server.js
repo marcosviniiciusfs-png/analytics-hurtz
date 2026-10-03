@@ -233,7 +233,9 @@ http.createServer((req,res)=>{
       }
       const handler=taskCollaborationRoutes.has(requestUrl.pathname)||taskDataRoute(requestUrl.pathname)?handlePersonalTaskRoute(req,res,requestUrl,personalSession):personalMeta.handle(req,res,personalSession,requestUrl,jsonResponse);return Promise.resolve(handler).catch(error=>{if(!res.headersSent)jsonResponse(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir a solicitação.'})})
     }
-    if(req.headers['x-require-personal-meta']==='1'&&['/api/meta-accounts','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync','/api/report-product-rules'].includes(requestUrl.pathname))return jsonResponse(res,401,{error:'Entre e conecte o seu Facebook para consultar suas próprias contas de anúncio.'});
+    // Ferramentas do usuário não podem cair no fallback administrativo.
+    const personalToolRoute=['/api/meta-accounts','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync','/api/report-product-rules'].includes(requestUrl.pathname)||requestUrl.pathname==='/api/flows'||requestUrl.pathname.startsWith('/api/flows/')||requestUrl.pathname.startsWith('/api/flow/');
+    if(req.headers['x-require-personal-meta']==='1'&&personalToolRoute)return jsonResponse(res,401,{error:'Entre novamente para acessar as ferramentas da sua conta.'});
     if(bearer.startsWith('pa_'))return jsonResponse(res,401,{error:'Sua sessão expirou. Entre novamente.'});
   }
   if(!isCreativeAgentRoute&&process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){

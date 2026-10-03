@@ -179,6 +179,16 @@ test('flow projects are private and support more than one draft per user',async 
  assert.equal(saved.status,200);assert.equal(saved.body.facebook.formId,'67890');assert.equal((await f.request(f.sessionA,`/api/flows/${second.body.id}`)).body.facebook.formId,undefined);
 });
 
+test('flow projects remain available after the API restarts on the same data volume',async t=>{
+ const f=fixture(t);await f.connect(f.sessionA,f.tokens.a);
+ const created=await f.request(f.sessionA,'/api/flows','POST',{name:'Fluxo persistente'});assert.equal(created.status,201);
+ const restarted=createPersonalMeta({directory:f.directory,oauthConfig:null});
+ const session=restarted.issueSession({id:'user-a',email:'a@example.test'});
+ const req=Object.assign(Readable.from([]),{method:'GET',headers:{authorization:`Bearer ${session}`}});let result;
+ await restarted.handle(req,{},restarted.session(session),new URL('http://localhost/api/flows'),(_,status,body)=>result={status,body});
+ assert.equal(result.status,200);assert.equal(result.body.flows.length,1);assert.equal(result.body.flows[0].id,created.body.id);assert.equal(result.body.flows[0].name,'Fluxo persistente');
+});
+
 test('long-lived connection survives logout, a new session and server restart without exposing secrets',async t=>{
  const f=fixture(t,null,{oauthConfig:{appId:'2093320124537661',secret:'test-app-secret'}});await f.connect(f.sessionA,f.tokens.a);
  const stored=f.api.read('connection','user-a');assert.equal(stored.longLived,true);assert.ok(stored.expiresAt>Date.now()+59*86400000);assert.ok(stored.token.endsWith('-long'));
