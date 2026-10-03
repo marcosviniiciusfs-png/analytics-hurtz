@@ -25,10 +25,23 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
   const current=(user,conn)=>{if(connection(user).revision!==conn.revision)throw fail(409,'A conexão mudou. Reabra esta conta antes de continuar.')};
   async function access(user,account,manage=false){const {conn,accounts}=await authorizeAccounts(user,[account]);if(manage&&!conn.scopes?.includes('ads_management'))throw fail(403,'Autorize o gerenciamento de anúncios. O app precisa ter ads_management aprovado para seu acesso.');return {conn,account:accounts.find(a=>a.id===account)}}
   async function owned(conn,account,object,fields='id,account_id,name,status,effective_status'){const item=await graph(conn.token,id(object),{fields});if('act_'+item.account_id!==account)throw fail(403,'Este item não pertence à conta selecionada.');return item}
-  // whatsapp_number is the Page-owned association. It is intentionally read
-  // independently from WABA discovery so a usable Page number can be offered
-  // even when the app cannot enumerate Business assets.
-  async function pages(conn,account){try{return await rows(conn.token,account+'/promote_pages',{fields:'id,name,whatsapp_number'})}catch{return rows(conn.token,account+'/promote_pages',{fields:'id,name'})}}
+  // `promote_pages` is the most precise account edge, but Meta can return an
+  // empty list even when the connected person is an administrator of Pages in
+  // the account's Business. Keep it as the first source and merge the Pages
+  // granted to the person and to their Businesses. This is especially needed
+  // for ad accounts whose `business` field is absent from the account catalog.
+  async function pages(conn,account){
+    const items=new Map(),add=list=>{for(const page of list||[]){const pageId=String(page?.id||'');if(!/^\d+$/.test(pageId))continue;items.set(pageId,{...(items.get(pageId)||{}),...page,id:pageId,name:String(page.name||items.get(pageId)?.name||pageId)})}};
+    try{add(await rows(conn.token,account+'/promote_pages',{fields:'id,name,whatsapp_number'}))}catch{try{add(await rows(conn.token,account+'/promote_pages',{fields:'id,name'}))}catch{}}
+    // A page directly administered by the connected Facebook user is usable in
+    // Ads Manager even when the account edge above has not synchronized yet.
+    try{add(await rows(conn.token,'me/accounts',{fields:'id,name,whatsapp_number'}))}catch{try{add(await rows(conn.token,'me/accounts',{fields:'id,name'}))}catch{}}
+    try{
+      const businesses=await rows(conn.token,'me/businesses',{fields:'id'});
+      for(const business of businesses){const businessId=String(business?.id||'');if(!/^\d+$/.test(businessId))continue;for(const edge of ['owned_pages','client_pages']){try{add(await rows(conn.token,businessId+'/'+edge,{fields:'id,name,whatsapp_number'}))}catch{try{add(await rows(conn.token,businessId+'/'+edge,{fields:'id,name'}))}catch{}}}}
+    }catch{}
+    return [...items.values()];
+  }
   const requestedInterests=description=>/\binteress(?:e|es|ado|ada|ados|adas)\b/i.test(String(description||''));
   async function instagramProfiles(conn,account,available){const profiles=[];for(const page of available){try{const result=await graph(conn.token,page.id,{fields:'instagram_business_account{id,username,profile_picture_url}'}),item=result.instagram_business_account;if(item?.id)profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:page.id})}catch{}}try{for(const item of await rows(conn.token,account+'/instagram_accounts',{fields:'id,username,profile_pic'}))if(!profiles.some(profile=>profile.id===item.id))profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:''})}catch{}return profiles}
   async function whatsappNumbers(user,conn,account,available,accountInfo={},auditPage=''){
