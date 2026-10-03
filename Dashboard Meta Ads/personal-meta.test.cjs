@@ -183,11 +183,12 @@ test('flow projects are private and support more than one draft per user',async 
 test('flow projects remain available after the API restarts on the same data volume',async t=>{
  const f=fixture(t);await f.connect(f.sessionA,f.tokens.a);
  const created=await f.request(f.sessionA,'/api/flows','POST',{name:'Fluxo persistente'});assert.equal(created.status,201);
+ const saved=await f.request(f.sessionA,`/api/flows/${created.body.id}`,'PUT',{enabled:false,facebook:{adAccountId:'act_111',pageId:'12345',formId:'67890'},whatsapp:{instance:'flow-user-a',groupJid:'120363000000@g.us'}});assert.equal(saved.status,200);
  const restarted=createPersonalMeta({directory:f.directory,oauthConfig:null});
  const session=restarted.issueSession({id:'user-a',email:'a@example.test'});
  const req=Object.assign(Readable.from([]),{method:'GET',headers:{authorization:`Bearer ${session}`}});let result;
  await restarted.handle(req,{},restarted.session(session),new URL('http://localhost/api/flows'),(_,status,body)=>result={status,body});
- assert.equal(result.status,200);assert.equal(result.body.flows.length,1);assert.equal(result.body.flows[0].id,created.body.id);assert.equal(result.body.flows[0].name,'Fluxo persistente');
+ assert.equal(result.status,200);assert.equal(result.body.flows.length,1);assert.equal(result.body.flows[0].id,created.body.id);assert.equal(result.body.flows[0].name,'Fluxo persistente');assert.equal(result.body.flows[0].facebook.formId,'67890');assert.equal(result.body.flows[0].whatsapp.groupJid,'120363000000@g.us');
 });
 
 test('WhatsApp connection state is reused and can be disconnected without creating another instance',async t=>{

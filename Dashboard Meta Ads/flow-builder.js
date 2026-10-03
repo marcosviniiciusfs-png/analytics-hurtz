@@ -10,6 +10,19 @@
   const esc = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   let currentFlow = null, catalog = {accounts: [], pages: []}, qrTimer = null;
 
+  // O painel não inventa porcentagem: a Evolution só informa o resultado final
+  // da geração. Enquanto ela processa, mostramos estado indeterminado acessível.
+  $('flowQrPanel').innerHTML = '<div class="flow-qr-loading" id="flowQrLoading" role="status" hidden><span class="flow-circular-progress" role="progressbar" aria-label="Gerando QR Code" aria-valuetext="Aguardando resposta da Evolution API"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="flow-progress-track" cx="24" cy="24" r="19"></circle><circle class="flow-progress-range" cx="24" cy="24" r="19"></circle></svg></span><span id="flowQrLoadingText">Preparando conexão segura…</span></div><img id="flowQrImage" alt="QR Code para conectar o WhatsApp"><b id="flowQrStatus">Leia o QR Code no WhatsApp.</b>';
+  const disconnectDialog = document.createElement('dialog');
+  disconnectDialog.className = 'flow-dialog flow-disconnect-dialog'; disconnectDialog.setAttribute('aria-labelledby', 'flowDisconnectTitle'); disconnectDialog.setAttribute('aria-describedby', 'flowDisconnectDescription');
+  disconnectDialog.innerHTML = '<div><span class="flow-dialog-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span><h3 id="flowDisconnectTitle">Desconectar WhatsApp?</h3><p id="flowDisconnectDescription">O fluxo ficará pausado até você conectar este WhatsApp novamente pelo QR Code.</p><div><button type="button" class="flow-cancel" id="flowCancelDisconnect">Manter conectado</button><button type="button" class="flow-danger" id="flowConfirmDisconnect">Desconectar WhatsApp</button></div></div>';
+  document.body.append(disconnectDialog);
+  const showQrLoading = text => { const panel = $('flowQrPanel'); panel.hidden = false; panel.setAttribute('aria-busy', 'true'); $('flowQrLoading').hidden = false; $('flowQrImage').hidden = true; $('flowQrStatus').hidden = true; $('flowQrLoadingText').textContent = text; };
+  const hideQrLoading = () => { $('flowQrPanel').removeAttribute('aria-busy'); $('flowQrLoading').hidden = true; $('flowQrImage').hidden = false; $('flowQrStatus').hidden = false; };
+  const askDisconnect = () => new Promise(resolve => { disconnectDialog.addEventListener('close', () => resolve(disconnectDialog.returnValue === 'disconnect'), {once: true}); disconnectDialog.showModal(); });
+  $('flowCancelDisconnect', disconnectDialog)?.addEventListener('click', () => disconnectDialog.close('cancel'));
+  $('flowConfirmDisconnect', disconnectDialog)?.addEventListener('click', () => disconnectDialog.close('disconnect'));
+
   function setWhatsAppButton(connected) {
     const button = $('flowConnectWhatsApp');
     button.dataset.connected = connected ? 'true' : 'false';
@@ -91,7 +104,7 @@
   async function showQr(payload) {
     if (payload.connected) { $('flowQrPanel').hidden = true; setWhatsAppButton(true); await loadGroups(); status('WhatsApp já está conectado. Escolha o grupo de destino.'); return; }
     if (!payload.qr) throw new Error('A Evolution não retornou um QR Code.');
-    $('flowInstance').value = payload.instance; $('flowQrImage').src = payload.qr; $('flowQrPanel').hidden = false;
+    $('flowInstance').value = payload.instance; hideQrLoading(); $('flowQrImage').src = payload.qr; $('flowQrPanel').hidden = false;
     $('flowQrStatus').textContent = 'Leia o QR Code em WhatsApp > Aparelhos conectados.';
     let checking = false;
     clearInterval(qrTimer); qrTimer = setInterval(async () => { if (checking) return; checking = true; try { const state = await api(`/api/flow/whatsapp/status?instance=${encodeURIComponent(payload.instance)}`); if (state.connected) { clearInterval(qrTimer); setWhatsAppButton(true); await loadGroups(); $('flowQrPanel').hidden = true; status('WhatsApp conectado. Escolha o grupo de destino.'); } } catch (error) { $('flowQrStatus').textContent = error.message; } finally { checking = false; } }, 1000);
@@ -104,7 +117,7 @@
   $('flowConnect').onclick = loadEditor;
   $('flowPageSearch').addEventListener('flowchange', () => loadForms());
   $('flowToggleConnection').onclick = event => { const connected = event.currentTarget.getAttribute('aria-pressed') !== 'true'; event.currentTarget.setAttribute('aria-pressed', connected); event.currentTarget.textContent = connected ? 'Blocos conectados' : 'Conectar blocos'; document.querySelector('.flow-canvas').classList.toggle('connected', connected); };
-  $('flowConnectWhatsApp').onclick = async event => { const button = event.currentTarget; button.disabled = true; try { if (button.dataset.connected === 'true') { if (!confirm('Desconectar este WhatsApp? Será necessário ler o QR Code novamente para usar o fluxo.')) return; status('Desconectando WhatsApp…'); await api('/api/flow/whatsapp/instance', {method: 'DELETE'}); clearInterval(qrTimer); $('flowQrPanel').hidden = true; controls.group.clear('Conecte seu WhatsApp'); setWhatsAppButton(false); status('WhatsApp desconectado.'); return; } status('Preparando conexão do WhatsApp…'); const result = await api('/api/flow/whatsapp/instance', {method: 'POST', body: '{}'}); await showQr(result); if (!result.connected) status('Leia o QR Code para conectar seu WhatsApp.'); } catch (error) { status(error.message); } finally { button.disabled = false; } };
+  $('flowConnectWhatsApp').onclick = async event => { const button = event.currentTarget; button.disabled = true; try { if (button.dataset.connected === 'true') { if (!(await askDisconnect())) return; status('Desconectando WhatsApp…'); await api('/api/flow/whatsapp/instance', {method: 'DELETE'}); clearInterval(qrTimer); $('flowQrPanel').hidden = true; controls.group.clear('Conecte seu WhatsApp'); setWhatsAppButton(false); status('WhatsApp desconectado.'); return; } showQrLoading('A Evolution está gerando seu QR Code…'); status('Aguardando o QR Code da Evolution…'); const result = await api('/api/flow/whatsapp/instance', {method: 'POST', body: '{}'}); await showQr(result); if (!result.connected) status('Leia o QR Code para conectar seu WhatsApp.'); } catch (error) { $('flowQrPanel').hidden = true; status(error.message); } finally { button.disabled = false; } };
   $('flowBuilder').onsubmit = async event => { event.preventDefault(); status('Salvando fluxo…'); const flow = {enabled: $('flowEnabled').checked, facebook: {adAccountId: $('flowAdAccount').value, pageId: $('flowPage').value, formId: $('flowForm').value}, whatsapp: {instance: $('flowInstance').value.trim(), groupJid: $('flowGroup').value}}; try { currentFlow = await api(`/api/flows/${encodeURIComponent(currentFlow.id)}`, {method: 'PUT', body: JSON.stringify(flow)}); status(flow.enabled ? 'Fluxo ativo. A Página foi inscrita automaticamente nos novos leads.' : 'Fluxo salvo como rascunho.'); } catch (error) { status(error.message); } };
   listFlows();
 })();
