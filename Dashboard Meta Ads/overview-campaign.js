@@ -11,7 +11,10 @@ export function initializeOverviewCampaign({mount,getAccounts,isReady,isConnecte
     </form><p class="overview-review-note">Você revisa a campanha, a BM e a conta antes de publicar.</p>`;
   const $=s=>mount.querySelector(s),form=$('#overviewCampaignForm'),video=$('#overviewVideo'),meta=$('#overviewVideoMeta'),preview=$('#overviewVideoPreview'),pickerLabel=video.closest('.overview-video-picker'),selector=$('#overviewAccount'),destination=$('#overviewDestination'),status=$('#overviewStatus'),loading=$('#overviewLoading'),button=$('#overviewContinue'),connection=$('#overviewConnect'),progress=$('#overviewProgress'),progressText=$('#overviewProgressText'),progressDetail=$('#overviewProgressDetail'),progressTrack=progress.parentElement;
   let visible=false,preparing=false,turn=0,choosing=false,needsAuthorization=false,pickerOpen=false,previewUrl=null;
-  const catalog=()=>[...new Map(getAccounts().filter(a=>a.id).map(a=>[String(a.id).replace(/^act_/,''),a])).values()];
+  // The selected ad account is the campaign identity. Normalize it once so
+  // numeric IDs and act_ IDs cannot point at different records later on.
+  const accountId=value=>{const raw=String(value||'').trim();return /^\d+$/.test(raw)?'act_'+raw:raw};
+  const catalog=()=>[...new Map(getAccounts().filter(a=>a.id).map(a=>{const id=accountId(a.id);return [id,{...a,id}]})).values()];
   const picker=$('#overviewMemberSelector'),search=$('#overviewMemberSearch'),list=$('#overviewMemberList');
   const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const normalize=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();

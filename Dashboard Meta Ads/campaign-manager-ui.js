@@ -61,7 +61,7 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
   const panel=document.createElement('section');panel.id='campaignManager';panel.className='campaign-manager';panel.hidden=true;
   document.querySelector('.modal-tabs').after(panel);
   panel.innerHTML='<header class="cm-heading"><div><h3>Campanhas e anúncios</h3><p>Gerencie os anúncios desta conta com o seu acesso do Facebook.</p></div><div class="cm-actions"><button type="button" data-cm="refresh">Atualizar</button><button type="button" data-cm="new" class="cm-primary">Criar anúncio</button></div></header><p class="cm-notice" id="cmPermission" hidden>Seu acesso atual permite consultar. Para criar e gerenciar anúncios, <button type="button" data-cm="authorize">autorize o gerenciamento no Facebook</button>.</p><p id="cmStatus" role="status" aria-live="polite"></p><nav id="cmBreadcrumb" aria-label="Navegação das campanhas"></nav><div id="cmItems"></div><details><summary>Operações de criação</summary><div id="cmOperations"></div></details><section id="cmEditor" hidden></section>';
-  const editorDialog=document.createElement('dialog');editorDialog.className='cm-editor-dialog';editorDialog.setAttribute('aria-labelledby','cmEditorTitle');editorDialog.append(panel.querySelector('#cmEditor'));document.body.append(editorDialog);let editorTurn=0,editorTrigger=null;editorDialog.addEventListener('keydown',event=>{if(event.key==='Escape')event.stopPropagation()});editorDialog.addEventListener('cancel',event=>{if(busy)event.preventDefault()});editorDialog.addEventListener('close',()=>{editorTurn++;editorTrigger?.focus({preventScroll:true})});const $=s=>editorDialog.querySelector(s)||panel.querySelector(s);let destinationAccount=null;const currentAccount=()=>destinationAccount||getAccount();let account=null,currency='',canManage=false,level='campaign',parent=null,campaign=null,items=[],generation=0,draftKey=null,previewUrl=null,busy=false;
+  const editorDialog=document.createElement('dialog');editorDialog.className='cm-editor-dialog';editorDialog.setAttribute('aria-labelledby','cmEditorTitle');editorDialog.append(panel.querySelector('#cmEditor'));document.body.append(editorDialog);let editorTurn=0,editorTrigger=null;editorDialog.addEventListener('keydown',event=>{if(event.key==='Escape')event.stopPropagation()});editorDialog.addEventListener('cancel',event=>{if(busy)event.preventDefault()});editorDialog.addEventListener('close',()=>{editorTurn++;editorTrigger?.focus({preventScroll:true})});const $=s=>editorDialog.querySelector(s)||panel.querySelector(s);let destinationAccount=null,workflowAccount=null;const accountId=value=>{const raw=String(value||'').trim();return /^\d+$/.test(raw)?'act_'+raw:raw};const lockAccount=value=>{const id=accountId(value?.id);if(!/^act_\d+$/.test(id))throw new Error('A conta de anúncio selecionada é inválida. Atualize as contas e selecione-a novamente.');return Object.freeze({...value,id})};const currentAccount=()=>workflowAccount||destinationAccount||getAccount();let account=null,currency='',canManage=false,level='campaign',parent=null,campaign=null,items=[],generation=0,draftKey=null,previewUrl=null,busy=false;
   editorDialog.addEventListener('campaign-created',event=>showCampaignConfirmation(editorDialog,event.detail));
   const enforceMinimumBudget=()=>editorDialog.querySelectorAll('[name="dailyBudget"],[data-review-field="dailyBudget"]').forEach(input=>{input.min='6';if(!input.value||Number(input.value)<6)input.value='6'});
   new MutationObserver(enforceMinimumBudget).observe(editorDialog,{childList:true,subtree:true});
@@ -140,9 +140,9 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
   async function prepare(destination,description,isCurrent=()=>true){
     if(busy)throw new Error('Aguarde a publica\u00e7\u00e3o em andamento.');
     dispose();if(chooser.open)chooser.close();const stamp=++generation;
-    account=destination.id;destinationAccount={...destination};currency=destination.currency||'';canManage=false;level='campaign';parent=null;campaign=null;
-    const result=await api('plan',{}, {description},destination.id);
-    if(!isCurrent()||stamp!==generation||account!==destination.id)return;
+    const target=lockAccount(destination);account=target.id;destinationAccount=target;workflowAccount=target;currency=target.currency||'';canManage=false;level='campaign';parent=null;campaign=null;
+    const result=await api('plan',{}, {description},target.id);
+    if(!isCurrent()||stamp!==generation||account!==target.id||workflowAccount!==target)return;
     if(result?.draft)result.draft.dailyBudget=Math.max(6,Number(result.draft.dailyBudget)||6);
     if(!result?.draft)throw new Error('N\u00e3o foi poss\u00edvel preparar o plano. Tente novamente.');
     canManage=true;await edit(result.draft);
@@ -152,17 +152,17 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
     if(busy)throw new Error('Aguarde a publicação em andamento.');
     if(!file||file.type!=='video/mp4'||file.size>100*1024*1024)throw new Error('Selecione um vídeo MP4 de até 100 MB.');
     dispose();if(chooser.open)chooser.close();const stamp=++generation;
-    account=destination.id;destinationAccount={...destination};currency=destination.currency||'';canManage=false;level='campaign';parent=null;campaign=null;
+    const target=lockAccount(destination);account=target.id;destinationAccount=target;workflowAccount=target;currency=target.currency||'';canManage=false;level='campaign';parent=null;campaign=null;
     onProgress(12,'Enviando o vídeo para análise');const analysisData=new FormData();analysisData.append('file',file,file.name);
-    const result=await api('analyze',{},analysisData,destination.id);
-    if(!isCurrent()||stamp!==generation||account!==destination.id)return;
+    const result=await api('analyze',{},analysisData,target.id);
+    if(!isCurrent()||stamp!==generation||account!==target.id||workflowAccount!==target)return;
     if(result?.draft)result.draft.dailyBudget=Math.max(6,Number(result.draft.dailyBudget)||6);
     if(!result?.draft)throw new Error('Não foi possível analisar o vídeo. Tente novamente.');
     onProgress(68,'Análise concluída. Salvando o criativo');const uploadData=new FormData();uploadData.append('file',file,file.name);
-    const media=await api('upload',{},uploadData,destination.id);
-    if(!isCurrent()||stamp!==generation||account!==destination.id)return;
+    const media=await api('upload',{},uploadData,target.id);
+    if(!isCurrent()||stamp!==generation||account!==target.id||workflowAccount!==target)return;
     onProgress(92,'Montando a revisão da campanha');canManage=true;await edit({...result.draft,media:media.key});
     if(!isCurrent()&&stamp===generation)dispose();
   }
-  return {panel,prepare,prepareVideo,close(){if(busy)return;dispose();if(chooser.open)chooser.close();generation++},open(){const a=getAccount();if(!a)return;destinationAccount={...a};if(account!==a.id){dispose();account=a.id;level='campaign';parent=null;campaign=null;canManage=false;$('[data-cm="new"]').disabled=true}load()},busy:()=>busy};
+  return {panel,prepare,prepareVideo,close(){if(busy)return;dispose();if(chooser.open)chooser.close();workflowAccount=null;destinationAccount=null;generation++},open(){const a=getAccount();if(!a)return;const target=lockAccount(a);workflowAccount=null;destinationAccount=target;if(account!==target.id){dispose();account=target.id;level='campaign';parent=null;campaign=null;canManage=false;$('[data-cm="new"]').disabled=true}load()},busy:()=>busy};
 }
