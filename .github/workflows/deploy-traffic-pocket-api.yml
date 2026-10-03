@@ -72,6 +72,7 @@ jobs:
               -e SUPABASE_URL=http://api-gw:8000 \
               -e ANALYTICS_PUBLIC_URL=https://analytics.hurtzcompany.com \
               -p 127.0.0.1:8091:8091 traffic-pocket-api:production
+            sudo docker network connect evolution-independent traffic-pocket-api 2>/dev/null || true
             sleep 2
             sudo docker ps --filter 'name=^/traffic-pocket-api$' --filter status=running --format '{{.Names}}' | grep -qx traffic-pocket-api
             curl -fsS http://127.0.0.1:8091/ >/dev/null
