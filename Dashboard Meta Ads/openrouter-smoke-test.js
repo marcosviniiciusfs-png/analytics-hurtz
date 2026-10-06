@@ -1,20 +1,18 @@
 'use strict';
 const {configuration}=require('./campaign-planner');
-const pixel='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9WQAAAABJRU5ErkJggg==';
-
 async function main(){
   const config=configuration();
-  if(!config.key||config.provider!=='openrouter-free'||!(config.model==='openrouter/free'||config.model.endsWith(':free')))throw new Error('OpenRouter gratuita nao esta configurada.');
-  const response=await fetch('https://openrouter.ai/api/v1/chat/completions',{
+  if(!config.key||config.provider!=='openrouter')throw new Error('OpenRouter nao esta configurada.');
+  const response=await fetch('https://openrouter.ai/api/alpha/decisions',{
     method:'POST',
     headers:{Authorization:'Bearer '+config.key,'Content-Type':'application/json','HTTP-Referer':process.env.ANALYTICS_PUBLIC_URL||'https://analytics.hurtzcompany.com','X-Title':'Traffic Pocket'},
     signal:AbortSignal.timeout(90000),
-    body:JSON.stringify({model:config.model,max_tokens:40,temperature:0,messages:[{role:'user',content:[{type:'text',text:'Responda somente {"ok":true}.'},{type:'image_url',image_url:{url:'data:image/png;base64,'+pixel}}]}]})
+    body:JSON.stringify({model:'typesafe/jev-1.13',state:{evidence:'Crédito para imóvel em Rio Branco - AC. Fale no WhatsApp.'},questions:{destination:{type:'choice',instructions:'Qual destino é pedido em `evidence`?',criteria:{whatsapp:'Pede contato pelo WhatsApp.',other:'Não pede WhatsApp.'}}}})
   });
   const body=await response.text();
   if(!response.ok)throw new Error(`OpenRouter respondeu HTTP ${response.status}.`);
-  const content=JSON.parse(body)?.choices?.[0]?.message?.content||'';
-  if(!String(content).includes('ok'))throw new Error('A OpenRouter respondeu sem o conteúdo esperado.');
-  console.log('OpenRouter multimodal check passed');
+  const answer=JSON.parse(body)?.answers?.destination;
+  if(answer?.type!=='choice'||answer.choice!=='whatsapp')throw new Error('O Jev respondeu sem a decisão esperada.');
+  console.log('Jev decision check passed');
 }
 main().catch(error=>{console.error(error.message);process.exit(1)});

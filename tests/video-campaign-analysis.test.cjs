@@ -1,19 +1,26 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {analyzeCampaignVideo,analysisDescription}=require('../Dashboard Meta Ads/video-campaign-analysis');
 const file={type:'video/mp4',data:Buffer.from('00000018667479706d703432','hex')};
-test('video analysis uses only OpenRouter free and returns structured campaign hints',async()=>{
+
+test('video analysis sends extracted evidence to Jev and returns structured campaign hints',async()=>{
  let body;
- const response={transcript:'Clique no WhatsApp em Rio Branco',visibleText:['Crédito imobiliário'],location:'Rio Branco, Acre',destination:'whatsapp',audience:{gender:'all',ageMin:20,ageMax:45},offer:'Crédito para imóvel',cta:'Fale no WhatsApp',confidence:'high'};
- const fetchImpl=async(url,request)=>{body=JSON.parse(request.body);return {ok:true,json:async()=>({choices:[{message:{content:JSON.stringify(response)}}]})}};
- const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter-free',model:'openrouter/free'},extract:async()=>({images:['image'],audio:''}),fetchImpl});
- assert.equal(body.model,'openrouter/free');assert.equal(result.destination,'whatsapp');assert.match(analysisDescription(result),/Rio Branco/);assert.match(analysisDescription(result),/WhatsApp/);
+ const answers={destination:{type:'choice',choice:'whatsapp',confidence:.9},product:{type:'choice',choice:'housing_credit',confidence:.9},audience:{type:'choice',choice:'all',confidence:.9},illustrative:{type:'noul',noul:.9},cta:{type:'choice',choice:'whatsapp',confidence:.9}};
+ const fetchImpl=async(url,request)=>{assert.match(url,/\/api\/alpha\/decisions$/);body=JSON.parse(request.body);return {ok:true,text:async()=>JSON.stringify({answers})}};
+ const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({images:['image'],visibleText:['RIO BRANCO - AC','Crédito para imóvel'],audio:''}),fetchImpl});
+ assert.equal(body.model,'typesafe/jev-1.13');
+ assert.equal(body.state.evidence.includes('RIO BRANCO - AC'),true);
+ assert.equal(result.destination,'whatsapp');
+ assert.equal(result.offer,'Crédito para imóvel');
+ assert.equal(result.location,'RIO BRANCO - AC');
+ assert.match(analysisDescription(result),/WhatsApp/);
 });
-test('video analysis rejects non-free configuration before any external request',async()=>{
- const options={config:{key:'private',provider:'openrouter-free',model:'paid/model'},extract:async()=>({images:['image']}),fetchImpl:async()=>{throw Error('must not call')}};
- await assert.rejects(analyzeCampaignVideo(file,options),/modelo gratuito/);
+
+test('video analysis rejects a non-OpenRouter configuration before any external request',async()=>{
+ const options={config:{key:'private',provider:'groq'},extract:async()=>({images:['image']}),fetchImpl:async()=>{throw Error('must not call')}};
+ await assert.rejects(analyzeCampaignVideo(file,options),/chave OpenRouter/);
 });
-test('video analysis accepts JSON returned in a markdown fence by the free router',async()=>{
- const response={visibleText:['Crédito'],location:'Rio Branco - AC',destination:'whatsapp',audience:{gender:'all',ageMin:18,ageMax:65},offer:'Crédito para imóvel',benefits:['Atendimento'],cta:'Fale conosco',confidence:'high'};
- const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter-free',model:'openrouter/free'},extract:async()=>({images:['image'],audio:''}),fetchImpl:async()=>({ok:true,text:async()=>JSON.stringify({choices:[{message:{content:'```json\n'+JSON.stringify(response)+'\n```'}}]})})});
- assert.equal(result.location,'Rio Branco - AC');assert.equal(result.destination,'whatsapp');
+
+test('video analysis gives a clear retry error when Jev is temporarily limited',async()=>{
+ const result=analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({images:[],visibleText:['OFERTA'],audio:''}),fetchImpl:async()=>({ok:false,status:429,text:async()=>JSON.stringify({error:{message:'rate limited'}})})});
+ await assert.rejects(result,/limitou o Jev/);
 });
