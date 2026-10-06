@@ -40,6 +40,23 @@ jobs:
             ssh -i ~/.ssh/traffic-pocket-deploy -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" \
               "mkdir -p '/home/$VPS_USER/traffic-pocket' && tar -xzf - -C '/home/$VPS_USER/traffic-pocket'"
 
+      - name: Sync OpenRouter key
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.TRAFFIC_POCKET_OPENROUTER_KEY }}
+        run: |
+          test -n "$OPENROUTER_API_KEY"
+          printf '%s\n' "$OPENROUTER_API_KEY" |
+            ssh -i ~/.ssh/traffic-pocket-deploy -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" '
+              set -eu
+              IFS= read -r key
+              file=/opt/traffic-pocket-supabase/secrets/campaign-ai.env
+              temp=$(mktemp)
+              if sudo test -f "$file"; then sudo cat "$file" | grep -v "^OPENROUTER_API_KEY=" > "$temp" || true; fi
+              printf "OPENROUTER_API_KEY=%s\n" "$key" >> "$temp"
+              sudo install -m 600 "$temp" "$file"
+              rm -f "$temp"
+            '
+
       - name: Ensure Traffic Pocket HTTPS route
         run: |
           ssh -i ~/.ssh/traffic-pocket-deploy -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" "
