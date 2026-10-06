@@ -2095,6 +2095,11 @@ async function personalRequest(route,options={}){
   if(!response.ok)throw Object.assign(new Error(payload.error||'Não foi possível concluir a conexão.'),{status:response.status});
   return payload;
 }
+// fetch does not expose request-body progress. Video analysis uses this narrow
+// XHR transport so its progress bar is based on bytes actually sent.
+function personalUploadRequest(route,options={},onProgress=()=>{}){
+  return new Promise((resolve,reject)=>{const xhr=new XMLHttpRequest(),target=MONITOR_API_BASE+route,token=userStorage.getItem(MONITOR_SESSION_KEY);xhr.open(options.method||'POST',target,true);xhr.responseType='json';if(token)xhr.setRequestHeader('Authorization','Bearer '+token);for(const [name,value] of Object.entries(options.headers||{}))xhr.setRequestHeader(name,value);xhr.upload.onprogress=event=>{if(event.lengthComputable)onProgress(Math.max(0,Math.min(100,Math.round(event.loaded*100/event.total))))};xhr.onerror=()=>reject(new TypeError('A conexão com o servidor foi interrompida.'));xhr.ontimeout=()=>reject(new Error('O envio do vídeo excedeu o tempo limite.'));xhr.onload=()=>{const payload=xhr.response||(()=>{try{return JSON.parse(xhr.responseText||'{}')}catch{return {}}})();if(xhr.status<200||xhr.status>=300)return reject(Object.assign(new Error(payload.error||'Não foi possível enviar o vídeo.'),{status:xhr.status}));resolve(payload)};xhr.send(options.body)});
+}
 function forgetPersonalCache(){
   if(!personalIdentity?.user?.id)return;
   const prefix=`hurtz-user:${personalIdentity.user.id}:`;
@@ -2175,8 +2180,8 @@ if(personalIdentity?.personal){
 setInterval(()=>{if(!document.hidden&&!facebookLoginBusy&&facebookSettings&&Date.now()-facebookNonceAt>5*60000)void prepareFacebookLogin().catch(()=>{})},60000);
 if(window.HURTZ_LOCAL||personalIdentity?.tools){const tools=await import('./local-ui.js?v=20260917-facebook-button-state');showDashboardView=await tools.initializeLocalTools({showView:showDashboardView,identity:personalIdentity});const view=new URLSearchParams(location.search).get('view');if(view)showDashboardView(view)}
 await import('./text-encoding-repair.js?v=20260917-ui-text');
-const campaignModule=await import('./campaign-manager-ui.js?v=20260925-selected-number-retry');
-const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,getAccount:()=>selectedAccount,escapeHtml});
+const campaignModule=await import('./campaign-manager-ui.js?v=20261006-real-upload-progress');
+const campaignManagerUI=campaignModule.initializeCampaignManager({request:personalRequest,uploadRequest:personalUploadRequest,getAccount:()=>selectedAccount,escapeHtml});
 const prepareCampaignWithAccount=campaignManagerUI.prepare;campaignManagerUI.prepare=(destination,...args)=>{window.hurtzCampaignAccount=destination?.id||'';return prepareCampaignWithAccount(destination,...args)};
 const prepareVideoCampaignWithAccount=campaignManagerUI.prepareVideo;campaignManagerUI.prepareVideo=(destination,...args)=>{window.hurtzCampaignAccount=destination?.id||'';return prepareVideoCampaignWithAccount(destination,...args)};
 const campaignTab=document.createElement('button');campaignTab.type='button';campaignTab.dataset.accountTab='manage';campaignTab.textContent='Campanhas';document.querySelector('[data-account-tab="campaigns"]').textContent='Desempenho';document.querySelector('.modal-tabs').prepend(campaignTab);

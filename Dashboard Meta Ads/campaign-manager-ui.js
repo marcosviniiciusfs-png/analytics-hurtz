@@ -59,7 +59,7 @@ export async function uploadCampaignMedia(request,file,type,onProgress=()=>{}){
     const result=await request('upload-finish',{upload:transfer.upload});mediaTransfers.delete(file);return result;
   }catch(error){if(error.status===410)mediaTransfers.delete(file);throw error}
 }
-export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
+export function initializeCampaignManager({request,uploadRequest=request,getAccount,escapeHtml:esc}){
   const panel=document.createElement('section');panel.id='campaignManager';panel.className='campaign-manager';panel.hidden=true;
   document.querySelector('.modal-tabs').after(panel);
   panel.innerHTML='<header class="cm-heading"><div><h3>Campanhas e anúncios</h3><p>Gerencie os anúncios desta conta com o seu acesso do Facebook.</p></div><div class="cm-actions"><button type="button" data-cm="refresh">Atualizar</button><button type="button" data-cm="new" class="cm-primary">Criar anúncio</button></div></header><p class="cm-notice" id="cmPermission" hidden>Seu acesso atual permite consultar. Para criar e gerenciar anúncios, <button type="button" data-cm="authorize">autorize o gerenciamento no Facebook</button>.</p><p id="cmStatus" role="status" aria-live="polite"></p><nav id="cmBreadcrumb" aria-label="Navegação das campanhas"></nav><div id="cmItems"></div><details><summary>Operações de criação</summary><div id="cmOperations"></div></details><section id="cmEditor" hidden></section>';
@@ -70,6 +70,7 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
   const cache=new Map(),labels={campaign:'Campanha',adset:'Conjunto',ad:'Anúncio'},statusName={ACTIVE:'Ativo',PAUSED:'Pausado',CAMPAIGN_PAUSED:'Campanha pausada',ADSET_PAUSED:'Conjunto pausado',PENDING_REVIEW:'Em análise',DISAPPROVED:'Reprovado',WITH_ISSUES:'Com problemas',IN_PROCESS:'Processando',ARCHIVED:'Arquivado',DELETED:'Excluído'};
   let api=(action,params={},payload,owner=account)=>request('/api/ads-manager/'+action+'?'+new URLSearchParams({account:owner,...params}),payload?{method:'POST',body:payload instanceof FormData?payload:JSON.stringify(payload)}:{});
   const apiRequest=api;
+  const apiUpload=(action,payload,owner,onProgress)=>uploadRequest('/api/ads-manager/'+action+'?'+new URLSearchParams({account:owner}),{method:'POST',body:payload},onProgress);
   api=async(action,params={},payload,owner=account)=>{
     if(action!=='create')return apiRequest(action,params,payload,owner);
     const deadline=Date.now()+5*60*1000,loader=editorDialog.querySelector('.cm-publish-loader')?.publishLoader;
@@ -158,17 +159,17 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
     if(!file||file.type!=='video/mp4'||file.size>100*1024*1024)throw new Error('Selecione um vídeo MP4 de até 100 MB.');
     dispose();if(chooser.open)chooser.close();const stamp=++generation;
     const target=lockAccount(destination);account=target.id;destinationAccount=target;workflowAccount=target;currency=target.currency||'';canManage=false;level='campaign';parent=null;campaign=null;
-    onProgress(12,'Enviando o vídeo para análise');const analysisData=new FormData();analysisData.append('file',file,file.name);
-    const result=await api('analyze',{},analysisData,target.id);
+    onProgress(0,'Enviando o vídeo para análise');const analysisData=new FormData();analysisData.append('file',file,file.name);
+    const result=await apiUpload('analyze',analysisData,target.id,percent=>{const uploaded=Math.round(percent*.35);onProgress(uploaded,percent<100?'Enviando o vídeo para análise ('+percent+'%)':'Vídeo recebido. Extraindo fala e imagens')});
     if(!isCurrent()||stamp!==generation||account!==target.id||workflowAccount!==target)return;
     if(result?.draft)result.draft.dailyBudget=Math.max(6,Number(result.draft.dailyBudget)||6);
     if(!result?.draft)throw new Error('Não foi possível analisar o vídeo. Tente novamente.');
     // New API responses already contain the Meta media key. Retain the fallback
     // for an older API during a rolling deploy, but never send the file twice
     // once both sides are current.
-    let mediaKey=result.media;if(!mediaKey){onProgress(68,'Salvando o criativo');const uploadData=new FormData();uploadData.append('file',file,file.name);mediaKey=(await api('upload',{},uploadData,target.id)).key}
+    let mediaKey=result.media;if(!mediaKey){onProgress(70,'Salvando o criativo');const uploadData=new FormData();uploadData.append('file',file,file.name);mediaKey=(await apiUpload('upload',uploadData,target.id,percent=>onProgress(70+Math.round(percent*.15),'Salvando o criativo na Meta ('+percent+'%)'))).key}
     if(!isCurrent()||stamp!==generation||account!==target.id||workflowAccount!==target)return;
-    onProgress(92,'Montando a revisão da campanha');canManage=true;await edit({...result.draft,media:mediaKey});
+    onProgress(85,'Análise e criativo confirmados. Carregando ativos da conta');canManage=true;await edit({...result.draft,media:mediaKey});
     if(!isCurrent()&&stamp===generation)dispose();
   }
   return {panel,prepare,prepareVideo,close(){if(busy)return;dispose();if(chooser.open)chooser.close();workflowAccount=null;destinationAccount=null;generation++},open(){const a=getAccount();if(!a)return;const target=lockAccount(a);workflowAccount=null;destinationAccount=target;if(account!==target.id){dispose();account=target.id;level='campaign';parent=null;campaign=null;canManage=false;$('[data-cm="new"]').disabled=true}load()},busy:()=>busy};
