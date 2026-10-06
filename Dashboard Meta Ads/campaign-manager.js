@@ -32,18 +32,20 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
   // for ad accounts whose `business` field is absent from the account catalog.
   async function pages(conn,account){
     const items=new Map(),add=list=>{for(const page of list||[]){const pageId=String(page?.id||'');if(!/^\d+$/.test(pageId))continue;items.set(pageId,{...(items.get(pageId)||{}),...page,id:pageId,name:String(page.name||items.get(pageId)?.name||pageId)})}};
-    try{add(await rows(conn.token,account+'/promote_pages',{fields:'id,name,whatsapp_number'}))}catch{try{add(await rows(conn.token,account+'/promote_pages',{fields:'id,name'}))}catch{}}
-    // A page directly administered by the connected Facebook user is usable in
-    // Ads Manager even when the account edge above has not synchronized yet.
-    try{add(await rows(conn.token,'me/accounts',{fields:'id,name,whatsapp_number'}))}catch{try{add(await rows(conn.token,'me/accounts',{fields:'id,name'}))}catch{}}
+    const fetchPages=async edge=>{try{return await rows(conn.token,edge,{fields:'id,name,whatsapp_number'})}catch{try{return await rows(conn.token,edge,{fields:'id,name'})}catch{return []}}};
+    // The two normal sources are independent. Query them together; this is the
+    // common path and avoids a business-wide serial scan on every review.
+    const [promoted,direct]=await Promise.all([fetchPages(account+'/promote_pages'),fetchPages('me/accounts')]);add(promoted);add(direct);
+    // Business edges complement the direct sources. They run concurrently, so
+    // accounts with several BMs no longer wait one Graph request at a time.
     try{
       const businesses=await rows(conn.token,'me/businesses',{fields:'id'});
-      for(const business of businesses){const businessId=String(business?.id||'');if(!/^\d+$/.test(businessId))continue;for(const edge of ['owned_pages','client_pages']){try{add(await rows(conn.token,businessId+'/'+edge,{fields:'id,name,whatsapp_number'}))}catch{try{add(await rows(conn.token,businessId+'/'+edge,{fields:'id,name'}))}catch{}}}}
+      await Promise.all(businesses.map(async business=>{const businessId=String(business?.id||'');if(!/^\d+$/.test(businessId))return;const [owned,client]=await Promise.all([fetchPages(businessId+'/owned_pages'),fetchPages(businessId+'/client_pages')]);add(owned);add(client)}));
     }catch{}
     return [...items.values()];
   }
   const requestedInterests=description=>/\binteress(?:e|es|ado|ada|ados|adas)\b/i.test(String(description||''));
-  async function instagramProfiles(conn,account,available){const profiles=[];for(const page of available){try{const result=await graph(conn.token,page.id,{fields:'instagram_business_account{id,username,profile_picture_url}'}),item=result.instagram_business_account;if(item?.id)profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:page.id})}catch{}}try{for(const item of await rows(conn.token,account+'/instagram_accounts',{fields:'id,username,profile_pic'}))if(!profiles.some(profile=>profile.id===item.id))profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:''})}catch{}return profiles}
+  async function instagramProfiles(conn,account,available){const profiles=[];await Promise.all(available.map(async page=>{try{const result=await graph(conn.token,page.id,{fields:'instagram_business_account{id,username,profile_picture_url}'}),item=result.instagram_business_account;if(item?.id)profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:page.id})}catch{}}));try{for(const item of await rows(conn.token,account+'/instagram_accounts',{fields:'id,username,profile_pic'}))if(!profiles.some(profile=>profile.id===item.id))profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:''})}catch{}return profiles}
   async function whatsappNumbers(user,conn,account,available,accountInfo={},auditPage=''){
     const failures=[],numbers=[],audited=new Set();
     const addNumber=(value,page,details={})=>{
@@ -136,7 +138,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       if(action==='whatsapps'){const p=await pages(conn,account);return whatsappNumbers(user,conn,account,p,accountInfo)}
       if(action==='assets'){const p=await pages(conn,account),instagram=await instagramProfiles(conn,account,p),whatsapps=p.flatMap(page=>{const phone=String(page.whatsapp_number||'').replace(/\D/g,'');return /^\d{10,15}$/.test(phone)?[{id:phone,phone,label:'WhatsApp vinculado à Página',pageId:String(page.id),pageName:String(page.name||page.id)}]:[]}),whatsapp={state:whatsapps.length?'ready':'empty',items:whatsapps,message:whatsapps.length?'Selecione um número vinculado à Página ou informe outro.':'Informe o número com DDI e DDD.',retryable:false};return {pages:p,instagram,whatsapps,whatsapp,warning:''}}
       if(action==='forms'){const page=url.searchParams.get('page'),pageId=id(page);await pageAccess(conn,account,pageId);const pageToken=conn.pageTokens?.[pageId]||conn.token;return {items:await rows(pageToken,pageId+'/leadgen_forms',{fields:'id,name,status'})}}
-      if(action==='operations')return {items:(read('ads-operations',user.id)||[]).filter(x=>x.account===account).map(({key,account,state,created,error,updated})=>({key,account,state,created,error,updated}))};
+      if(action==='operations')return {items:(read('ads-operations',user.id)||[]).filter(x=>x.account===account).map(({key,account,state,stage,created,error,updated})=>({key,account,state,stage,created,error,updated}))};
       throw fail(404,'Consulta não encontrada.');
     }
     if(req.method!=='POST')throw fail(405,'Método não permitido.');
@@ -165,7 +167,11 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
         if(analysis.audience.ageMin!=null&&analysis.audience.ageMax!=null&&analysis.audience.ageMin<=analysis.audience.ageMax){draft.ageMin=analysis.audience.ageMin;draft.ageMax=analysis.audience.ageMax}
         stage='validando a localização sugerida';let location;try{location=await Promise.race([locationFor(conn,draft.locationQuery||'Brasil'),new Promise((_,reject)=>setTimeout(()=>reject(fail(504,'A Meta demorou para validar a localização.')),12000))])}catch(error){console.warn('[campaign-video] localização sugerida indisponível; usando Brasil como padrão.',{account,user:user.id,message:error?.message||'erro sem mensagem'});location={key:'BR',type:'country',name:'Brasil',country:'BR',region:''};draft.locationQuery='Brasil'}current(user,conn);
         const saved=read('ads-locations',user.id)||[];write('ads-locations',user.id,[...saved.filter(item=>item.key!==location.key||item.type!==location.type),location].slice(-200));
-        return {draft:{...draft,page:page.id,countries:[location.country],location,interests:[],analysis},reviewRequired:true};
+        // The video is already in memory from analysis. Upload it to Meta here
+        // and return its scoped key, instead of making the browser upload the
+        // identical file a second time after analysis.
+        stage='enviando o criativo para a Meta';const media=await uploadMedia(user,conn,account,{file});
+        return {draft:{...draft,page:page.id,countries:[location.country],location,interests:[],analysis},media:media.key,reviewRequired:true};
       }catch(error){console.error('[campaign-video] falha ao preparar revisão.',{stage,account,user:user.id,status:error?.status||500,message:error?.message||'erro sem mensagem'});throw error?.status?error:fail(502,'Não foi possível preparar a revisão do vídeo. Tente novamente.')}finally{planning.delete(user.id)}
     }
     if(action==='plan'){

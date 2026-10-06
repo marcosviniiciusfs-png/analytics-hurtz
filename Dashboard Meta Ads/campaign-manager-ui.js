@@ -3,12 +3,14 @@ export function showCampaignPublishLoader(dialog,initialStage='Enviando criativo
   const existing=dialog.querySelector('.cm-publish-loader');if(existing)return existing.publishLoader;
   const editor=dialog.querySelector('#cmEditor'),wasInert=editor.inert;
   const loader=document.createElement('section');loader.className='cm-publish-loader';loader.tabIndex=-1;loader.setAttribute('role','status');loader.setAttribute('aria-live','polite');loader.setAttribute('aria-label','Publicando na Meta. Criando campanha, conjunto e anúncio pausados. Aguarde a confirmação.');
-  loader.innerHTML='<div class="cm-stage-loader-card"><span class="cm-stage-spinner" aria-hidden="true"></span><p class="cm-stage-kicker">PUBLICAÇÃO NA META</p><strong class="cm-publish-caption">'+initialStage+'</strong><p class="cm-stage-copy">Estamos criando a campanha, o conjunto e o anúncio. Esta etapa pode levar alguns instantes.</p><div class="cm-upload-meter" role="progressbar" aria-label="Progresso do envio do criativo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="cm-upload-meter-heading"><span>Envio do criativo</span><strong class="cm-upload-percent">0%</strong></div><div class="cm-upload-track"><span class="cm-upload-fill"></span></div></div><ol class="cm-stage-steps" aria-hidden="true"><li>Campanha</li><li>Conjunto</li><li>Anúncio</li></ol></div>';
+  loader.innerHTML='<div class="cm-stage-loader-card"><span class="cm-stage-spinner" aria-hidden="true"></span><p class="cm-stage-kicker">PUBLICAÇÃO NA META</p><strong class="cm-publish-caption">'+initialStage+'</strong><p class="cm-stage-copy">O progresso avança somente após uma confirmação da Meta.</p><div class="cm-upload-meter" role="progressbar" aria-label="Progresso confirmado da publicação" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="cm-upload-meter-heading"><span>Progresso confirmado</span><strong class="cm-upload-percent">0%</strong></div><div class="cm-upload-track"><span class="cm-upload-fill"></span></div></div><ol class="cm-stage-steps" aria-hidden="true"><li>Campanha</li><li>Conjunto</li><li>Anúncio</li></ol></div>';
   editor.inert=true;dialog.setAttribute('aria-busy','true');dialog.append(loader);loader.focus({preventScroll:true});
   const setStage=stage=>{loader.querySelector('.cm-publish-caption').textContent=stage;loader.setAttribute('aria-label',stage)};
   const setProgress=value=>{const progress=Math.max(0,Math.min(100,Math.round(Number(value)||0))),meter=loader.querySelector('.cm-upload-meter');meter.style.setProperty('--cm-upload-progress',String(progress/100));meter.setAttribute('aria-valuenow',String(progress));meter.querySelector('.cm-upload-percent').textContent=progress+'%'};
   const statusMessage=editor.querySelector('#cmSendStatus');
-  const syncProgress=()=>{const message=statusMessage?.textContent||'',match=message.match(/Enviando criativo\.\.\.\s*(\d+)%/);if(match)setProgress(match[1]);else if(/^(Confirmando criativo|Criando campanha|Vídeo sendo processado)/.test(message)){setProgress(100);setStage(message)}};
+  // Percentages advance only after a confirmed upload chunk or a persisted Meta
+  // object. Never show 100% while campaign creation is still in flight.
+  const syncProgress=()=>{const message=statusMessage?.textContent||'',match=message.match(/Enviando criativo\.\.\.\s*(\d+)%/);if(match)setProgress(Math.round(Number(match[1])*.45));else if(/^(Confirmando criativo|Criando campanha|Vídeo sendo processado)/.test(message))setStage(message)};
   const statusObserver=statusMessage&&new MutationObserver(syncProgress);statusObserver?.observe(statusMessage,{childList:true,subtree:true,characterData:true});syncProgress();
   const stop=()=>{statusObserver?.disconnect();loader.remove();editor.inert=wasInert;dialog.removeAttribute('aria-busy');if(dialog.open&&statusMessage){statusMessage.tabIndex=-1;statusMessage.focus({preventScroll:true})}};
   stop.setStage=setStage;stop.setProgress=setProgress;loader.publishLoader=stop;return stop;
@@ -70,13 +72,16 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
   const apiRequest=api;
   api=async(action,params={},payload,owner=account)=>{
     if(action!=='create')return apiRequest(action,params,payload,owner);
-    const deadline=Date.now()+5*60*1000;
-    for(;;){try{const result=await apiRequest(action,params,payload,owner);setTimeout(()=>editorDialog.dispatchEvent(new CustomEvent('campaign-created',{detail:{campaign:payload,created:result.created||result,account:{...currentAccount()},currency}})),0);return result}catch(error){
+    const deadline=Date.now()+5*60*1000,loader=editorDialog.querySelector('.cm-publish-loader')?.publishLoader;
+    const updateProgress=async()=>{try{const data=await apiRequest('operations',{},undefined,owner),operation=data.items.find(item=>item.key===payload?.key)||data.items.filter(item=>item.state==='creating').sort((a,b)=>b.updated-a.updated)[0];if(!operation)return;const created=operation.created||{};if(created.ad){loader?.setProgress(100);loader?.setStage('Anúncio confirmado pela Meta.')}else if(created.creative){loader?.setProgress(88);loader?.setStage('Criativo confirmado. Criando o anúncio...')}else if(created.adset){loader?.setProgress(72);loader?.setStage('Conjunto confirmado. Criando o criativo...')}else if(created.campaign){loader?.setProgress(56);loader?.setStage('Campanha confirmada. Criando o conjunto...')}else{loader?.setProgress(45);loader?.setStage('Criando a campanha na Meta...')}}catch{}};
+    loader?.setProgress(45);loader?.setStage('Criativo confirmado. Criando a campanha...');
+    const poll=setInterval(updateProgress,500);await updateProgress();
+    try{for(;;){try{const result=await apiRequest(action,params,payload,owner);setTimeout(()=>editorDialog.dispatchEvent(new CustomEvent('campaign-created',{detail:{campaign:payload,created:result.created||result,account:{...currentAccount()},currency}})),0);return result}catch(error){
       const waiting=error?.status===409&&/(vídeo ainda está sendo processado|capa do vídeo ainda não está disponível)/i.test(error.message||'');
       if(!waiting||Date.now()>=deadline)throw error;
       const status=$('#cmSendStatus');if(status)status.textContent='Vídeo sendo processado pela Meta. Aguardando para publicar automaticamente...';
       await new Promise(resolve=>setTimeout(resolve,1500));
-    }}
+    }}}finally{clearInterval(poll)}
   };
   function notice(message){$('#cmStatus').textContent=message}
   function dispose(){editorTurn++;if(editorDialog.open)editorDialog.close();if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=null;$('#cmEditor').hidden=true;$('#cmEditor').replaceChildren()}
@@ -158,10 +163,12 @@ export function initializeCampaignManager({request,getAccount,escapeHtml:esc}){
     if(!isCurrent()||stamp!==generation||account!==target.id||workflowAccount!==target)return;
     if(result?.draft)result.draft.dailyBudget=Math.max(6,Number(result.draft.dailyBudget)||6);
     if(!result?.draft)throw new Error('Não foi possível analisar o vídeo. Tente novamente.');
-    onProgress(68,'Análise concluída. Salvando o criativo');const uploadData=new FormData();uploadData.append('file',file,file.name);
-    const media=await api('upload',{},uploadData,target.id);
+    // New API responses already contain the Meta media key. Retain the fallback
+    // for an older API during a rolling deploy, but never send the file twice
+    // once both sides are current.
+    let mediaKey=result.media;if(!mediaKey){onProgress(68,'Salvando o criativo');const uploadData=new FormData();uploadData.append('file',file,file.name);mediaKey=(await api('upload',{},uploadData,target.id)).key}
     if(!isCurrent()||stamp!==generation||account!==target.id||workflowAccount!==target)return;
-    onProgress(92,'Montando a revisão da campanha');canManage=true;await edit({...result.draft,media:media.key});
+    onProgress(92,'Montando a revisão da campanha');canManage=true;await edit({...result.draft,media:mediaKey});
     if(!isCurrent()&&stamp===generation)dispose();
   }
   return {panel,prepare,prepareVideo,close(){if(busy)return;dispose();if(chooser.open)chooser.close();workflowAccount=null;destinationAccount=null;generation++},open(){const a=getAccount();if(!a)return;const target=lockAccount(a);workflowAccount=null;destinationAccount=target;if(account!==target.id){dispose();account=target.id;level='campaign';parent=null;campaign=null;canManage=false;$('[data-cm="new"]').disabled=true}load()},busy:()=>busy};
