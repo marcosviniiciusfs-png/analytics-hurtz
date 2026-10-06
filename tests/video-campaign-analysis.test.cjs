@@ -12,3 +12,8 @@ test('video analysis rejects non-free configuration before any external request'
  const options={config:{key:'private',provider:'openrouter-free',model:'paid/model'},extract:async()=>({images:['image']}),fetchImpl:async()=>{throw Error('must not call')}};
  await assert.rejects(analyzeCampaignVideo(file,options),/modelo gratuito/);
 });
+test('video analysis accepts JSON returned in a markdown fence by the free router',async()=>{
+ const response={visibleText:['Crédito'],location:'Rio Branco - AC',destination:'whatsapp',audience:{gender:'all',ageMin:18,ageMax:65},offer:'Crédito para imóvel',benefits:['Atendimento'],cta:'Fale conosco',confidence:'high'};
+ const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter-free',model:'openrouter/free'},extract:async()=>({images:['image'],audio:''}),fetchImpl:async()=>({ok:true,text:async()=>JSON.stringify({choices:[{message:{content:'```json\n'+JSON.stringify(response)+'\n```'}}]})})});
+ assert.equal(result.location,'Rio Branco - AC');assert.equal(result.destination,'whatsapp');
+});
