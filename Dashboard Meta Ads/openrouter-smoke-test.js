@@ -4,7 +4,7 @@ const pixel='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwA
 
 async function main(){
   const config=configuration();
-  if(!config.key||config.provider!=='openrouter-free'||config.model!=='openrouter/free')throw new Error('OpenRouter gratuita nao esta configurada.');
+  if(!config.key||config.provider!=='openrouter-free'||!(config.model==='openrouter/free'||config.model.endsWith(':free')))throw new Error('OpenRouter gratuita nao esta configurada.');
   const response=await fetch('https://openrouter.ai/api/v1/chat/completions',{
     method:'POST',
     headers:{Authorization:'Bearer '+config.key,'Content-Type':'application/json','HTTP-Referer':process.env.ANALYTICS_PUBLIC_URL||'https://analytics.hurtzcompany.com','X-Title':'Traffic Pocket'},
