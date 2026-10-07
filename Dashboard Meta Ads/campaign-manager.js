@@ -25,24 +25,16 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
   const current=(user,conn)=>{if(connection(user).revision!==conn.revision)throw fail(409,'A conexão mudou. Reabra esta conta antes de continuar.')};
   async function access(user,account,manage=false){const {conn,accounts}=await authorizeAccounts(user,[account]);if(manage&&!conn.scopes?.includes('ads_management'))throw fail(403,'Autorize o gerenciamento de anúncios. O app precisa ter ads_management aprovado para seu acesso.');return {conn,account:accounts.find(a=>a.id===account)}}
   async function owned(conn,account,object,fields='id,account_id,name,status,effective_status'){const item=await graph(conn.token,id(object),{fields});if('act_'+item.account_id!==account)throw fail(403,'Este item não pertence à conta selecionada.');return item}
-  // `promote_pages` is the most precise account edge, but Meta can return an
-  // empty list even when the connected person is an administrator of Pages in
-  // the account's Business. Keep it as the first source and merge the Pages
-  // granted to the person and to their Businesses. This is especially needed
-  // for ad accounts whose `business` field is absent from the account catalog.
+  // A Page being administered by the connected person is not sufficient to
+  // publish from an ad account. Meta must expose the Page on the account's
+  // `promote_pages` edge; otherwise the campaign endpoint rejects the pair
+  // with “The ad account, Page or action ... is not visible to you”. Do not
+  // merge `me/accounts` or Business-wide pages here: those are useful for
+  // administration, but can be unrelated to the selected ad account.
   async function pages(conn,account){
-    const items=new Map(),add=list=>{for(const page of list||[]){const pageId=String(page?.id||'');if(!/^\d+$/.test(pageId))continue;items.set(pageId,{...(items.get(pageId)||{}),...page,id:pageId,name:String(page.name||items.get(pageId)?.name||pageId)})}};
-    const fetchPages=async edge=>{try{return await rows(conn.token,edge,{fields:'id,name,whatsapp_number'})}catch{try{return await rows(conn.token,edge,{fields:'id,name'})}catch{return []}}};
-    // The two normal sources are independent. Query them together; this is the
-    // common path and avoids a business-wide serial scan on every review.
-    const [promoted,direct]=await Promise.all([fetchPages(account+'/promote_pages'),fetchPages('me/accounts')]);add(promoted);add(direct);
-    // Business edges complement the direct sources. They run concurrently, so
-    // accounts with several BMs no longer wait one Graph request at a time.
-    try{
-      const businesses=await rows(conn.token,'me/businesses',{fields:'id'});
-      await Promise.all(businesses.map(async business=>{const businessId=String(business?.id||'');if(!/^\d+$/.test(businessId))return;const [owned,client]=await Promise.all([fetchPages(businessId+'/owned_pages'),fetchPages(businessId+'/client_pages')]);add(owned);add(client)}));
-    }catch{}
-    return [...items.values()];
+    let promoted=[];
+    try{promoted=await rows(conn.token,account+'/promote_pages',{fields:'id,name,whatsapp_number'})}catch{try{promoted=await rows(conn.token,account+'/promote_pages',{fields:'id,name'})}catch{return []}}
+    return promoted.filter(page=>/^\d+$/.test(String(page?.id||''))).map(page=>({...page,id:String(page.id),name:String(page.name||page.id)}));
   }
   const requestedInterests=description=>/\binteress(?:e|es|ado|ada|ados|adas)\b/i.test(String(description||''));
   async function instagramProfiles(conn,account,available){const profiles=[];await Promise.all(available.map(async page=>{try{const result=await graph(conn.token,page.id,{fields:'instagram_business_account{id,username,profile_picture_url}'}),item=result.instagram_business_account;if(item?.id)profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:page.id})}catch{}}));try{for(const item of await rows(conn.token,account+'/instagram_accounts',{fields:'id,username,profile_pic'}))if(!profiles.some(profile=>profile.id===item.id))profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:''})}catch{}return profiles}
@@ -64,18 +56,18 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     for(const page of discoveryPages){
       try{const result=await graph(conn.pageTokens?.[page.id]||conn.token,page.id,{fields:'whatsapp_business_account{id,name}'},'v22.0'),business=result.whatsapp_business_account;if(business?.id)linkedWabas.push({id:String(business.id),page})}catch(error){failures.push(error)}
     }
-    if(!auditPage)try{
+    try{
       const ads=await rows(conn.token,account+'/ads',{fields:'creative{object_story_spec}'});
       const collectPhones=(value,pageContext)=>{
         if(typeof value==='string'){
-          for(const match of value.matchAll(/(?:wa\.me\/|api\.whatsapp\.com\/send\?[^\s"']*phone=|whatsapp:\/\/send\?[^\s"']*phone=)(\d{10,15})/ig))if(pageContext)addNumber(match[1],pageContext,{label:'WhatsApp vinculado à Página'});
+          for(const match of value.matchAll(/(?:wa\.me\/|api\.whatsapp\.com\/send\?[^\s"']*phone=|whatsapp:\/\/send\?[^\s"']*phone=)(\d{10,15})/ig))if(pageContext&&(!auditPage||String(pageContext.id)===String(auditPage)))addNumber(match[1],pageContext,{label:'WhatsApp vinculado à Página'});
           return;
         }
         if(Array.isArray(value)){for(const item of value)collectPhones(item,pageContext);return}
         if(!value||typeof value!=='object')return;
         const page=pageById.get(String(value.page_id||''))||pageContext;
         for(const [key,item] of Object.entries(value)){
-          if(page&&/(?:whatsapp_)?phone_number$/i.test(key))addNumber(item,page,{label:'WhatsApp vinculado à Página'});
+          if(page&&(!auditPage||String(page.id)===String(auditPage))&&/(?:whatsapp_)?phone_number$/i.test(key))addNumber(item,page,{label:'WhatsApp vinculado à Página'});
           collectPhones(item,page);
         }
       };
@@ -113,7 +105,15 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     const businessId=String(accountInfo.business?.id||accountInfo.business_id||accountInfo.business||'').trim();if(!/^\d+$/.test(businessId))return '';
     try{for(const edge of ['owned_whatsapp_business_accounts','client_whatsapp_business_accounts']){const businesses=await rows(conn.token,businessId+'/'+edge,{fields:'id'});for(const business of businesses){if(!/^\d+$/.test(String(business.id||'')))continue;const phones=await rows(conn.token,String(business.id)+'/phone_numbers',{fields:'id,display_phone_number'}),item=phones.find(value=>String(value.display_phone_number||'').replace(/\D/g,'')===phone);const internal=String(item?.id||'');if(/^\d+$/.test(internal))return internal}}}catch{}return '';
   }
-  async function pageAccess(conn,account,page){if(!(await pages(conn,account)).some(p=>p.id===id(page)))throw fail(403,'Esta Página não está disponível para anunciar nesta conta.')}
+  async function pageAccess(conn,account,page){if(!(await pages(conn,account)).some(p=>p.id===id(page)))throw fail(403,'Esta Página não está vinculada à conta de anúncio selecionada na Meta. Em Configurações do negócio, associe a Página à conta e dê acesso ao mesmo perfil que conectou o Facebook; depois reconecte no Traffic Pocket.')}
+  async function whatsappPreflight(user,conn,account,page,phone,accountInfo){
+    const available=await pages(conn,account),selected=available.find(item=>item.id===page),auditKey=page+'|'+phone;
+    if(!selected)throw fail(403,'A Página selecionada não está disponível nesta conta de anúncio.');
+    const discovery=await Promise.race([whatsappNumbers(user,conn,account,available,accountInfo,page),new Promise((_,reject)=>setTimeout(()=>reject(fail(504,'A Meta demorou para confirmar o vínculo entre o WhatsApp e a Página. Tente novamente.')),25000))]);
+    if(discovery.audited?.includes(auditKey)||discovery.items?.some(item=>String(item.pageId)===page&&String(item.phone)===phone))return {ready:true,page,phone,pageName:selected.name};
+    if(discovery.retryable)throw fail(503,'Não foi possível auditar agora se o WhatsApp '+phone+' pertence à Página "'+selected.name+'". Nenhuma campanha foi criada; tente novamente em instantes.');
+    throw fail(403,'O WhatsApp '+phone+' não está autorizado para receber mensagens da Página "'+selected.name+'" nesta conta de anúncio. Ele pode estar vinculado a outra Página ou a outra conta. Selecione o número vinculado a esta Página ou associe esse número à Página e à conta de anúncio na Meta antes de publicar.');
+  }
   async function locationFor(conn,query){const result=await graph(conn.token,'search',{type:'adgeolocation',location_types:JSON.stringify(['city','region','country']),q:query,limit:10});const item=(result.data||[]).find(x=>['city','region','country'].includes(x.type)&&x.key&&/^[A-Z]{2}$/.test(x.country_code||x.key));if(!item)throw fail(400,'A Meta não encontrou a localização sugerida. Descreva a cidade, estado ou país com mais precisão.');return {key:String(item.key),type:item.type,name:item.name,country:item.country_code||item.key,region:item.region||''}}
   async function interestsFor(conn,queries){const found=[];for(const query of queries){try{const result=await graph(conn.token,'search',{type:'adinterest',q:query,limit:5});const item=(result.data||[]).find(x=>x.id&&x.name);if(item&&!found.some(x=>x.id===String(item.id)))found.push({id:String(item.id),name:String(item.name).slice(0,120)})}catch{}}return found}
   async function post(user,conn,endpoint,params){current(user,conn);let response,payload;try{const data=params instanceof FormData?params:new URLSearchParams(Object.entries(params).map(([k,v])=>[k,typeof v==='object'?JSON.stringify(v):String(v)]));response=await fetchImpl(new URL('https://graph.facebook.com/v25.0/'+endpoint),{method:'POST',headers:{Authorization:'Bearer '+conn.token},body:data,signal:AbortSignal.timeout(120000)});payload=await response.json()}catch{throw fail(502,'A Meta não confirmou a operação. Atualize a lista antes de tentar criar novamente.')}if(!response.ok||payload.error){const e=payload.error||{};console.error('[meta-publish] operação recusada.',{endpoint,status:response.status,code:e.code,subcode:e.error_subcode,message:e.error_user_msg||e.error_user_title||e.message||'sem mensagem'});throw fail(e.code===190?409:400,(e.error_user_msg||e.error_user_title||e.message||'A Meta recusou a operação. Confira o acesso, as configurações e as regras da conta.').slice(0,600))}current(user,conn);return payload}
@@ -198,14 +198,11 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       const edge={campaign:'campaigns',adset:'adsets',ad:'ads'}[p.kind];const items=await rows(conn.token,account+'/'+edge,{fields:'id,name,status'});if(!items.some(x=>x.id===id(p.id)))throw fail(403,'Item não autorizado nesta conta.');
       const result=await post(user,conn,id(p.id),{status:p.status});if(result.success!==true)throw fail(502,'A Meta não confirmou a alteração.');const updated=await owned(conn,account,p.id);return {item:updated};
     }
-    if(false&&action==='whatsapp-preflight'){
-      const page=id(p.page);await pageAccess(conn,account,page);const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe um WhatsApp com DDI e DDD.');const phoneId=await whatsappSelector(conn,account,page,phone,accountInfo);if(!phoneId)throw fail(400,'A Meta não retornou o identificador interno deste número na Business Manager da conta. Atualize a conexão da Meta e confirme que o número está associado à Página selecionada antes de publicar.');return {ready:true,page,phone,phone_id:phoneId};
-    }
     if(action==='whatsapp-preflight'){
       const page=id(p.page);await pageAccess(conn,account,page);
       const phone=String(p.phone||'').replace(/\D/g,'');
       if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe um WhatsApp com DDI e DDD.');
-      return {ready:true,page,phone};
+      return whatsappPreflight(user,conn,account,page,phone,accountInfo);
     }
     if(action!=='create')throw fail(404,'Operação não encontrada.');
     if(!/^[a-f0-9-]{36}$/.test(p.key||'')||p.confirm!==true)throw fail(400,'Revise e confirme o anúncio antes de enviar.');
@@ -229,7 +226,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       // WhatsApp is a native messages destination. The phone belongs to the
       // selected Page; it must never be downgraded to a wa.me website campaign.
       let whatsappPromotedObject;
-      if(destination==='whatsapp'){const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe um WhatsApp com DDI e DDD.');p.phone=phone;target='https://api.whatsapp.com/send';cta={type:'WHATSAPP_MESSAGE',value:{app_destination:'WHATSAPP',link:target}}}
+      if(destination==='whatsapp'){const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe um WhatsApp com DDI e DDD.');await whatsappPreflight(user,conn,account,page,phone,accountInfo);p.phone=phone;target='https://api.whatsapp.com/send';cta={type:'WHATSAPP_MESSAGE',value:{app_destination:'WHATSAPP',link:target}}}
       if(destination==='form'){form=id(p.form);const pageToken=conn.pageTokens?.[page]||conn.token;if(!(await rows(pageToken,page+'/leadgen_forms',{fields:'id,status'})).some(x=>x.id===form&&x.status==='ACTIVE'))throw fail(400,'Selecione um formulário ativo desta Página.');target='https://www.facebook.com/'+page;cta={type:'SIGN_UP',value:{lead_gen_form_id:form}}}
       // Match the Page-level selector returned by the account's working native
       // WhatsApp ad set: no Business Manager or internal-number identifier.

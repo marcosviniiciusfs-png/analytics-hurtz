@@ -106,7 +106,9 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
         graphPauses.set(pauseKey,{until:Date.now()+retryAfter*1000,last:Date.now(),strikes});
         throw Object.assign(fail(429,'A Meta limitou temporariamente as consultas. Aguarde antes de atualizar.'),{retryAfter});
       }
-      if ([10,200,294].includes(payload.error?.code)) throw fail(403, 'O Facebook não liberou a leitura dos anúncios. Reconecte e autorize as contas nas configurações do Tryv CRM.');
+      const metaMessage=String(payload.error?.error_user_msg||payload.error?.error_user_title||payload.error?.message||'');
+      if (payload.error?.code===10&&/(?:ad account|conta de an.ncio|page|p.gina|action|a..o).*(?:not visible|n.o . vis.vel)|(?:not visible|n.o . vis.vel).*?(?:ad account|conta de an.ncio|page|p.gina|action|a..o)/i.test(metaMessage)) throw fail(403,'A Meta não permite usar esta conta de anúncio com a Página ou ação escolhida. Vincule a Página à conta de anúncio e dê acesso ao mesmo perfil que conectou o Facebook; depois reconecte no Traffic Pocket.');
+      if ([10,200,294].includes(payload.error?.code)) throw fail(403, 'A Meta não liberou esta ação para a conexão atual. Reconecte o Facebook e autorize as contas, Páginas e permissões solicitadas no Traffic Pocket.');
       throw fail(502, 'A Meta não autorizou esta consulta. Verifique as permissões da conexão.');
     }
     return payload;
