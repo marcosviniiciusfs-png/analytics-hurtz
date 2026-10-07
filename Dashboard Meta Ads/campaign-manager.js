@@ -59,6 +59,10 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       const page=pageById.get(String(item?.page||''));
       if(item&&item.account===account&&page)addNumber(item.phone,page,{id:item.id,label:item.label||'WhatsApp informado',businessId:'manual'});
     }
+    // A Page-confirmed catalog entry is already scoped to the selected Page.
+    // Return it immediately so opening the composer never waits on Meta's
+    // unavailable multi-number Page endpoint.
+    if(auditPage&&numbers.some(item=>String(item.pageId)===String(auditPage)))return {state:'ready',items:numbers,audited:[...audited],message:'Números confirmados na configuração da Página.' ,retryable:false};
     // A v25 removeu este field da Página. A v22 ainda o oferece e é usada somente
     // para identificar o vínculo Página → WABA; a BM continua sendo a fonte dos telefones.
     const linkedWabas=[];
@@ -147,7 +151,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       if(action==='campaigns') {const items=await rows(conn.token,account+'/campaigns',{fields:'id,name,objective,status,effective_status,daily_budget,lifetime_budget'});current(user,conn);return {items,currency:accountInfo.currency||'',canManage:conn.scopes?.includes('ads_management')||false}}
       if(action==='adsets'){await owned(conn,account,url.searchParams.get('campaign'));return {items:await rows(conn.token,id(url.searchParams.get('campaign'))+'/adsets',{fields:'id,name,account_id,campaign_id,status,effective_status,daily_budget,destination_type,optimization_goal,promoted_object'})}}
       if(action==='ads'){await owned(conn,account,url.searchParams.get('adset'));return {items:await rows(conn.token,id(url.searchParams.get('adset'))+'/ads',{fields:'id,name,status,effective_status,creative{thumbnail_url,object_story_spec}'})}}
-      if(action==='whatsapps'){const p=await pages(conn,account);return whatsappNumbers(user,conn,account,p,accountInfo)}
+      if(action==='whatsapps'){const p=await pages(conn,account);return whatsappNumbers(user,conn,account,p,accountInfo,url.searchParams.get('page')||'')}
       if(action==='assets'){const p=await pages(conn,account),instagram=await instagramProfiles(conn,account,p),whatsapps=p.flatMap(page=>{const phone=String(page.whatsapp_number||'').replace(/\D/g,'');return /^\d{10,15}$/.test(phone)?[{id:phone,phone,label:'WhatsApp vinculado à Página',pageId:String(page.id),pageName:String(page.name||page.id)}]:[]}),whatsapp={state:whatsapps.length?'ready':'empty',items:whatsapps,message:whatsapps.length?'Selecione um número vinculado à Página ou informe outro.':'Informe o número com DDI e DDD.',retryable:false};return {pages:p,instagram,whatsapps,whatsapp,warning:''}}
       if(action==='forms'){const page=url.searchParams.get('page'),pageId=id(page);await pageAccess(conn,account,pageId);const pageToken=conn.pageTokens?.[pageId]||conn.token;return {items:await rows(pageToken,pageId+'/leadgen_forms',{fields:'id,name,status'})}}
       if(action==='operations')return {items:(read('ads-operations',user.id)||[]).filter(x=>x.account===account).map(({key,account,state,stage,created,error,updated})=>({key,account,state,stage,created,error,updated}))};
@@ -161,6 +165,16 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       const phone=String(p.phone||'').replace(/\D/g,'');
       if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe o número com DDI e DDD.');
       const label=String(p.label||'WhatsApp informado').trim().slice(0,80)||'WhatsApp informado',auditKey=page+'|'+phone;
+      // Meta's Page UI can link up to 50 numbers, but its public API only
+      // exposes the primary number. A manager may attest a number shown in
+      // that Page UI; it is then scoped to this exact account and Page.
+      if(p.confirmPageLink===true){
+        const existing=read('ads-whatsapp-numbers',user.id)||[],same=existing.filter(item=>item&&item.account===account&&String(item.page)===page),already=same.find(item=>String(item.phone).replace(/\D/g,'')===phone);
+        if(!already&&same.length>=50)throw fail(400,'Esta Página já possui 50 números cadastrados. Remova um número antes de adicionar outro.');
+        const entry=already||{id:crypto.randomUUID(),account,page,phone,label:'Confirmado na Página',source:'page-confirmed',created:Date.now()};
+        if(!already)write('ads-whatsapp-numbers',user.id,[...existing,entry].slice(-200));
+        return {state:'ready',items:[entry],audited:[],audit:{state:'page_confirmed',message:'Número confirmado e salvo para esta Página. A Meta fará a validação final ao publicar.'}};
+      }
       const discovery=await Promise.race([whatsappNumbers(user,conn,account,await pages(conn,account),accountInfo,page),new Promise((_,reject)=>setTimeout(()=>reject(fail(504,'A Meta demorou para concluir a auditoria deste número. Tente novamente em alguns instantes.')),25000))]);
       if(!discovery.audited?.includes(auditKey))return {...discovery,audit:{state:discovery.retryable?'unavailable':'rejected',message:discovery.retryable?'A Meta não conseguiu concluir a auditoria agora. Tente novamente.':'A Meta não confirmou este número na Página e na Business Manager selecionadas.'}};
       const saved=(read('ads-whatsapp-numbers',user.id)||[]).filter(item=>item&&!(item.account===account&&String(item.page)===page&&String(item.phone).replace(/\D/g,'')===phone));
@@ -238,7 +252,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       // WhatsApp is a native messages destination. The phone belongs to the
       // selected Page; it must never be downgraded to a wa.me website campaign.
       let whatsappPromotedObject;
-      if(destination==='whatsapp'){const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe um WhatsApp com DDI e DDD.');await whatsappPreflight(user,conn,account,page,phone,accountInfo);p.phone=phone;target='https://api.whatsapp.com/send';cta={type:'WHATSAPP_MESSAGE',value:{app_destination:'WHATSAPP',link:target}}}
+      if(destination==='whatsapp'){const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe um WhatsApp com DDI e DDD.');await whatsappPreflight(user,conn,account,page,phone,accountInfo);p.phone=phone;target='https://api.whatsapp.com/send?phone='+phone;cta={type:'WHATSAPP_MESSAGE',value:{app_destination:'WHATSAPP',link:target}}}
       if(destination==='form'){form=id(p.form);const pageToken=conn.pageTokens?.[page]||conn.token;if(!(await rows(pageToken,page+'/leadgen_forms',{fields:'id,status'})).some(x=>x.id===form&&x.status==='ACTIVE'))throw fail(400,'Selecione um formulário ativo desta Página.');target='https://www.facebook.com/'+page;cta={type:'SIGN_UP',value:{lead_gen_form_id:form}}}
       // Match the Page-level selector returned by the account's working native
       // WhatsApp ad set: no Business Manager or internal-number identifier.
