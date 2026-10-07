@@ -46,7 +46,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       if(!/^\d{10,15}$/.test(phone)||numbers.some(item=>item.phone===phone&&item.pageId===String(page.id)))return;
       numbers.push({id:String(details.id||phone),phone,label:String(details.label||phone),pageId:String(page.id),pageName:String(page.name||page.id),businessId:String(details.businessId||'')});
     };
-    const pageById=new Map(available.map(page=>[String(page.id),page])),discoveryPages=auditPage?available.filter(page=>String(page.id)===String(auditPage)):available,linkedWabas=[];
+    const pageById=new Map(available.map(page=>[String(page.id),page])),discoveryPages=auditPage?available.filter(page=>String(page.id)===String(auditPage)):available;
     // The Page's configured WhatsApp is the fastest first-party source. Meta
     // can withhold WABA phone_numbers from a verified app, but when it returns
     // this Page field the number is already a Page-owned, publishable asset.
@@ -55,21 +55,13 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       if(!/^\d{10,15}$/.test(configured))try{const result=await graph(conn.pageTokens?.[page.id]||conn.token,page.id,{fields:'whatsapp_number'},'v22.0');configured=String(result.whatsapp_number||'').replace(/\D/g,'')}catch{}
       if(/^\d{10,15}$/.test(configured)){addNumber(configured,page,{label:'WhatsApp vinculado à Página'});audited.add(String(page.id)+'|'+configured)}
     }
-    // A Page can have multiple WhatsApp numbers in Linked accounts. This
-    // Page-scoped edge is the only authoritative source we may use for them.
-    for(const page of discoveryPages){
-      try{
-        const direct=await rows(conn.pageTokens?.[page.id]||conn.token,page.id+'/whatsapp_phone_numbers',{fields:'id,display_phone_number,verified_name'});
-        for(const phone of direct){const value=String(phone.display_phone_number||phone.phone_number||'').replace(/\D/g,'');if(/^\d{10,15}$/.test(value)){addNumber(value,page,{id:phone.id,label:phone.verified_name||phone.display_phone_number||'WhatsApp vinculado a Página'});audited.add(String(page.id)+'|'+value)}}
-      }catch(error){failures.push({stage:'números vinculados à Página',status:error?.status||0})}
-      try{for(const business of await rows(conn.pageTokens?.[page.id]||conn.token,page.id+'/whatsapp_business_accounts',{fields:'id,name'}))if(business?.id&&!linkedWabas.some(item=>item.id===String(business.id)&&item.page.id===page.id))linkedWabas.push({id:String(business.id),page})}catch{}
-    }
     for(const item of read('ads-whatsapp-numbers',user.id)||[]){
       const page=pageById.get(String(item?.page||''));
       if(item&&item.account===account&&page)addNumber(item.phone,page,{id:item.id,label:item.label||'WhatsApp informado',businessId:'manual'});
     }
     // A v25 removeu este field da Página. A v22 ainda o oferece e é usada somente
     // para identificar o vínculo Página → WABA; a BM continua sendo a fonte dos telefones.
+    const linkedWabas=[];
     for(const page of discoveryPages){
       try{const result=await graph(conn.pageTokens?.[page.id]||conn.token,page.id,{fields:'whatsapp_business_account{id,name}'},'v22.0'),business=result.whatsapp_business_account;if(business?.id)linkedWabas.push({id:String(business.id),page})}catch(error){failures.push({stage:'Página → conta WhatsApp Business',status:error?.status||0})}
     }
