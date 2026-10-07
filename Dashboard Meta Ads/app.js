@@ -92,7 +92,7 @@ async function personalReportFetch(input,options={}){
   const promise=execute();if(!options.signal)pendingReportRequests.set(key,promise);
   try{return (await promise).clone()}finally{if(pendingReportRequests.get(key)===promise)pendingReportRequests.delete(key)}
 }
-const personalMetaRoutes=new Set(['/api/meta-accounts','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync','/api/report-product-rules','/api/flow/meta/catalog','/api/flow/meta/forms','/api/flow/whatsapp/groups','/api/flow/whatsapp/instance','/api/flow/whatsapp/qr','/api/flow/whatsapp/status','/api/flow/config']);
+const personalMetaRoutes=new Set(['/api/meta-accounts','/api/meta-billing-balances','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync','/api/report-product-rules','/api/flow/meta/catalog','/api/flow/meta/forms','/api/flow/whatsapp/groups','/api/flow/whatsapp/instance','/api/flow/whatsapp/qr','/api/flow/whatsapp/status','/api/flow/config']);
 window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input?.url||'',route=url.split('?')[0],isMonitorApi=url.startsWith('/api/'),isPersonalMetaRoute=personalMetaRoutes.has(route)||route==='/api/flows'||route.startsWith('/api/flows/');if(!isMonitorApi)return browserFetch(input,options);if(isPersonalMetaRoute){const personalOptions={...options,headers:{...(options.headers||{}),'X-Require-Personal-Meta':'1'}};return personalIdentity?.personal&&/^\/api\/meta-(spend|analysis)\?/.test(url)?personalReportFetch(url,personalOptions):monitorApiFetch(input,personalOptions)}return cachedMetadataFetch(input,options)};
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 async function fetchJsonWithRetry(url,{attempts=3,delay=700,...options}={}){
@@ -146,6 +146,7 @@ function loadAccountMonitoring(){
 
 const AUDITED_META_DATA={};
 const LIVE_PERIOD_DATA={};
+const BILLING_BALANCES={};
 
 const NOW = new Date();
 const META_FEE_RATE = 0.1215;
@@ -313,12 +314,33 @@ async function findMetaAccounts(showProgress=true){
       accounts.push({id:item.id,name:cleanName,initials:initials||'MA',color:`hsl(${(accounts.length+index)*47%360} 55% 45%)`,status:item.account_status===1?'active':'inactive',businessName:item.business_name||item.business?.name||'Sem BM informada',businessId:item.business_id||item.business?.id||'',currency:item.currency||'',businessPicture:item.business_profile_picture_uri||null,objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:iso(NOW),depositTime:'00:00',plannedDays:1,dailyLimit:0}});
     });
     accountCatalogReady=true;overviewComposer?.refresh();saveAccountCatalog();applyActiveAccountProfile(false);renderAccountFilterOptions();renderSummary();renderAccounts(document.querySelector('#searchInput').value);document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;syncReportAccountsWithDashboard();monitoredAnalysisAccounts=[];if(!document.querySelector('#analysis').hidden)initializeDetailedAnalysis();status.textContent=`${payload.account_count||accounts.length} contas encontradas em ${payload.business_count||0} BMs`;
+    void loadBillingBalances([...allowedIds]);
     const connectionStatus=document.querySelector('#facebookConnectionStatus');if(connectionStatus)connectionStatus.textContent=accounts.length?`${accounts.length} contas autorizadas pelo seu Facebook. Lista atualizada.`:'O Facebook não retornou contas de anúncio. Reconecte e confira as contas em Editar configurações.';
     return payload;
   }catch(error){status.textContent=error.message;const connectionStatus=document.querySelector('#facebookConnectionStatus');if(connectionStatus)connectionStatus.textContent=error.message;return null}
   finally{if(showProgress)setButtonLoading(button,false)}
 }
 window.hurtzRefreshMetaAccounts=()=>findMetaAccounts(false);
+async function loadBillingBalances(ids=[...selectedAccountIds],force=false){
+  const requested=[...new Set(ids)].filter(id=>force||!BILLING_BALANCES[id]);
+  if(!requested.length)return;
+  try{
+    const response=await fetch(`/api/meta-billing-balances?accounts=${encodeURIComponent(requested.join(','))}`),payload=await response.json();
+    if(!response.ok)throw new Error(payload.error||'Falha ao consultar Cobranças e pagamentos.');
+    Object.assign(BILLING_BALANCES,payload.accounts||{});
+  }catch(error){requested.forEach(id=>{BILLING_BALANCES[id]={id,audited:false,error:error.message}})}
+  renderSummary();renderAccounts(document.querySelector('#searchInput').value);
+}
+async function refreshConnectedAccounts(){
+  const found=await findMetaAccounts(false);
+  if(!found)return null;
+  await Promise.all([loadAccountProfiles(),hydrateAlertPlans()]);
+  loadPlans();
+  // Catalog and Billing Hub values render immediately; Insights keep their
+  // existing deferred loading path so connecting Facebook never blocks the UI.
+  loadAccountMonitoring();
+  return found;
+}
 async function syncAccountsForAudit(ids=[...selectedAccountIds]){
   const selected=ids.map(id=>accounts.find(account=>account.id===id)).filter(Boolean).map(account=>({id:account.id,name:account.name}));
   if(!selected.length)throw new Error('Nenhuma conta válida foi selecionada para monitoramento.');
@@ -381,7 +403,7 @@ function applyGlobalPeriod(from,to,label,trigger=null){
   document.querySelector('#globalDateFrom').value=iso(globalPeriod.from);
   document.querySelector('#globalDateTo').value=iso(globalPeriod.to);
   document.querySelector('#globalDateButton span').textContent=label;
-  document.querySelector('#accountsPeriod').textContent=`Período: ${globalPeriod.from.toLocaleDateString('pt-BR')} até ${globalPeriod.to.toLocaleDateString('pt-BR')} • saldo conciliado por conta`;
+  document.querySelector('#accountsPeriod').textContent=`Período: ${globalPeriod.from.toLocaleDateString('pt-BR')} até ${globalPeriod.to.toLocaleDateString('pt-BR')} • saldo de Cobranças e pagamentos + gasto oficial auditado`;
   document.querySelectorAll('[data-global-range]').forEach(button=>button.classList.remove('active'));
   renderSummary();
   renderAccounts(document.querySelector('#searchInput').value);
@@ -575,17 +597,17 @@ function spendHeat(a,p){
 function renderAccounts(filter=''){
   const matchesSummary=a=>{const available=availableFundsForPeriod(a,performanceForPeriod(a));if(activeSummaryFilter==='active')return isAccountActive(a);if(activeSummaryFilter==='empty')return available.available&&available.value<=0;if(activeSummaryFilter==='pending')return !available.available;if(activeSummaryFilter==='exceeded')return exceedsDailyLimit(a);return true};
   const list=accounts.filter(a=>selectedAccountIds.has(a.id)&&matchesSummary(a)&&a.name.toLowerCase().includes(filter.toLowerCase()));
-  accountsBody.innerHTML=list.map(a=>{const m=metrics(a),p=performanceForPeriod(a),available=availableFundsForPeriod(a,p),status=metaAccountStatus(a),planExpired=!m.credit&&NOW>=m.plannedEnd;return `<tr>
+  accountsBody.innerHTML=list.map(a=>{const m=metrics(a),p=performanceForPeriod(a),available=availableFundsForPeriod(a,p),billing=BILLING_BALANCES[a.id],used=p.complete?Number(p.spend):null,status=metaAccountStatus(a),planExpired=!m.credit&&NOW>=m.plannedEnd;const billingReason=billing?.audited?`Saldo de ${brl(billing.balance)} confirmado no Billing Hub da Meta${billing.collected_at?` em ${new Date(billing.collected_at).toLocaleString('pt-BR')}`:''}.`:billing?.error||'Aguardando auditoria de Cobranças e pagamentos.';const usedReason=p.complete?`Gasto de ${brl(used)} no período filtrado; conta e campanhas foram reconciliadas pela Meta.`:'Aguardando reconciliação da Meta para o período filtrado.';return `<tr>
     <td><div class="account-cell">${a.businessPicture?`<img class="account-logo account-photo" src="${a.businessPicture}" alt="" referrerpolicy="no-referrer" />`:`<span class="account-logo" style="background:${a.color}">${a.initials}</span>`}<div><button class="account-link" data-open="${a.id}">${a.name}</button><small class="account-id">${a.id}</small></div></div></td>
     ${heatCell(`<span class="status ${status.css}">${status.label}</span>`,a.activeCampaignCount==null?'warning':a.activeCampaignCount>0?'good':'danger',a.activeCampaignCount==null?'Amarelo: aguardando a consulta de campanhas na Meta.':a.activeCampaignCount>0?`Verde: ${a.activeCampaignCount} campanhas estão ativas na Meta.`:'Vermelho: nenhuma campanha ativa foi encontrada.')}
     ${heatCell(`<div class="objective">${a.objectives.map(o=>`<span class="tag">${o}</span>`).join('')}</div>`,'neutral','Neutro: objetivo da campanha é informativo e não representa desempenho.')}
     ${m.credit?heatCell(`<strong>Cartão de crédito</strong><small class="table-sub">Sem depósito ou saldo pré-pago</small>`,'neutral','Conta configurada para acompanhar somente os gastos auditados.','number'):heatCell(`<strong>${brl(a.plan.deposit)}</strong><small class="table-sub">${fmtDateTime(m.start)} • ${a.plan.plannedDays} dias</small>`,a.plan.deposit<=0?'danger':planExpired?'warning':'good',a.plan.deposit<=0?'Vermelho: nenhum depósito foi configurado.':planExpired?`Laranja: o prazo de ${a.plan.plannedDays} dias deste depósito terminou em ${fmtDateTime(m.plannedEnd)}.`:`Verde: depósito vigente até ${fmtDateTime(m.plannedEnd)}.`,'number')}
-    ${heatCell(available.available?`<strong>${brl(available.value)}</strong><small class="table-sub">${brl(available.base)} − ${brl(available.spent)} Meta</small>`:`<strong>—</strong><small class="table-sub">Auditoria pendente</small>`,available.tone,available.reason,'number')}
-    ${heatCell(available.available?`<strong>${brl(available.spent)}</strong><small class="table-sub">Usado desde o início do ciclo</small>`:`<strong>—</strong><small class="table-sub">Auditoria pendente</small>`,available.tone,available.reason,'number')}
+    ${heatCell(billing?.audited?`<strong>${brl(billing.balance)}</strong><small class="table-sub">Cobranças e pagamentos</small>`:`<strong>—</strong><small class="table-sub">Auditoria de cobrança pendente</small>`,billing?.audited?'good':'warning',billingReason,'number')}
+    ${heatCell(used!=null?`<strong>${brl(used)}</strong><small class="table-sub">${iso(globalPeriod.from)===iso(globalPeriod.to)?'Usado no dia filtrado':'Usado no período filtrado'}</small>`:`<strong>—</strong><small class="table-sub">Auditoria Meta pendente</small>`,p.complete?'good':'warning',usedReason,'number')}
     <td><button class="plan-button" data-plan="${a.id}" title="Configurar pagamento e limites">⚙</button><button class="arrow-button" data-open="${a.id}">›</button></td></tr>`}).join('');
-  const performances=list.map(a=>performanceForPeriod(a)),availabilities=list.map((a,index)=>availableFundsForPeriod(a,performances[index])),allAvailable=availabilities.every(item=>item.available),prepaid=list.filter(a=>!isCreditAccount(a)),deposit=prepaid.reduce((s,a)=>s+a.plan.deposit,0),availableTotal=allAvailable?availabilities.reduce((sum,item)=>sum+item.value,0):null;
-  const usedTotal=allAvailable?availabilities.reduce((sum,item)=>sum+item.spent,0):null;
-  accountsFoot.innerHTML=`<tr><td colspan="3">GERAL • ${list.length} CONTAS</td><td class="number">${brl(deposit)}</td><td class="number">${availableTotal==null?'—':brl(availableTotal)}</td><td class="number">${usedTotal==null?'—':brl(usedTotal)}</td><td>${allAvailable?'Auditoria concluída':'Auditoria pendente'}</td></tr>`;
+  const performances=list.map(a=>performanceForPeriod(a)),balances=list.map(a=>BILLING_BALANCES[a.id]),allAudited=performances.every(item=>item.complete)&&balances.every(item=>item?.audited),prepaid=list.filter(a=>!isCreditAccount(a)),deposit=prepaid.reduce((s,a)=>s+a.plan.deposit,0),availableTotal=balances.every(item=>item?.audited)?balances.reduce((sum,item)=>sum+Number(item.balance),0):null;
+  const usedTotal=performances.every(item=>item.complete)?performances.reduce((sum,item)=>sum+Number(item.spend),0):null;
+  accountsFoot.innerHTML=`<tr><td colspan="3">GERAL • ${list.length} CONTAS</td><td class="number">${brl(deposit)}</td><td class="number">${availableTotal==null?'—':brl(availableTotal)}</td><td class="number">${usedTotal==null?'—':brl(usedTotal)}</td><td>${allAudited?'Auditoria concluída':'Auditoria pendente'}</td></tr>`;
   const filterNames={active:'Contas ativas',empty:'Contas sem saldo',pending:'Auditoria pendente',exceeded:'Acima do limite diário'};
   document.querySelector('#accountCount').textContent=`Exibindo ${list.length} de ${accounts.length} contas${activeSummaryFilter!=='all'?` • ${filterNames[activeSummaryFilter]}`:''}`;
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openAccount(b.dataset.open,false));
@@ -703,7 +725,7 @@ function closeModal(){closeCampaignGoal();modal.classList.remove('open');modal.s
 document.querySelector('#searchInput').addEventListener('input',e=>renderAccounts(e.target.value));document.querySelector('#closeModal').onclick=closeModal;modal.onclick=e=>{if(e.target===modal)closeModal()};document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('modal-backdrop'))closeModal()});document.querySelectorAll('#quickDates button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));b.classList.add('active');setDates(b.dataset.range)});document.querySelectorAll('.custom-date input').forEach(i=>i.onchange=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));if(selectedAccount)updatePeriodLabel()});document.querySelector('#refreshButton').onclick=e=>{const b=e.currentTarget;b.querySelector('span').textContent='Atualizando...';setTimeout(()=>{b.querySelector('span').textContent='Atualizado agora';setTimeout(()=>b.querySelector('span').textContent='Atualizar',1500)},700)};
 document.querySelectorAll('#quickDates button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));b.classList.add('active');setDates(b.dataset.range);if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
 document.querySelectorAll('.custom-date input').forEach(i=>i.onchange=()=>{document.querySelectorAll('#quickDates button').forEach(x=>x.classList.remove('active'));if(selectedAccount){renderModal();loadSelectedAccountAudit()}});
-document.querySelector('#refreshButton').onclick=async event=>{const button=event.currentTarget;setButtonLoading(button,true,'Atualizando contas...');try{if(!await findMetaAccounts(false))return;loadPlans();await hydrateAlertPlans();await Promise.all([loadAuditedPeriod(globalPeriod.from,globalPeriod.to,event.currentTarget,true),loadRealControlData(globalPeriod.to,true),loadLastThreeDays(true)])}finally{setButtonLoading(button,false)}};
+document.querySelector('#refreshButton').onclick=async event=>{const button=event.currentTarget;setButtonLoading(button,true,'Atualizando contas...');try{if(!await findMetaAccounts(false))return;loadPlans();await hydrateAlertPlans();await Promise.all([loadBillingBalances([...selectedAccountIds],true),loadAuditedPeriod(globalPeriod.from,globalPeriod.to,event.currentTarget,true),loadRealControlData(globalPeriod.to,true),loadLastThreeDays(true)])}finally{setButtonLoading(button,false)}};
 loadAccountCatalog();selectedAccountIds=new Set(accounts.map(account=>account.id));loadPlans();renderAccountFilterOptions();refreshPresetSelect();const defaultPreset=readPresets().items[readPresets().defaultName];if(defaultPreset)applyPreset(defaultPreset,false);setGlobalRange('yesterday');document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;if(activeDashboardView==='accounts')loadLastThreeDays();renderSummary();renderAccounts();
 
 /* Analise interativa: somente dados reconciliados pela API Meta. */
@@ -2147,7 +2169,7 @@ function openFacebookLogin(){
     try{
       await personalRequest('/api/meta/connection',{method:'POST',body:JSON.stringify({nonce:facebookNonce,accessToken:response.authResponse.accessToken,expiresIn:response.authResponse.expiresIn})});
       facebookLoginBusy=false;facebookSettings=await personalRequest('/api/meta/connection');renderFacebookConnection();
-      if(requestedAds){facebookStatus.textContent='Conexão atualizada. Verificando o gerenciamento de anúncios...';await prepareFacebookLogin();window.dispatchEvent(new Event('hurtz-ads-authorized'));return}
+      if(requestedAds){facebookStatus.textContent='Conexão atualizada. Carregando suas contas e saldos...';await refreshConnectedAccounts();facebookStatus.textContent='Conexão atualizada. Contas e saldos disponíveis sem recarregar a página.';await prepareFacebookLogin();window.dispatchEvent(new Event('hurtz-ads-authorized'));return}
       if(requestedComments){commentsData=[];renderComments();facebookSettings=await personalRequest('/api/meta/connection');facebookStatus.textContent='Conexão atualizada. Verificando o acesso às páginas...';const result=await fetchCommentsPages();if(!result){facebookStatus.textContent='Facebook reconectado, mas a verificação das páginas falhou. Tente Atualizar páginas.';await prepareFacebookLogin();return}const missing=result.missingPermissions||[];facebookStatus.textContent=missing.length?'O Facebook reconectou, mas não concedeu todas as permissões de Comentários. Confira o aviso abaixo.':'Conexão atualizada. Páginas autorizadas sincronizadas.';if(commentsPage&&!missing.includes('pages_read_user_content')&&!missing.includes('pages_read_engagement'))void loadAdComments();await prepareFacebookLogin();return}const selectedPage=userStorage.getItem('hurtz-comments-page');forgetPersonalCache();if(selectedPage)userStorage.setItem('hurtz-comments-page',selectedPage);location.reload();
     }catch(error){facebookLoginBusy=false;renderFacebookConnection();facebookStatus.textContent=error.message;try{await prepareFacebookLogin()}catch{}}
   })().catch(error=>{facebookLoginBusy=false;renderFacebookConnection();facebookStatus.textContent=error.message;facebookConnect.disabled=false})},{scope:loginScopes,auth_type:'rerequest',return_scopes:true})}catch{facebookLoginBusy=false;renderFacebookConnection();facebookStatus.textContent='Não foi possível abrir o Facebook. Permita a janela de login e tente novamente.';facebookConnect.disabled=false}
@@ -2173,7 +2195,7 @@ if(personalIdentity?.personal){
     facebookStatus.textContent=facebookSettings.connected?`Conectado como ${facebookSettings.name}. Sua conexão está salva para os próximos acessos.`:facebookSettings.rejected?'A Meta recusou a autorização salva para este aplicativo. Conecte novamente para atualizá-la.':facebookSettings.expired?'Sua autorização expirou. Conecte o Facebook novamente.':'Conecte seu Facebook e autorize a leitura das contas que deseja acompanhar.';
     renderFacebookConnection();overviewComposer?.refresh();
     facebookDisconnect.hidden=!facebookSettings.connected;
-    if(facebookSettings.connected){facebookConnect.disabled=false;void(async()=>{const found=await findMetaAccounts(false);if(found){await loadAccountProfiles();loadPlans();await hydrateAlertPlans();loadAccountMonitoring();}})().catch(error=>{facebookStatus.textContent='Facebook conectado. Não foi possível atualizar as contas: '+error.message})}
+    if(facebookSettings.connected){facebookConnect.disabled=false;void refreshConnectedAccounts().catch(error=>{facebookStatus.textContent='Facebook conectado. Não foi possível atualizar as contas: '+error.message})}
     await loadFacebookSdk(facebookSettings);await prepareFacebookLogin();publishFacebookConnectionState(true,'Facebook pronto para conectar.');
   }catch(error){facebookStatus.textContent=error.message;publishFacebookConnectionState(false,error.message)}})();
 }

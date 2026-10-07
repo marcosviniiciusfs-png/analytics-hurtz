@@ -11,7 +11,16 @@ const integrationDefaults = require('./integration-config').defaults();
 if (!process.env.EVOLUTION_API_URL && integrationDefaults.evolutionUrl) process.env.EVOLUTION_API_URL = integrationDefaults.evolutionUrl;
 if (!process.env.EVOLUTION_API_KEY && integrationDefaults.evolutionKey) process.env.EVOLUTION_API_KEY = integrationDefaults.evolutionKey;
 const {createServices}=require('./local-services');
-const personalMeta = createPersonalMeta(process.env.META_PERSONAL_DATA_DIR?{directory:process.env.META_PERSONAL_DATA_DIR}:process.platform === 'win32' ? {directory: path.join(__dirname, '..', '.codex-tmp', 'personal-secrets')} : {});
+const billingBalanceReader=async ids=>{
+  // Produced by the authenticated Billing Hub collector. This intentionally
+  // avoids AdAccount.balance, which is not the Payments screen balance.
+  const file=path.join(process.env.META_MONITOR_DIR||path.join(__dirname,'..','Meta Ads Monitor'),'data','prepay-balances.json');
+  try{
+    const payload=JSON.parse(fs.readFileSync(file,'utf8')),items=Array.isArray(payload.accounts)?payload.accounts:[];
+    return {accounts:Object.fromEntries(items.filter(item=>ids.includes(String(item.ad_account_id))&&Number.isFinite(Number(item.prepay_balance))).map(item=>[String(item.ad_account_id),item]))};
+  }catch{return {accounts:{}}}
+};
+const personalMeta = createPersonalMeta({...((process.env.META_PERSONAL_DATA_DIR?{directory:process.env.META_PERSONAL_DATA_DIR}:process.platform === 'win32' ? {directory: path.join(__dirname, '..', '.codex-tmp', 'personal-secrets')} : {})),billingBalanceReader});
 const localOnly=process.env.ANALYTICS_LOCAL_ONLY==='1';
 const personalTools=process.env.ANALYTICS_PERSONAL_TOOLS==='1';
 const localRuntime=(localOnly||personalTools)?require('./local-runtime').createRuntime(personalMeta,{production:!localOnly}):null;
@@ -258,7 +267,7 @@ http.createServer((req,res)=>{
       const handler=taskCollaborationRoutes.has(requestUrl.pathname)||taskDataRoute(requestUrl.pathname)?handlePersonalTaskRoute(req,res,requestUrl,personalSession):personalCommentRoutes.has(requestUrl.pathname)?personalCommentService(personalSession).handle(req,requestUrl):personalMeta.handle(req,res,personalSession,requestUrl,jsonResponse);return Promise.resolve(handler).then(result=>{if(personalCommentRoutes.has(requestUrl.pathname)&&!res.headersSent)jsonResponse(res,200,result)}).catch(error=>{if(!res.headersSent)jsonResponse(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir a solicitação.'})})
     }
     // Ferramentas do usuário não podem cair no fallback administrativo.
-    const personalToolRoute=['/api/meta-accounts','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync','/api/report-product-rules'].includes(requestUrl.pathname)||requestUrl.pathname==='/api/flows'||requestUrl.pathname.startsWith('/api/flows/')||requestUrl.pathname.startsWith('/api/flow/');
+    const personalToolRoute=['/api/meta-accounts','/api/meta-billing-balances','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync','/api/report-product-rules'].includes(requestUrl.pathname)||requestUrl.pathname==='/api/flows'||requestUrl.pathname.startsWith('/api/flows/')||requestUrl.pathname.startsWith('/api/flow/');
     if(req.headers['x-require-personal-meta']==='1'&&personalToolRoute)return jsonResponse(res,401,{error:'Entre novamente para acessar as ferramentas da sua conta.'});
     if(bearer.startsWith('pa_'))return jsonResponse(res,401,{error:'Sua sessão expirou. Entre novamente.'});
   }

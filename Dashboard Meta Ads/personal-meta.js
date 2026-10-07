@@ -9,7 +9,7 @@ const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const VERSION = 'v25.0';
 const APP_ID = '2093320124537661';
 
-function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '/opt/meta-ads-cli/secrets/personal', fetchImpl = fetch, runReport, oauthConfig} = {}) {
+function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '/opt/meta-ads-cli/secrets/personal', fetchImpl = fetch, runReport, oauthConfig, billingBalanceReader} = {}) {
   fs.mkdirSync(directory, {recursive: true, mode: 0o700});
   const keyPath = path.join(directory, 'encryption.key');
   try { fs.writeFileSync(keyPath, crypto.randomBytes(32), {flag: 'wx', mode: 0o600}); } catch (e) { if (e.code !== 'EEXIST') throw e; }
@@ -237,6 +237,20 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       accountAuthorizations.delete(user.id);
       const {accounts} = await catalog(user, true);
       return send(res, 200, {account_count: accounts.length, business_count: new Set(accounts.map(a => a.business?.id).filter(Boolean)).size, accounts: accounts.map(a => ({...a, business_name: a.business?.name || '', business_id: a.business?.id || '', business_profile_picture_uri: a.business?.profile_picture_uri || ''}))});
+    }
+    if (route === '/api/meta-billing-balances' && req.method === 'GET') {
+      const ids = [...new Set((url.searchParams.get('accounts') || '').split(',').filter(Boolean))];
+      await authorizeAccounts(user, ids);
+      // Billing Hub is the only accepted source here. Graph's AdAccount.balance
+      // is deliberately not used: it is not the amount shown in Payments.
+      const result = billingBalanceReader ? await billingBalanceReader(ids) : {accounts: {}};
+      const source = result?.accounts && typeof result.accounts === 'object' ? result.accounts : {};
+      const accounts = Object.fromEntries(ids.map(id => {
+        const value = source[id];
+        if (!value || !Number.isFinite(Number(value.prepay_balance))) return [id, {id, audited: false, error: 'O saldo de Cobranças e pagamentos ainda não foi auditado para esta conta.'}];
+        return [id, {id, audited: true, balance: Number(value.prepay_balance), currency: value.currency || null, collected_at: value.collected_at || null, source: value.source || 'Meta Billing Hub'}];
+      }));
+      return send(res, 200, {accounts});
     }
     // O construtor Fluxo usa a mesma conexão Meta do usuário; nenhum token vai ao navegador.
     if (route === '/api/flow/meta/catalog' && req.method === 'GET') {

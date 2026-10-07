@@ -24,7 +24,7 @@ function fixture(t, runner, overrides = {}) {
         : {id: who, name: `Facebook ${who}`};
     return {ok: !payload.error, status:payload.error?400:200, json: async () => payload};
   };
-  const api = createPersonalMeta({directory, fetchImpl, oauthConfig:overrides.oauthConfig??null, runReport: runner || (async ({token}) => ({tokenUsed: token}))});
+  const api = createPersonalMeta({directory, fetchImpl, oauthConfig:overrides.oauthConfig??null, billingBalanceReader: overrides.billingBalanceReader, runReport: runner || (async ({token}) => ({tokenUsed: token}))});
   const sessionA = api.issueSession({id: 'user-a', email: 'a@example.test'}), sessionB = api.issueSession({id: 'user-b', email: 'b@example.test'});
   async function request(token, route, method = 'GET', payload) {
     const req = Readable.from(payload === undefined ? [] : [JSON.stringify(payload)]);
@@ -92,6 +92,26 @@ test('report account authorization precedes execution; caller identity cannot be
   assert.equal(usedToken, f.tokens.a);
   assert.equal((await f.request(f.sessionB, url + 'act_111')).status, 409);
   assert.equal((await f.request(f.sessionA, '/api/tasks')).status, 403);
+});
+
+test('Billing Hub balances are returned only for accounts authorized to the current user', async t => {
+  let requested=[];
+  const f=fixture(t,undefined,{billingBalanceReader:async ids=>{requested=ids;return {accounts:{act_111:{prepay_balance:123.45,currency:'BRL',collected_at:'2026-10-07T12:00:00.000Z',source:'Meta Billing Hub'}}}}});
+  await f.connect(f.sessionA,f.tokens.a);
+  const result=await f.request(f.sessionA,'/api/meta-billing-balances?accounts=act_111');
+  assert.equal(result.status,200);
+  assert.deepEqual(requested,['act_111']);
+  assert.deepEqual(result.body.accounts.act_111,{id:'act_111',audited:true,balance:123.45,currency:'BRL',collected_at:'2026-10-07T12:00:00.000Z',source:'Meta Billing Hub'});
+  assert.equal((await f.request(f.sessionA,'/api/meta-billing-balances?accounts=act_222')).status,403);
+});
+
+test('Billing Hub does not substitute Graph balance when an audited balance is unavailable', async t => {
+  const f=fixture(t,undefined,{billingBalanceReader:async()=>({accounts:{}})});
+  await f.connect(f.sessionA,f.tokens.a);
+  const result=await f.request(f.sessionA,'/api/meta-billing-balances?accounts=act_111');
+  assert.equal(result.status,200);
+  assert.equal(result.body.accounts.act_111.audited,false);
+  assert.match(result.body.accounts.act_111.error,/Cobranças e pagamentos/);
 });
 
 test('both user logins pass exact report periods and all selected accounts to the runner', async t => {

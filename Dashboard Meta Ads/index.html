@@ -62,7 +62,7 @@
 
       <section class="accounts-panel" id="accounts">
         <div class="panel-head">
-          <div><h2>Contas de anúncio</h2><p id="accountsPeriod">Saldo estimado pelo depósito menos o gasto oficial da Meta</p></div>
+          <div><h2>Contas de anúncio</h2><p id="accountsPeriod">Saldo de Cobranças e pagamentos e gasto oficial da Meta no período filtrado</p></div>
           <div class="table-tools"><label class="search">⌕ <input id="searchInput" type="search" placeholder="Buscar conta..." /></label><button class="filter-button" id="tableDateFilter">Filtros</button></div>
         </div>
         <div class="table-wrap">
@@ -72,8 +72,8 @@
               <th><span class="metric-label">Status<button class="info-tooltip" type="button" aria-label="Sobre Status">i<span role="tooltip">Situação operacional da conta na Meta, separada do saldo estimado no planejamento.</span></button></span></th>
               <th><span class="metric-label">Objetivos<button class="info-tooltip" type="button" aria-label="Sobre Objetivos">i<span role="tooltip">Objetivos das campanhas presentes na conta.</span></button></span></th>
               <th class="number"><span class="metric-label">Pagamento / depósito<button class="info-tooltip" type="button" aria-label="Sobre forma de pagamento">i<span role="tooltip">Mostra se a conta é pré-paga ou cartão e, no pré-pago, o depósito configurado.</span></button></span></th>
-              <th class="number"><span class="metric-label">Verba disponível<button class="info-tooltip" type="button" aria-label="Sobre Verba disponível">i<span role="tooltip">Verba líquida configurada menos o saldo usado desde o início do ciclo.</span></button></span></th>
-              <th class="number"><span class="metric-label">Saldo usado (Meta)<button class="info-tooltip" type="button" aria-label="Sobre Saldo usado">i<span role="tooltip">Gasto real auditado na Meta desde o depósito ou desde o início do ciclo semanal.</span></button></span></th>
+              <th class="number"><span class="metric-label">Verba disponível<button class="info-tooltip" type="button" aria-label="Sobre Verba disponível">i<span role="tooltip">Saldo pré-pago exibido em Cobranças e pagamentos da Meta, sem cálculo por depósito.</span></button></span></th>
+              <th class="number"><span class="metric-label">Saldo usado<button class="info-tooltip" type="button" aria-label="Sobre Saldo usado">i<span role="tooltip">Gasto oficial da Meta no dia ou período filtrado, auditado contra a soma das campanhas.</span></button></span></th>
               <th></th>
             </tr></thead>
             <tbody id="accountsBody"></tbody><tfoot id="accountsFoot"></tfoot>
