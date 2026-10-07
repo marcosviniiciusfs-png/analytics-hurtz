@@ -52,7 +52,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     // this Page field the number is already a Page-owned, publishable asset.
     for(const page of discoveryPages){
       let configured=String(page.whatsapp_number||'').replace(/\D/g,'');
-      if(!/^\d{10,15}$/.test(configured))try{const result=await graph(conn.pageTokens?.[page.id]||conn.token,page.id,{fields:'whatsapp_number'});configured=String(result.whatsapp_number||'').replace(/\D/g,'')}catch{}
+      if(!/^\d{10,15}$/.test(configured))try{const result=await graph(conn.pageTokens?.[page.id]||conn.token,page.id,{fields:'whatsapp_number'},'v22.0');configured=String(result.whatsapp_number||'').replace(/\D/g,'')}catch{}
       if(/^\d{10,15}$/.test(configured)){addNumber(configured,page,{label:'WhatsApp vinculado à Página'});audited.add(String(page.id)+'|'+configured)}
     }
     for(const item of read('ads-whatsapp-numbers',user.id)||[]){
