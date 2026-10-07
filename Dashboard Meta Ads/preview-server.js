@@ -11,16 +11,7 @@ const integrationDefaults = require('./integration-config').defaults();
 if (!process.env.EVOLUTION_API_URL && integrationDefaults.evolutionUrl) process.env.EVOLUTION_API_URL = integrationDefaults.evolutionUrl;
 if (!process.env.EVOLUTION_API_KEY && integrationDefaults.evolutionKey) process.env.EVOLUTION_API_KEY = integrationDefaults.evolutionKey;
 const {createServices}=require('./local-services');
-const billingBalanceReader=async ids=>{
-  // Produced by the authenticated Billing Hub collector. This intentionally
-  // avoids AdAccount.balance, which is not the Payments screen balance.
-  const file=path.join(process.env.META_MONITOR_DIR||path.join(__dirname,'..','Meta Ads Monitor'),'data','prepay-balances.json');
-  try{
-    const payload=JSON.parse(fs.readFileSync(file,'utf8')),items=Array.isArray(payload.accounts)?payload.accounts:[];
-    return {accounts:Object.fromEntries(items.filter(item=>ids.includes(String(item.ad_account_id))&&Number.isFinite(Number(item.prepay_balance))).map(item=>[String(item.ad_account_id),item]))};
-  }catch{return {accounts:{}}}
-};
-const personalMeta = createPersonalMeta({...((process.env.META_PERSONAL_DATA_DIR?{directory:process.env.META_PERSONAL_DATA_DIR}:process.platform === 'win32' ? {directory: path.join(__dirname, '..', '.codex-tmp', 'personal-secrets')} : {})),billingBalanceReader});
+const personalMeta = createPersonalMeta(process.env.META_PERSONAL_DATA_DIR?{directory:process.env.META_PERSONAL_DATA_DIR}:process.platform === 'win32' ? {directory: path.join(__dirname, '..', '.codex-tmp', 'personal-secrets')} : {});
 const localOnly=process.env.ANALYTICS_LOCAL_ONLY==='1';
 const personalTools=process.env.ANALYTICS_PERSONAL_TOOLS==='1';
 const localRuntime=(localOnly||personalTools)?require('./local-runtime').createRuntime(personalMeta,{production:!localOnly}):null;

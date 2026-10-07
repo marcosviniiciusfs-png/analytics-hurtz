@@ -240,16 +240,21 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     }
     if (route === '/api/meta-billing-balances' && req.method === 'GET') {
       const ids = [...new Set((url.searchParams.get('accounts') || '').split(',').filter(Boolean))];
-      await authorizeAccounts(user, ids);
-      // Billing Hub is the only accepted source here. Graph's AdAccount.balance
-      // is deliberately not used: it is not the amount shown in Payments.
-      const result = billingBalanceReader ? await billingBalanceReader(ids) : {accounts: {}};
-      const source = result?.accounts && typeof result.accounts === 'object' ? result.accounts : {};
-      const accounts = Object.fromEntries(ids.map(id => {
-        const value = source[id];
-        if (!value || !Number.isFinite(Number(value.prepay_balance))) return [id, {id, audited: false, error: 'O saldo de Cobranças e pagamentos ainda não foi auditado para esta conta.'}];
-        return [id, {id, audited: true, balance: Number(value.prepay_balance), currency: value.currency || null, collected_at: value.collected_at || null, source: value.source || 'Meta Billing Hub'}];
-      }));
+      const {conn} = await authorizeAccounts(user, ids);
+      // These are the pre-paid balance fields returned for the connected user
+      // by the verified Meta app. `balance` is intentionally absent: it is the
+      // amount due, not the amount available in Billing & payments.
+      const readBalance=async id=>{
+        try{
+          const row=await graph(conn.token,id,{fields:'id,currency,is_prepay_account,stored_balance_status,total_prepay_balance,prepay_account_balance,prepay_details,funding_source_details'});
+          const value=row.total_prepay_balance??row.prepay_account_balance;
+          const amount=value&&typeof value==='object'?(value.amount_with_offset??value.amount):null;
+          const offset=value&&typeof value==='object'?(value.offset??value.currency_offset??(value.amount_with_offset!=null?2:null)):null;
+          if(!row.is_prepay_account||amount==null||offset==null||!Number.isFinite(Number(amount))||!Number.isFinite(Number(offset)))return [id,{id,audited:false,error:'A Meta não retornou um saldo pré-pago auditável para esta conta.'}];
+          return [id,{id,audited:true,balance:Number(amount)/10**Number(offset),currency:value.currency||row.currency||null,collected_at:new Date().toISOString(),source:'Meta Marketing API • total_prepay_balance'}];
+        }catch{return [id,{id,audited:false,error:'A Meta não liberou o saldo pré-pago desta conta para o app conectado.'}]}
+      };
+      const accounts=Object.fromEntries(await Promise.all(ids.map(readBalance)));
       return send(res, 200, {accounts});
     }
     // O construtor Fluxo usa a mesma conexão Meta do usuário; nenhum token vai ao navegador.

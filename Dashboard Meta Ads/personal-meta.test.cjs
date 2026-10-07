@@ -17,7 +17,7 @@ function fixture(t, runner, overrides = {}) {
     if(endpoint.endsWith('/debug_token')){assert.ok(overrides.oauthConfig,'only server credentials can inspect exchanged tokens');return {ok:true,json:async()=>({data:{is_valid:true,type:'USER',app_id:'2093320124537661',user_id:'a',expires_at:overrides.noFixedExpiry?0:Math.floor(Date.now()/1000)+5184000,data_access_expires_at:Math.floor(Date.now()/1000)+7776000}})}}
     overrides.requests?.push(new URL(url).searchParams.get('fields'));
     if(endpoint.endsWith('/oauth/access_token')){assert.equal(options.method,'GET');if(overrides.exchangeFailure)return {ok:false,status:400,json:async()=>({error:{code:190}})};return {ok:true,json:async()=>({access_token:tokens.a+'-long',...(overrides.missingExpiry?{}:{expires_in:5184000})})}}
-    const payload = overrides.pictureError && new URL(url).searchParams.get('fields')?.includes('profile_picture_uri') ? {error:{code:100,message:'Photo unavailable'}} : overrides.error ? {error: overrides.error}
+    const payload = overrides.accountDetail && /^\/v\d+\.\d+\/act_\d+$/.test(endpoint) ? overrides.accountDetail : overrides.pictureError && new URL(url).searchParams.get('fields')?.includes('profile_picture_uri') ? {error:{code:100,message:'Photo unavailable'}} : overrides.error ? {error: overrides.error}
       : endpoint.endsWith('/app') ? {id: overrides.app_id || '2093320124537661', name: 'Tryv CRM'}
       : endpoint.endsWith('/me/permissions') ? {data: (overrides.scopes || ['ads_read']).map(permission=>({permission,status:'granted'}))}
       : endpoint.endsWith('/me/adaccounts') ? overrides.catalog || {data: [{id: who === 'a' ? 'act_111' : 'act_222', name: who}]}
@@ -94,24 +94,24 @@ test('report account authorization precedes execution; caller identity cannot be
   assert.equal((await f.request(f.sessionA, '/api/tasks')).status, 403);
 });
 
-test('Billing Hub balances are returned only for accounts authorized to the current user', async t => {
-  let requested=[];
-  const f=fixture(t,undefined,{billingBalanceReader:async ids=>{requested=ids;return {accounts:{act_111:{prepay_balance:123.45,currency:'BRL',collected_at:'2026-10-07T12:00:00.000Z',source:'Meta Billing Hub'}}}}});
+test('prepaid balances are read through the verified app token for authorized accounts only', async t => {
+  const f=fixture(t,undefined,{accountDetail:{id:'act_111',currency:'BRL',is_prepay_account:true,total_prepay_balance:{amount:'12345',offset:2,currency:'BRL'}}});
   await f.connect(f.sessionA,f.tokens.a);
   const result=await f.request(f.sessionA,'/api/meta-billing-balances?accounts=act_111');
   assert.equal(result.status,200);
-  assert.deepEqual(requested,['act_111']);
-  assert.deepEqual(result.body.accounts.act_111,{id:'act_111',audited:true,balance:123.45,currency:'BRL',collected_at:'2026-10-07T12:00:00.000Z',source:'Meta Billing Hub'});
+  assert.equal(result.body.accounts.act_111.audited,true);
+  assert.equal(result.body.accounts.act_111.balance,123.45);
+  assert.equal(result.body.accounts.act_111.source,'Meta Marketing API • total_prepay_balance');
   assert.equal((await f.request(f.sessionA,'/api/meta-billing-balances?accounts=act_222')).status,403);
 });
 
-test('Billing Hub does not substitute Graph balance when an audited balance is unavailable', async t => {
-  const f=fixture(t,undefined,{billingBalanceReader:async()=>({accounts:{}})});
+test('amount due is never substituted for a missing prepaid balance', async t => {
+  const f=fixture(t,undefined,{accountDetail:{id:'act_111',currency:'BRL',is_prepay_account:true,balance:'99999'}});
   await f.connect(f.sessionA,f.tokens.a);
   const result=await f.request(f.sessionA,'/api/meta-billing-balances?accounts=act_111');
   assert.equal(result.status,200);
   assert.equal(result.body.accounts.act_111.audited,false);
-  assert.match(result.body.accounts.act_111.error,/Cobranças e pagamentos/);
+  assert.match(result.body.accounts.act_111.error,/saldo pré-pago auditável/);
 });
 
 test('both user logins pass exact report periods and all selected accounts to the runner', async t => {

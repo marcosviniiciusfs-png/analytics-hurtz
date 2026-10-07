@@ -612,7 +612,29 @@ function renderAccounts(filter=''){
   document.querySelector('#accountCount').textContent=`Exibindo ${list.length} de ${accounts.length} contas${activeSummaryFilter!=='all'?` • ${filterNames[activeSummaryFilter]}`:''}`;
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openAccount(b.dataset.open,false));
   document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>openAccount(b.dataset.plan,true));
+  scheduleAccountTableScrollDock();
 }
+
+const accountTableWrap=document.querySelector('#accounts .table-wrap'),accountTableScrollDock=document.querySelector('#accountTableScrollDock');
+let syncingAccountScroll=false,accountScrollDockFrame=0;
+function syncAccountTableScrollDock(){
+  accountScrollDockFrame=0;
+  if(!accountTableWrap||!accountTableScrollDock)return;
+  const accountsPanel=document.querySelector('#accounts'),rect=accountTableWrap.getBoundingClientRect(),overflow=accountTableWrap.scrollWidth-accountTableWrap.clientWidth;
+  if(accountsPanel.hidden||overflow<=1||rect.width<=0){accountTableScrollDock.hidden=true;return}
+  accountTableScrollDock.hidden=false;
+  accountTableScrollDock.style.left=`${Math.max(8,rect.left)}px`;
+  accountTableScrollDock.style.width=`${Math.max(0,Math.min(rect.width,window.innerWidth-Math.max(8,rect.left)-8))}px`;
+  accountTableScrollDock.style.bottom='12px';
+  accountTableScrollDock.firstElementChild.style.width=`${accountTableWrap.scrollWidth}px`;
+  if(!syncingAccountScroll)accountTableScrollDock.scrollLeft=accountTableWrap.scrollLeft;
+}
+function scheduleAccountTableScrollDock(){if(!accountScrollDockFrame)accountScrollDockFrame=requestAnimationFrame(syncAccountTableScrollDock)}
+accountTableWrap?.addEventListener('scroll',()=>{if(syncingAccountScroll)return;syncingAccountScroll=true;accountTableScrollDock.scrollLeft=accountTableWrap.scrollLeft;syncingAccountScroll=false},{passive:true});
+accountTableScrollDock?.addEventListener('scroll',()=>{if(syncingAccountScroll)return;syncingAccountScroll=true;accountTableWrap.scrollLeft=accountTableScrollDock.scrollLeft;syncingAccountScroll=false},{passive:true});
+new ResizeObserver(scheduleAccountTableScrollDock).observe(accountTableWrap);
+window.addEventListener('resize',scheduleAccountTableScrollDock,{passive:true});
+window.addEventListener('scroll',scheduleAccountTableScrollDock,{passive:true});
 
 const modal=document.querySelector('#accountModal'),planForm=document.querySelector('#balancePlan');let selectedAccount=null;
 let selectedCampaignGoal=null;
