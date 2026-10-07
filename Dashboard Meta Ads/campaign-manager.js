@@ -63,7 +63,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     // para identificar o vínculo Página → WABA; a BM continua sendo a fonte dos telefones.
     const linkedWabas=[];
     for(const page of discoveryPages){
-      try{const result=await graph(conn.pageTokens?.[page.id]||conn.token,page.id,{fields:'whatsapp_business_account{id,name}'},'v22.0'),business=result.whatsapp_business_account;if(business?.id)linkedWabas.push({id:String(business.id),page})}catch(error){failures.push(error)}
+      try{const result=await graph(conn.pageTokens?.[page.id]||conn.token,page.id,{fields:'whatsapp_business_account{id,name}'},'v22.0'),business=result.whatsapp_business_account;if(business?.id)linkedWabas.push({id:String(business.id),page})}catch(error){failures.push({stage:'Página → conta WhatsApp Business',status:error?.status||0})}
     }
     try{
       const ads=await rows(conn.token,account+'/ads',{fields:'creative{object_story_spec}'});
@@ -81,9 +81,9 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
         }
       };
       for(const ad of ads)collectPhones(ad.creative?.object_story_spec);
-    }catch(error){failures.push(error)}
+    }catch(error){failures.push({stage:'anúncios existentes',status:error?.status||0})}
     const businessId=String(accountInfo.business?.id||accountInfo.business_id||accountInfo.business||'').trim(),wabas=[],checks=[];
-    const collect=async(edge)=>{try{const items=await rows(conn.token,edge,{fields:'id,name'});checks.push(true);for(const item of items)if(item?.id&&!wabas.some(waba=>waba.id===String(item.id)))wabas.push({id:String(item.id),name:String(item.name||'')})}catch(error){checks.push(false);failures.push(error)}};
+    const collect=async(edge)=>{try{const items=await rows(conn.token,edge,{fields:'id,name'});checks.push(true);for(const item of items)if(item?.id&&!wabas.some(waba=>waba.id===String(item.id)))wabas.push({id:String(item.id),name:String(item.name||'')})}catch(error){checks.push(false);failures.push({stage:'ativos WhatsApp Business da conta',status:error?.status||0})}};
     if(businessId&&/^\d+$/.test(businessId))await Promise.all([collect(businessId+'/owned_whatsapp_business_accounts'),collect(businessId+'/client_whatsapp_business_accounts')]);
     const verifiedWabas=checks.some(Boolean)&&wabas.length?new Set(wabas.map(waba=>waba.id)):null,phoneSources=[];
     for(const item of linkedWabas)if(!verifiedWabas||verifiedWabas.has(item.id))if(!phoneSources.some(source=>source.id===item.id))phoneSources.push({id:item.id});
@@ -91,13 +91,14 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     const phonesByNumber=new Map();
     for(const business of phoneSources){
       let phones=[];
-      try{phones=await rows(conn.token,business.id+'/phone_numbers',{fields:'id,display_phone_number,verified_name'})}catch(error){failures.push(error);continue}
+      try{phones=await rows(conn.token,business.id+'/phone_numbers',{fields:'id,display_phone_number,verified_name'})}catch(error){failures.push({stage:'números da conta WhatsApp Business',status:error?.status||0});continue}
       for(const phone of phones){const value=String(phone.display_phone_number||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(value))continue;phonesByNumber.set(value,{id:String(phone.id||value),label:String(phone.verified_name||phone.display_phone_number||value),businessId:business.id});for(const linked of linkedWabas.filter(item=>item.id===business.id)){addNumber(value,linked.page,{id:phone.id,label:phone.verified_name||phone.display_phone_number,businessId:business.id});if(verifiedWabas?.has(String(business.id)))audited.add(String(linked.page.id)+'|'+value)}}
     }
     const items=checks.some(Boolean)&&wabas.length&&!phonesByNumber.size?[]:numbers.map(item=>phonesByNumber.has(item.phone)?{...item,...phonesByNumber.get(item.phone)}:item);
     if(items.length)return {state:'ready',items,audited:[...audited],message:checks.some(Boolean)?'Os números foram confirmados em anúncios autorizados para esta Página e conta.':'Os números foram confirmados em anúncios autorizados para esta Página e conta; a confirmação adicional da BM ficará disponível ao atualizar a conexão.',retryable:failures.length>0};
     if(!canReadWaba)return {state:'permission_required',items:[],audited:[...audited],message:'O Facebook conectado não autorizou a permissão para ler os números do WhatsApp Business. Em Configurações, reconecte o Facebook e aceite a permissão de WhatsApp Business.',retryable:false};
-    if(failures.length)return {state:'unavailable',items:[],audited:[...audited],message:'A Meta não liberou a leitura dos números do WhatsApp desta Página. Verifique se o perfil conectado tem acesso à conta do WhatsApp Business vinculada à Página.',retryable:true};
+    const diagnostics={failedStages:[...new Set(failures.map(item=>item.stage))],linkedWhatsAppAccounts:linkedWabas.length,businessWhatsAppAccounts:wabas.length};
+    if(failures.length)return {state:'unavailable',items:[],audited:[...audited],message:'A Meta não liberou a leitura dos números do WhatsApp desta Página. Verifique se o perfil conectado tem acesso à conta do WhatsApp Business vinculada à Página.',retryable:true,diagnostics};
     return {state:'empty',items:[],audited:[...audited],message:'Nenhum WhatsApp autorizado foi encontrado para a Página e a BM desta conta.',retryable:false};
   }
   // A native click-to-WhatsApp ad set is identified by Page + phone. When the
