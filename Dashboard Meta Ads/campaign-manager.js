@@ -40,6 +40,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
   async function instagramProfiles(conn,account,available){const profiles=[];await Promise.all(available.map(async page=>{try{const result=await graph(conn.token,page.id,{fields:'instagram_business_account{id,username,profile_picture_url}'}),item=result.instagram_business_account;if(item?.id)profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:page.id})}catch{}}));try{for(const item of await rows(conn.token,account+'/instagram_accounts',{fields:'id,username,profile_pic'}))if(!profiles.some(profile=>profile.id===item.id))profiles.push({id:String(item.id),username:item.username||String(item.id),pageId:''})}catch{}return profiles}
   async function whatsappNumbers(user,conn,account,available,accountInfo={},auditPage=''){
     const failures=[],numbers=[],audited=new Set();
+    const canReadWaba=Boolean(conn.scopes?.includes('whatsapp_business_management'));
     const addNumber=(value,page,details={})=>{
       const phone=String(value||'').replace(/\D/g,'');
       if(!/^\d{10,15}$/.test(phone)||numbers.some(item=>item.phone===phone&&item.pageId===String(page.id)))return;
@@ -95,7 +96,8 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     }
     const items=checks.some(Boolean)&&wabas.length&&!phonesByNumber.size?[]:numbers.map(item=>phonesByNumber.has(item.phone)?{...item,...phonesByNumber.get(item.phone)}:item);
     if(items.length)return {state:'ready',items,audited:[...audited],message:checks.some(Boolean)?'Os números foram confirmados em anúncios autorizados para esta Página e conta.':'Os números foram confirmados em anúncios autorizados para esta Página e conta; a confirmação adicional da BM ficará disponível ao atualizar a conexão.',retryable:failures.length>0};
-    if(failures.length)return {state:'unavailable',items:[],audited:[...audited],message:'Não foi possível verificar os números autorizados para esta Página e BM. Tente atualizar os números.',retryable:true};
+    if(!canReadWaba)return {state:'permission_required',items:[],audited:[...audited],message:'O Facebook conectado não autorizou a permissão para ler os números do WhatsApp Business. Em Configurações, reconecte o Facebook e aceite a permissão de WhatsApp Business.',retryable:false};
+    if(failures.length)return {state:'unavailable',items:[],audited:[...audited],message:'A Meta não liberou a leitura dos números do WhatsApp desta Página. Verifique se o perfil conectado tem acesso à conta do WhatsApp Business vinculada à Página.',retryable:true};
     return {state:'empty',items:[],audited:[...audited],message:'Nenhum WhatsApp autorizado foi encontrado para a Página e a BM desta conta.',retryable:false};
   }
   // A native click-to-WhatsApp ad set is identified by Page + phone. When the
@@ -119,6 +121,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     if(!selected)throw fail(403,'A Página selecionada não está disponível nesta conta de anúncio.');
     const discovery=await Promise.race([whatsappNumbers(user,conn,account,available,accountInfo,page),new Promise((_,reject)=>setTimeout(()=>reject(fail(504,'A Meta demorou para confirmar o vínculo entre o WhatsApp e a Página. Tente novamente.')),25000))]);
     if(discovery.audited?.includes(auditKey)||discovery.items?.some(item=>String(item.pageId)===page&&String(item.phone)===phone))return {ready:true,page,phone,pageName:selected.name};
+    if(discovery.state==='permission_required')throw fail(403,discovery.message);
     if(discovery.retryable)throw fail(503,'Não foi possível auditar agora se o WhatsApp '+phone+' pertence à Página "'+selected.name+'". Nenhuma campanha foi criada; tente novamente em instantes.');
     throw fail(403,'O WhatsApp '+phone+' não está autorizado para receber mensagens da Página "'+selected.name+'" nesta conta de anúncio. Ele pode estar vinculado a outra Página ou a outra conta. Selecione o número vinculado a esta Página ou associe esse número à Página e à conta de anúncio na Meta antes de publicar.');
   }
