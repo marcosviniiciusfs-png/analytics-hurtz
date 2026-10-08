@@ -258,7 +258,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       // WhatsApp is a native messages destination. The phone belongs to the
       // selected Page; it must never be downgraded to a wa.me website campaign.
       let whatsappPromotedObject;
-      if(destination==='whatsapp'){const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe um WhatsApp com DDI e DDD.');await whatsappPreflight(user,conn,account,page,phone,accountInfo);p.phone=phone;target='https://api.whatsapp.com/send?phone='+phone;cta={type:'WHATSAPP_MESSAGE',value:{app_destination:'WHATSAPP',link:target}}}
+      if(destination==='whatsapp'){const phone=String(p.phone||'').replace(/\D/g,'');if(!/^\d{10,15}$/.test(phone))throw fail(400,'Informe um WhatsApp com DDI e DDD.');p.phone=phone;target='https://api.whatsapp.com/send?phone='+phone;cta={type:'WHATSAPP_MESSAGE',value:{app_destination:'WHATSAPP',link:target}}}
       if(destination==='form'){form=id(p.form);const pageToken=conn.pageTokens?.[page]||conn.token;if(!(await rows(pageToken,page+'/leadgen_forms',{fields:'id,status'})).some(x=>x.id===form&&x.status==='ACTIVE'))throw fail(400,'Selecione um formulário ativo desta Página.');target='https://www.facebook.com/'+page;cta={type:'SIGN_UP',value:{lead_gen_form_id:form}}}
       // Match the Page-level selector returned by the account's working native
       // WhatsApp ad set: no Business Manager or internal-number identifier.
