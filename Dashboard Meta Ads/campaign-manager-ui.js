@@ -1,173 +1,350 @@
 // Compact staged loader shared by the review and publication flow.
+
 export function showCampaignPublishLoader(dialog,initialStage='Enviando criativo para a Meta...'){
+
   const existing=dialog.querySelector('.cm-publish-loader');if(existing)return existing.publishLoader;
+
   const editor=dialog.querySelector('#cmEditor'),wasInert=editor.inert;
+
   const loader=document.createElement('section');loader.className='cm-publish-loader';loader.tabIndex=-1;loader.setAttribute('role','status');loader.setAttribute('aria-live','polite');loader.setAttribute('aria-label','Publicando na Meta. Criando campanha, conjunto e anúncio pausados. Aguarde a confirmação.');
+
   loader.innerHTML='<div class="cm-stage-loader-card"><span class="cm-stage-spinner" aria-hidden="true"></span><p class="cm-stage-kicker">PUBLICAÇÃO NA META</p><strong class="cm-publish-caption">'+initialStage+'</strong><p class="cm-stage-copy">O progresso avança somente após uma confirmação da Meta.</p><div class="cm-upload-meter" role="progressbar" aria-label="Progresso confirmado da publicação" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="cm-upload-meter-heading"><span>Progresso confirmado</span><strong class="cm-upload-percent">0%</strong></div><div class="cm-upload-track"><span class="cm-upload-fill"></span></div></div><ol class="cm-stage-steps" aria-hidden="true"><li>Campanha</li><li>Conjunto</li><li>Anúncio</li></ol></div>';
+
   editor.inert=true;dialog.setAttribute('aria-busy','true');dialog.append(loader);loader.focus({preventScroll:true});
+
   const setStage=stage=>{loader.querySelector('.cm-publish-caption').textContent=stage;loader.setAttribute('aria-label',stage)};
+
   const setProgress=value=>{const progress=Math.max(0,Math.min(100,Math.round(Number(value)||0))),meter=loader.querySelector('.cm-upload-meter');meter.style.setProperty('--cm-upload-progress',String(progress/100));meter.setAttribute('aria-valuenow',String(progress));meter.querySelector('.cm-upload-percent').textContent=progress+'%'};
+
   const statusMessage=editor.querySelector('#cmSendStatus');
+
   // Percentages advance only after a confirmed upload chunk or a persisted Meta
+
   // object. Never show 100% while campaign creation is still in flight.
+
   const syncProgress=()=>{const message=statusMessage?.textContent||'',match=message.match(/Enviando criativo\.\.\.\s*(\d+)%/);if(match)setProgress(Math.round(Number(match[1])*.45));else if(/^(Confirmando criativo|Criando campanha|Vídeo sendo processado)/.test(message))setStage(message)};
+
   const statusObserver=statusMessage&&new MutationObserver(syncProgress);statusObserver?.observe(statusMessage,{childList:true,subtree:true,characterData:true});syncProgress();
+
   const stop=()=>{statusObserver?.disconnect();loader.remove();editor.inert=wasInert;dialog.removeAttribute('aria-busy');if(dialog.open&&statusMessage){statusMessage.tabIndex=-1;statusMessage.focus({preventScroll:true})}};
+
   stop.setStage=setStage;stop.setProgress=setProgress;loader.publishLoader=stop;return stop;
+
 }
+
+
 
 function formatCampaignReview(review,mediaBox){
+
   const details=new Map(),dl=review.querySelector('dl'),rows=[...dl.children];
+
   for(let index=0;index<rows.length;index+=2)details.set(rows[index].textContent,rows[index+1]?.textContent||'—');
+
   const esc=value=>String(value??'—').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+
   const tile=(label,value,mono=false)=>'<article class="cm-review-tile"><span>'+esc(label)+'</span><strong'+(mono?' class="cm-review-mono"':'')+'>'+esc(value)+'</strong></article>';
+
   const section=(title,content)=>'<section class="cm-review-section"><div class="cm-review-section-head"><i aria-hidden="true"></i><h5>'+title+'</h5></div>'+content+'</section>';
+
   const splitLast=(value,pattern)=>{const text=String(value||'—'),match=text.match(pattern);if(!match)return [text,'—'];const before=text.slice(0,match.index).replace(/\s*[·—-]\s*$/,'').trim();return [before||'—',match[0].trim()]};
+
   const [business,businessId]=splitLast(details.get('BM'),/\d{6,}$/);
+
   const [accountName,accountId]=splitLast(details.get('Conta'),/act_[\w-]+$/i);
+
   const audience=String(details.get('Público e orçamento')||'—').split(' · ').map(value=>value.trim()).filter(Boolean);
+
   const budget=audience.pop()||'—',age=audience.pop()||'—',country=audience.pop()||'—',region=audience.pop()||'—',location=audience.join(' · ')||'—';
+
   const header=document.createElement('header');header.className='cm-review-header';header.innerHTML='<div><h3>Nova campanha e anúncio</h3><p>Confira o destino, o público e o orçamento diário antes de publicar na Meta.</p></div><button type="button" class="cm-review-close" data-cm="cancel" aria-label="Fechar criação">×</button>';
+
   const body=document.createElement('div');body.className='cm-review-body';
+
   const creative=document.createElement('div');creative.className='cm-review-creative';creative.append(mediaBox);body.append(creative);
+
   body.insertAdjacentHTML('beforeend',section('Conta e destino','<div class="cm-review-tiles">'+tile('Business Manager',business)+tile('ID da BM',businessId,true)+tile('Conta de anúncio',accountName)+tile('ID da conta',accountId,true)+tile('Página / Instagram',details.get('Página / Instagram'))+tile('Destino',details.get('Destino'))+'</div>'));
+
   body.insertAdjacentHTML('beforeend',section('Público e orçamento','<div class="cm-review-tiles">'+tile('Localização',location)+tile('Estado / país',region+' · '+country)+tile('Idade',age,true)+tile('Orçamento diário',budget,true)+'</div>'));
+
   body.insertAdjacentHTML('beforeend',section('Conteúdo do anúncio','<div class="cm-review-tiles">'+tile('Nome da campanha',details.get('Nome'))+tile('Título do anúncio',details.get('Título'))+'</div><div class="cm-review-text">'+esc(details.get('Texto'))+'</div>'));
+
+  const interests=details.get('Segmentação detalhada');if(interests&&interests!=='—')body.insertAdjacentHTML('beforeend',section('Segmentação detalhada','<div class="cm-review-tiles">'+tile('Interesses',interests)+'</div>'));
   const footer=document.createElement('footer');footer.className='cm-review-footer';footer.append(review.querySelector('.cm-actions'),review.querySelector('#cmSendStatus'));
+
   review.replaceChildren(header,body,footer);review.classList.add('cm-review-layout');
+
 }
+
+
 
 export function showCampaignConfirmation(dialog,{campaign,account,currency,created}){
+
   dialog.querySelector('.cm-campaign-confirmation')?.remove();
+
   const destination={site:'Site',whatsapp:'WhatsApp',form:'Formulário'}[campaign.destination]||campaign.destination;
+
   const details=[['Campanha',campaign.name],['Conta',account.name],['Destino',destination],['Orçamento diário',campaign.dailyBudget+' '+currency],['Publicada em',new Date().toLocaleString('pt-BR')],['ID da campanha',created.campaign],['ID do conjunto',created.adset],['ID do anúncio',created.ad]];
+
   const card=document.createElement('section');card.className='cm-campaign-confirmation';card.tabIndex=-1;card.setAttribute('role','dialog');card.setAttribute('aria-modal','true');card.setAttribute('aria-labelledby','cmConfirmationTitle');
+
   card.innerHTML='<div class="cm-confirmation-card"><div class="cm-confirmation-check" aria-hidden="true">✓</div><h2 id="cmConfirmationTitle">Campanha publicada e ativa</h2><p>Campanha, conjunto e anúncio foram confirmados como ativos na Meta.</p><dl>'+details.map(([label,value],index)=>'<div'+(index===3?' class="cm-confirmation-highlight"':'')+'><dt>'+label+'</dt><dd>'+String(value||'—').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</dd></div>').join('')+'</dl><button type="button" class="cm-primary" data-cm-confirmation-close>Ver campanhas ativas</button></div>';
+
   dialog.append(card);card.querySelector('[data-cm-confirmation-close]').onclick=()=>{card.remove();dialog.close()};requestAnimationFrame(()=>card.classList.add('is-visible'));card.focus({preventScroll:true});
+
 }
 
+
+
 const mediaTransfers=new WeakMap();
+
 export async function uploadCampaignMedia(request,file,type,onProgress=()=>{}){
+
   // Small files retain the original transport. Large files avoid proxy body deadlines.
+
   if(file.size<=1024*1024){onProgress(0);const data=new FormData();data.append('file',file.type?file:new Blob([file],{type}),file.name);const result=await request('upload',data);onProgress(100);return result}
+
   onProgress(0);let transfer=mediaTransfers.get(file);
+
   if(!transfer){transfer={...await request('upload-start',{size:file.size,type:file.type||type}),offset:0};mediaTransfers.set(file,transfer)}
+
   try{
+
     while(transfer.offset<file.size){const data=new FormData();data.append('upload',transfer.upload);data.append('offset',String(transfer.offset));data.append('file',file.slice(transfer.offset,transfer.offset+transfer.chunkSize),'part');
+
       const result=await request('upload-part',data);if(result.received<=transfer.offset||result.received>file.size)throw Error('Não foi possível confirmar o envio do arquivo.');transfer.offset=result.received;onProgress(Math.floor(100*transfer.offset/file.size));
+
     }
+
     const result=await request('upload-finish',{upload:transfer.upload});mediaTransfers.delete(file);return result;
+
   }catch(error){if(error.status===410)mediaTransfers.delete(file);throw error}
+
 }
+
 export function initializeCampaignManager({request,uploadRequest=request,getAccount,escapeHtml:esc}){
+
   const panel=document.createElement('section');panel.id='campaignManager';panel.className='campaign-manager';panel.hidden=true;
+
   document.querySelector('.modal-tabs').after(panel);
+
   panel.innerHTML='<header class="cm-heading"><div><h3>Campanhas e anúncios</h3><p>Gerencie os anúncios desta conta com o seu acesso do Facebook.</p></div><div class="cm-actions"><button type="button" data-cm="refresh">Atualizar</button><button type="button" data-cm="new" class="cm-primary">Criar anúncio</button></div></header><p class="cm-notice" id="cmPermission" hidden>Seu acesso atual permite consultar. Para criar e gerenciar anúncios, <button type="button" data-cm="authorize">autorize o gerenciamento no Facebook</button>.</p><p id="cmStatus" role="status" aria-live="polite"></p><nav id="cmBreadcrumb" aria-label="Navegação das campanhas"></nav><div id="cmItems"></div><details><summary>Operações de criação</summary><div id="cmOperations"></div></details><section id="cmEditor" hidden></section>';
+
   const editorDialog=document.createElement('dialog');editorDialog.className='cm-editor-dialog';editorDialog.setAttribute('aria-labelledby','cmEditorTitle');editorDialog.append(panel.querySelector('#cmEditor'));document.body.append(editorDialog);let editorTurn=0,editorTrigger=null;editorDialog.addEventListener('keydown',event=>{if(event.key==='Escape')event.stopPropagation()});editorDialog.addEventListener('cancel',event=>{if(busy)event.preventDefault()});editorDialog.addEventListener('close',()=>{editorTurn++;editorTrigger?.focus({preventScroll:true})});const $=s=>editorDialog.querySelector(s)||panel.querySelector(s);let destinationAccount=null,workflowAccount=null;const accountId=value=>{const raw=String(value||'').trim();return /^\d+$/.test(raw)?'act_'+raw:raw};const lockAccount=value=>{const id=accountId(value?.id);if(!/^act_\d+$/.test(id))throw new Error('A conta de anúncio selecionada é inválida. Atualize as contas e selecione-a novamente.');return Object.freeze({...value,id})};const currentAccount=()=>workflowAccount||destinationAccount||getAccount();let account=null,currency='',canManage=false,level='campaign',parent=null,campaign=null,items=[],generation=0,draftKey=null,previewUrl=null,busy=false;
+
   editorDialog.addEventListener('campaign-created',event=>showCampaignConfirmation(editorDialog,event.detail));
+
   const enforceMinimumBudget=()=>editorDialog.querySelectorAll('[name="dailyBudget"],[data-review-field="dailyBudget"]').forEach(input=>{input.min='6';if(!input.value||Number(input.value)<6)input.value='6'});
+
   new MutationObserver(enforceMinimumBudget).observe(editorDialog,{childList:true,subtree:true});
+
   const cache=new Map(),labels={campaign:'Campanha',adset:'Conjunto',ad:'Anúncio'},statusName={ACTIVE:'Ativo',PAUSED:'Pausado',CAMPAIGN_PAUSED:'Campanha pausada',ADSET_PAUSED:'Conjunto pausado',PENDING_REVIEW:'Em análise',DISAPPROVED:'Reprovado',WITH_ISSUES:'Com problemas',IN_PROCESS:'Processando',ARCHIVED:'Arquivado',DELETED:'Excluído'};
+
   let api=(action,params={},payload,owner=account)=>request('/api/ads-manager/'+action+'?'+new URLSearchParams({account:owner,...params}),payload?{method:'POST',body:payload instanceof FormData?payload:JSON.stringify(payload)}:{});
+
   const apiRequest=api;
+
   const apiUpload=(action,payload,owner,onProgress)=>uploadRequest('/api/ads-manager/'+action+'?'+new URLSearchParams({account:owner}),{method:'POST',body:payload},onProgress);
+
   api=async(action,params={},payload,owner=account)=>{
+
     if(action!=='create')return apiRequest(action,params,payload,owner);
+
     const deadline=Date.now()+5*60*1000,loader=editorDialog.querySelector('.cm-publish-loader')?.publishLoader;
+
     const updateProgress=async()=>{try{const data=await apiRequest('operations',{},undefined,owner),operation=data.items.find(item=>item.key===payload?.key)||data.items.filter(item=>item.state==='creating').sort((a,b)=>b.updated-a.updated)[0];if(!operation)return;const created=operation.created||{};if(created.ad){loader?.setProgress(100);loader?.setStage('Anúncio confirmado pela Meta.')}else if(created.creative){loader?.setProgress(88);loader?.setStage('Criativo confirmado. Criando o anúncio...')}else if(created.adset){loader?.setProgress(72);loader?.setStage('Conjunto confirmado. Criando o criativo...')}else if(created.campaign){loader?.setProgress(56);loader?.setStage('Campanha confirmada. Criando o conjunto...')}else{loader?.setProgress(45);loader?.setStage('Criando a campanha na Meta...')}}catch{}};
+
     loader?.setProgress(45);loader?.setStage('Criativo confirmado. Criando a campanha...');
+
     const poll=setInterval(updateProgress,500);await updateProgress();
+
     try{for(;;){try{const result=await apiRequest(action,params,payload,owner);setTimeout(()=>editorDialog.dispatchEvent(new CustomEvent('campaign-created',{detail:{campaign:payload,created:result.created||result,account:{...currentAccount()},currency}})),0);return result}catch(error){
+
       const waiting=error?.status===409&&/(vídeo ainda está sendo processado|capa do vídeo ainda não está disponível)/i.test(error.message||'');
+
       if(!waiting||Date.now()>=deadline)throw error;
+
       const status=$('#cmSendStatus');if(status)status.textContent='Vídeo sendo processado pela Meta. Aguardando para publicar automaticamente...';
+
       await new Promise(resolve=>setTimeout(resolve,1500));
+
     }}}finally{clearInterval(poll)}
+
   };
+
   function notice(message){$('#cmStatus').textContent=message}
+
   function dispose(){editorTurn++;if(editorDialog.open)editorDialog.close();if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=null;$('#cmEditor').hidden=true;$('#cmEditor').replaceChildren()}
+
   async function load(force=false){const stamp=++generation,owner=account;notice('Consultando '+labels[level].toLowerCase()+'s...');$('#cmItems').replaceChildren();try{const key=account+':'+level+':'+parent;let data=cache.get(key);if(force||!data||Date.now()-data.at>60000){data={at:Date.now(),payload:await api(level==='campaign'?'campaigns':level==='adset'?'adsets':'ads',level==='campaign'?{}:level==='adset'?{campaign:parent}:{adset:parent})};cache.set(key,data)}if(stamp!==generation||owner!==account)return;items=data.payload.items;if(level==='campaign'){currency=data.payload.currency;canManage=data.payload.canManage;$('#cmPermission').hidden=canManage;$('[data-cm="new"]').disabled=!canManage}render();notice(items.length+' '+labels[level].toLowerCase()+'(s) encontrados.');await operations()}catch(e){if(stamp===generation)notice(e.message)}}
+
   function render(){const manager='https://adsmanager.facebook.com/adsmanager/manage/campaigns?act='+account.replace('act_','');$('#cmBreadcrumb').hidden=level==='campaign';$('#cmBreadcrumb').innerHTML='<button type="button" data-cm="campaigns">Campanhas</button>'+(level!=='campaign'?'<span>›</span><button type="button" data-cm="adsets">Conjuntos</button>':'')+(level==='ad'?'<span>› Anúncios</span>':'');$('#cmItems').innerHTML=items.length?items.map(item=>'<article class="cm-row"><div><strong>'+esc(item.name||item.id)+'</strong><small>'+esc(({OUTCOME_TRAFFIC:'Tráfego',OUTCOME_ENGAGEMENT:'Engajamento',OUTCOME_LEADS:'Leads',OUTCOME_SALES:'Vendas',OUTCOME_AWARENESS:'Reconhecimento',OUTCOME_APP_PROMOTION:'Aplicativo'})[item.objective]||item.objective||'')+' · '+esc(item.id)+'</small></div><span class="cm-status '+(item.effective_status==='ACTIVE'?'active':'')+'">'+esc(statusName[item.effective_status]||item.effective_status||item.status)+'</span><div class="cm-actions">'+(level!=='ad'?'<button type="button" data-cm="children" data-id="'+esc(item.id)+'">'+(level==='campaign'?'Ver conjuntos':'Ver anúncios')+'</button>':'')+'<button type="button" data-cm="toggle" data-id="'+esc(item.id)+'" '+(!canManage||['ARCHIVED','DELETED'].includes(item.status)?'disabled':'')+'>'+(item.status==='ACTIVE'?'Pausar':'Ativar')+'</button></div></article>').join(''):'<p class="cm-empty">Nenhum item encontrado neste nível.</p>';$('#cmItems').insertAdjacentHTML('beforeend','<a class="cm-meta-link" href="'+manager+'" target="_blank" rel="noopener noreferrer">Abrir esta conta no Gerenciador da Meta ↗</a>')}
+
   async function operations(){const owner=account;try{const data=await api('operations');if(owner!==account)return;$('#cmOperations').innerHTML=data.items.slice().reverse().map(op=>'<article class="cm-operation"><strong>'+(op.state==='complete'?'Publicado e ativo':'Verifique esta tentativa')+'</strong><p>'+esc(op.error||'A Meta confirmou a criação ativa.')+'</p><small>'+esc(Object.entries(op.created||{}).map(([k,v])=>k+': '+v).join(' · '))+'</small></article>').join('')||'<p>Nenhuma criação registrada nesta conta.</p>'}catch(e){$('#cmOperations').textContent=e.message}}
+
   function field(name,label,type='text',attrs=''){return '<label>'+label+'<input name="'+name+'" type="'+type+'" '+attrs+'></label>'}
+
   async function edit(suggestion=null){if(busy||!canManage)return;dispose();const editTurn=++editorTurn;editorTrigger=document.activeElement;draftKey=crypto.randomUUID();const owner=account,destinationInfo={...currentAccount()},existing=level==='ad'?parent:'';$('#cmEditor').hidden=false;editorDialog.showModal();$('#cmEditor').innerHTML='<h3 id="cmEditorTitle">Criar anúncio</h3>'+aiLoader.replace(' hidden','').replace('Montando sua campanha','Preparando dados da campanha').replace('A IA está definindo objetivo, público, localização e posicionamentos.','Carregando Páginas e Instagram disponíveis...');try{let assets=await api('assets');if(owner!==account||editTurn!==editorTurn||!editorDialog.open)return;const opts=(rows,label)=>'<option value="">'+label+'</option>'+rows.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name||x.username||x.id)+'</option>').join('');$('#cmEditor').innerHTML='<header class="cm-heading"><div><h3 id="cmEditorTitle">'+ (existing?'Anúncio neste conjunto':'Nova campanha e anúncio')+'</h3><p>'+ (existing?'Serão usados o público, orçamento e posicionamentos do conjunto selecionado.':'Defina o destino, o público e o orçamento diário em '+esc(currency)+'.')+'</p></div><button type="button" data-cm="cancel">Fechar criação</button></header><form id="cmForm"'+(suggestion?' hidden':'')+'><div class="cm-grid">'+field('name','Nome do anúncio / campanha','text','required maxlength="200"')+'<label>Destino<select name="destination"><option value="site">Site · Tráfego / cliques</option><option value="whatsapp">WhatsApp · Conversas</option><option value="form">Formulário · Leads</option></select></label><label>Página<select name="page" required>'+opts(assets.pages,'Selecione a Página')+'</select></label><label>Instagram<select name="instagram">'+opts(assets.instagram,'Somente Facebook')+'</select></label><div data-dest="site">'+field('url','Endereço do site','url','placeholder="https://"')+'</div><div data-dest="whatsapp" hidden>'+field('phone','WhatsApp vinculado à Página','tel','placeholder="55 + DDD + número" pattern="[0-9]{10,15}"')+'<small>Use o número autorizado nesta Página para anúncios.</small></div><label data-dest="form" hidden>Formulário ativo<select name="form"><option value="">Selecione a Página primeiro</option></select></label>'+(!existing?field('dailyBudget','Orçamento diário ('+esc(currency)+')','number','required min="0.01" max="100000" step="0.01"')+field('countries','Países do público','text','required value="BR" placeholder="BR, PT"')+field('ageMin','Idade mínima','number','required value="18" min="18" max="65"')+field('ageMax','Idade máxima (65 = 65+)','number','required value="65" min="18" max="65"')+'<label>Categoria especial<select name="category"><option value="">Nenhuma</option><option value="HOUSING">Moradia</option><option value="FINANCIAL_PRODUCTS_SERVICES">Produtos e serviços financeiros</option><option value="EMPLOYMENT">Emprego</option><option value="ISSUES_ELECTIONS_POLITICS">Temas sociais, eleições ou política</option></select></label>':'')+field('headline','Título','text','required maxlength="100"')+'<label class="cm-wide">Texto principal<textarea name="message" required maxlength="2200" rows="4"></textarea></label><label class="cm-wide">Imagem ou vídeo (até 20 MB)<input name="file" type="file" accept="image/jpeg,image/png,video/mp4" required></label></div><div id="cmPreview"></div><p>'+esc(assets.warning||'')+'</p><p class="cm-notice">A publicação cria campanha, conjunto e anúncio ativos na Meta. A Meta ainda verifica políticas, pagamentos e elegibilidade.</p><button type="submit" class="cm-primary">Revisar anúncio</button></form><section id="cmReview" hidden></section>';
+
       const form=$('#cmForm'),uploadedFiles=new WeakMap();if(suggestion){const loading=document.createElement('div');loading.id='cmPreparingReview';loading.setAttribute('role','status');loading.innerHTML=aiLoader.replace(' hidden','').replace('Montando sua campanha','Preparando resumo da campanha').replace('A IA está definindo objetivo, público, localização e posicionamentos.','Organizando os dados para sua revisão.');form.before(loading)}let mediaType='';const fileNotice=document.createElement('p');fileNotice.id='cmFileStatus';fileNotice.setAttribute('role','status');form.elements.file.setAttribute('aria-describedby','cmFileStatus');form.elements.file.closest('label').after(fileNotice);
+
       form.noValidate=true;const validationNotice=document.createElement('p'),fieldNames={name:'Nome da campanha',destination:'Destino',page:'Página',phone:'WhatsApp para receber leads',form:'Formulário de leads',dailyBudget:'Orçamento diário',countries:'Países do público',ageMin:'Idade mínima',ageMax:'Idade máxima',headline:'Título',message:'Texto principal',file:'Criativo'},missingRequired=()=>[...form.querySelectorAll('input[required],select[required],textarea[required]')].filter(input=>!input.validity.valid),missingNames=fields=>[...new Set(fields.map(input=>fieldNames[input.name]||input.closest('label')?.childNodes[0]?.textContent?.trim()).filter(Boolean))];validationNotice.id='cmValidationNotice';validationNotice.setAttribute('role','alert');form.append(validationNotice);const showMissing=()=>{const fields=missingRequired(),names=missingNames(fields);form.querySelectorAll('.cm-field-missing').forEach(node=>node.classList.remove('cm-field-missing'));fields.forEach(input=>input.closest('label,[data-dest]')?.classList.add('cm-field-missing'));validationNotice.innerHTML='Para revisar, complete: '+names.map(name=>'<mark>'+esc(name)+'</mark>').join(' ')+'.';validationNotice.hidden=false;fields[0]?.focus({preventScroll:true})};form.addEventListener('input',()=>{if(!missingRequired().length){validationNotice.hidden=true;form.querySelectorAll('.cm-field-missing').forEach(node=>node.classList.remove('cm-field-missing'))}});form.addEventListener('submit',event=>{if(missingRequired().length){event.preventDefault();event.stopImmediatePropagation();showMissing()}},true);
+
       const phoneField=form.elements.phone.closest('[data-dest="whatsapp"]');phoneField.outerHTML='<label data-dest="whatsapp" hidden>WhatsApp para receber leads<input name="phone" inputmode="tel" autocomplete="tel" placeholder="+55 68 99999-9999" pattern="[0-9+() -]{10,25}"><small id="cmWhatsappStatus">Digite o número com DDI e DDD. A Meta fará a validação ao publicar.</small></label>';
+
       const syncInstagram=()=>{const current=form.elements.instagram.value,linked=assets.instagram.filter(item=>item.pageId===form.elements.page.value);form.elements.instagram.innerHTML=opts(linked,'Somente Facebook');if(linked.some(item=>item.id===current))form.elements.instagram.value=current;else if(linked.length===1)form.elements.instagram.value=linked[0].id};
+
       const syncWhatsapps=()=>{const status=$('#cmWhatsappStatus');form.elements.phone.required=form.elements.destination.value==='whatsapp';status.textContent=form.elements.page.value?'Digite o número com DDI e DDD. A Meta fará a validação ao publicar.':'Selecione a Página antes de informar o WhatsApp.'};
+
       const sync=()=>{const dest=form.elements.destination.value;editorDialog.querySelectorAll('[data-dest]').forEach(el=>{el.hidden=el.dataset.dest!==dest;el.querySelectorAll('input,select').forEach(input=>input.required=!el.hidden)});syncInstagram();syncWhatsapps();if(form.elements.category){const special=!!form.elements.category.value;for(const n of ['ageMin','ageMax']){form.elements[n].disabled=special;if(special)form.elements[n].value=n==='ageMin'?'18':'65'}}};sync();form.elements.destination.onchange=()=>{sync();if(form.elements.destination.value==='form')forms()};if(form.elements.category)form.elements.category.onchange=sync;
+
       let formLoad=0;async function forms(){const turn=++formLoad,page=form.elements.page.value;form.elements.form.innerHTML='<option value="">Carregando...</option>';if(!page)return;try{const data=await api('forms',{page});if(turn!==formLoad||owner!==account)return;form.elements.form.innerHTML=opts(data.items.filter(x=>x.status==='ACTIVE'),'Selecione o formulário')}catch(e){if(turn===formLoad){form.elements.form.innerHTML='<option value="">Reconecte o Facebook para carregar</option>';notice(e.message)}}}form.elements.page.onchange=()=>{syncInstagram();syncWhatsapps();if(form.elements.destination.value==='form')forms()};syncInstagram();syncWhatsapps();
+
       function restoreSuggestedPreview(){if(!suggestion?.mediaPreview)return;const img=document.createElement('img');img.src=suggestion.mediaPreview;img.alt='Imagem do anúncio anterior sugerida para reutilização';$('#cmPreview').append(img)}
+
       if(suggestion&&form.elements.countries)form.elements.countries.addEventListener('input',()=>{suggestion.location=null});
-      const fileLabel=form.elements.file.closest('label');fileLabel.childNodes[0].textContent='Imagem ou vídeo (até 100 MB)';form.elements.file.onchange=()=>{if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=null;const input=form.elements.file,file=input.files[0],preview=$('#cmPreview');preview.replaceChildren();input.setCustomValidity('');fileNotice.textContent='';mediaType='';if(!file)return;mediaType=file.type||({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',mp4:'video/mp4'}[file.name.split('.').pop().toLowerCase()]||'');let error='';if(!file.size)error='O arquivo está vazio. Escolha outro arquivo.';else if(file.size>100*1024*1024)error='Escolha um arquivo de até 100 MB.';else if(!['image/jpeg','image/png','video/mp4'].includes(mediaType))error='Formato não aceito. Use JPG, PNG ou MP4.';if(error){input.value='';input.setCustomValidity(error);fileNotice.textContent=error;return}previewUrl=URL.createObjectURL(file);fileNotice.textContent=file.name+' · '+(file.size/1024/1024).toFixed(2)+' MB';if(mediaType!=='video/mp4'){const image=document.createElement('img');image.src=previewUrl;image.alt='Prévia do criativo selecionado';preview.append(image);return}const video=document.createElement('video');video.src=previewUrl;video.preload='metadata';video.muted=true;video.playsInline=true;video.controls=true;preview.append(video);video.addEventListener('loadeddata',()=>{try{video.currentTime=Math.min(Math.max(video.duration*.1,.1),Math.max(video.duration-.1,.1))}catch{}},{once:true});video.addEventListener('seeked',()=>{const canvas=document.createElement('canvas'),width=video.videoWidth||640,height=video.videoHeight||360;canvas.width=width;canvas.height=height;const context=canvas.getContext('2d');if(!context)return;context.drawImage(video,0,0,width,height);const cover=new Image();cover.src=canvas.toDataURL('image/jpeg',.85);cover.alt='Capa do vídeo selecionado';cover.className='cm-video-cover';preview.replaceChildren(cover)},{once:true})};
+
+      form.elements.file.setAttribute('accept','image/jpeg,image/png,video/mp4,video/quicktime,video/x-m4v,.jpg,.jpeg,.png,.mp4,.mov,.m4v');form.elements.file.addEventListener('change',event=>{const chosen=event.target.files?.[0];if(chosen&&['video/quicktime','video/x-m4v'].includes(String(chosen.type||'').toLowerCase()))try{Object.defineProperty(chosen,'type',{value:'video/mp4',configurable:true})}catch{}},true);
+      const fileLabel=form.elements.file.closest('label');fileLabel.childNodes[0].textContent='Imagem ou vídeo (até 100 MB)';form.elements.file.onchange=()=>{if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=null;const input=form.elements.file,file=input.files[0],preview=$('#cmPreview');preview.replaceChildren();input.setCustomValidity('');fileNotice.textContent='';mediaType='';if(!file)return;mediaType=file.type||({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',mp4:'video/mp4',mov:'video/mp4',m4v:'video/mp4'}[file.name.split('.').pop().toLowerCase()]||'');let error='';if(!file.size)error='O arquivo está vazio. Escolha outro arquivo.';else if(file.size>100*1024*1024)error='Escolha um arquivo de até 100 MB.';else if(!['image/jpeg','image/png','video/mp4'].includes(mediaType))error='Formato não aceito. Use JPG, PNG, MP4, MOV ou M4V.';if(error){input.value='';input.setCustomValidity(error);fileNotice.textContent=error;return}previewUrl=URL.createObjectURL(file);fileNotice.textContent=file.name+' · '+(file.size/1024/1024).toFixed(2)+' MB';if(mediaType!=='video/mp4'){const image=document.createElement('img');image.src=previewUrl;image.alt='Prévia do criativo selecionado';preview.append(image);return}const video=document.createElement('video');video.src=previewUrl;video.preload='metadata';video.muted=true;video.playsInline=true;video.controls=true;preview.append(video);video.addEventListener('loadeddata',()=>{try{video.currentTime=Math.min(Math.max(video.duration*.1,.1),Math.max(video.duration-.1,.1))}catch{}},{once:true});video.addEventListener('seeked',()=>{const canvas=document.createElement('canvas'),width=video.videoWidth||640,height=video.videoHeight||360;canvas.width=width;canvas.height=height;const context=canvas.getContext('2d');if(!context)return;context.drawImage(video,0,0,width,height);const cover=new Image();cover.src=canvas.toDataURL('image/jpeg',.85);cover.alt='Capa do vídeo selecionado';cover.className='cm-video-cover';preview.replaceChildren(cover)},{once:true})};
+
       form.onsubmit=event=>{event.preventDefault();const p=Object.fromEntries(new FormData(form));p.ageMin=form.elements.ageMin?.value||18;p.ageMax=form.elements.ageMax?.value||65;p.countries=(p.countries||'BR').split(',').map(x=>x.trim().toUpperCase()).filter(Boolean);delete p.file;if(suggestion?.location){p.location=suggestion.location;p.interests=suggestion.interests||[];p.placements=suggestion.placements}p.adset=existing;p.key=draftKey;p.confirm=true;const file=form.elements.file.files[0],selectedMediaType=mediaType;if(file&&uploadedFiles.has(file))p.media=uploadedFiles.get(file);if(!file&&suggestion?.media)p.media=suggestion.media;form.hidden=true;const review=$('#cmReview');review.hidden=false;review.innerHTML='<h4>Revise antes de enviar</h4><dl><dt>BM</dt><dd>'+esc(destinationInfo.businessId?(destinationInfo.businessName||'BM')+' \u00b7 '+destinationInfo.businessId:'BM n\u00e3o informada')+'</dd><dt>Conta</dt><dd>'+esc(destinationInfo.name)+' · '+esc(owner)+'</dd><dt>Nome</dt><dd>'+esc(p.name)+'</dd><dt>Destino</dt><dd>'+esc({site:p.url,whatsapp:p.phone,form:'Formulário '+p.form}[p.destination])+'</dd><dt>Página / Instagram</dt><dd>'+esc(form.elements.page.selectedOptions[0].textContent)+' / '+esc(form.elements.instagram.selectedOptions[0].textContent)+'</dd><dt>Público e orçamento</dt><dd>'+esc(existing?'Do conjunto '+existing:(p.location?p.location.name+(p.category&&p.location.type==='city'?' (raio de 17 km)':'')+' · '+p.location.region+' · '+p.location.country:p.countries.join(', '))+' · '+p.ageMin+' a '+p.ageMax+' anos · '+p.dailyBudget+' '+currency+'/dia')+'</dd><dt>Título</dt><dd>'+esc(p.headline)+'</dd><dt>Texto</dt><dd>'+esc(p.message)+'</dd><dt>Arquivo</dt><dd>'+esc(file?.name||'Imagem de anúncio anterior desta Página')+'</dd></dl><div class="cm-actions"><button type="button" id="cmBack">Editar</button><button type="button" id="cmSend" class="cm-primary">Publicar campanha na Meta</button></div><p id="cmSendStatus" role="status"></p>';
+
+        if(Array.isArray(p.interests)&&p.interests.length)review.querySelector('dl').insertAdjacentHTML('beforeend','<dt>Segmentação detalhada</dt><dd>'+esc(p.interests.map(item=>item.name||item).join(' · '))+'</dd>');
+        const successObserver=new MutationObserver(()=>{const status=$('#cmSendStatus');if(!/confirmada pela Meta/.test(status?.textContent||'')||editorDialog.querySelector('.cm-publish-success'))return;successObserver.disconnect();const success=document.createElement('section');success.className='cm-publish-success';success.setAttribute('role','dialog');success.setAttribute('aria-modal','true');success.innerHTML='<button type="button" aria-label="Fechar confirmação">×</button><strong>Campanha publicada na Meta</strong><p>Campanha, conjunto e anúncio foram criados.</p><button type="button">Fechar</button>';const closeSuccess=()=>{success.remove();dispose();if(editorDialog.open)editorDialog.close()};success.querySelectorAll('button').forEach(button=>button.onclick=closeSuccess);editorDialog.append(success)});successObserver.observe($('#cmSendStatus'),{childList:true,subtree:true,characterData:true});
         review.tabIndex=-1;review.focus({preventScroll:true});editorDialog.scrollTop=0;const preview=$('#cmPreview').firstElementChild?.cloneNode(true);if(preview)review.querySelector('dl').before(preview);
+
         const mediaBox=document.createElement('button');mediaBox.type='button';mediaBox.id='cmReviewMedia';mediaBox.className='cm-review-media';mediaBox.setAttribute('aria-label',file?'Trocar criativo':'Selecionar criativo');
+
         mediaBox.innerHTML='<strong></strong><small>JPG, PNG ou MP4 · até 100 MB</small>';mediaBox.querySelector('strong').textContent=file?file.name:'Selecionar criativo';
+
         if(preview){preview.remove();preview.removeAttribute('controls');mediaBox.prepend(preview);const sizeMedia=()=>{const width=preview.naturalWidth||preview.videoWidth,height=preview.naturalHeight||preview.videoHeight;if(width&&height)mediaBox.style.setProperty('--cm-media-width',Math.min(width,280*width/height)+36+'px')};preview.addEventListener('load',sizeMedia);preview.addEventListener('loadedmetadata',sizeMedia);sizeMedia()}
+
          review.querySelector('dl').before(mediaBox);mediaBox.onclick=()=>{if(!busy)form.elements.file.click()};
+
          $('#cmSend').addEventListener('click',()=>{if(busy)return;const loader=showCampaignPublishLoader(editorDialog,'Enviando criativo para a Meta...'),status=$('#cmSendStatus'),observer=new MutationObserver(()=>{if(!/^(Enviando criativo|Confirmando criativo|Vídeo sendo processado|Criando anúncio|Criando campanha)/.test(status.textContent)){observer.disconnect();loader()}});observer.observe(status,{childList:true,subtree:true,characterData:true});},{capture:true});
+
         const selectOptions=control=>[...control.options].map(option=>'<option value="'+esc(option.value)+'"'+(option.value===control.value?' selected':'')+'>'+esc(option.textContent)+'</option>').join('');
+
         const destinationOptions=[['site','Site · Tráfego / cliques'],['whatsapp','WhatsApp · Conversas'],['form','Formulário · Leads']].map(([value,label])=>'<option value="'+value+'"'+(p.destination===value?' selected':'')+'>'+label+'</option>').join('');
+
         const destinationField=p.destination==='site'?'<label>Endereço do site<input data-review-field="url" type="url" value="'+esc(form.elements.url.value)+'" placeholder="https://"></label>':p.destination==='whatsapp'?'<div class="cm-review-whatsapp"><label>WhatsApp para receber leads<input id="cmReviewWhatsappPhone" inputmode="tel" autocomplete="tel" value="'+esc(p.phone||'')+'" placeholder="55 + DDD + número"></label><p id="cmReviewWhatsappStatus" role="status">A Meta fará a validação deste número ao publicar.</p></div>':'<label>Formulário de leads<select data-review-field="form">'+selectOptions(form.elements.form)+'</select></label>';
+
         const reviewControls='<section id="cmReviewControls" class="cm-review-controls" aria-label="Ajustes antes de publicar"><div><h5>Ajustes antes de publicar</h5><p>Revise e altere estes dados sem sair da revisão.</p></div><div class="cm-review-controls-grid"><label>Nome da campanha<input data-review-field="name" maxlength="200" value="'+esc(form.elements.name.value)+'"></label>'+(!existing?'<label>Orçamento diário ('+esc(currency)+')<input data-review-field="dailyBudget" type="number" min="0.01" max="100000" step="0.01" value="'+esc(form.elements.dailyBudget.value)+'"></label>':'')+'<label>Destino<select data-review-field="destination">'+destinationOptions+'</select></label><label>Página<select data-review-field="page">'+selectOptions(form.elements.page)+'</select></label><label>Instagram<select data-review-field="instagram">'+selectOptions(form.elements.instagram)+'</select></label>'+destinationField+'</div></section>';
+
         formatCampaignReview(review,mediaBox);review.querySelector('.cm-review-body').insertAdjacentHTML('afterbegin',reviewControls);$('#cmSend').addEventListener('click',event=>{const missing=missingRequired();if(!missing.length)return;event.stopImmediatePropagation();const status=$('#cmSendStatus');status.innerHTML='Antes de publicar, complete: '+missingNames(missing).map(name=>'<mark>'+esc(name)+'</mark>').join(' ')+'.';showMissing()},true);
+
         const reviewPhone=$('#cmReviewWhatsappPhone');if(reviewPhone)reviewPhone.oninput=()=>{const phone=reviewPhone.value.replace(/\D/g,''),status=$('#cmReviewWhatsappStatus');p.phone=phone;form.elements.phone.value=phone;status.textContent=/^\d{10,15}$/.test(phone)?'A Meta fará a validação deste número ao publicar.':'Informe o número com DDI e DDD.'};
+
         review.querySelector('#cmReviewControls').addEventListener('change',async event=>{const input=event.target.closest('[data-review-field]');if(!input)return;const field=input.dataset.reviewField;form.elements[field].value=input.value;if(field==='destination'){sync();if(input.value==='form')await forms()}if(field==='page'){syncInstagram();syncWhatsapps();if(form.elements.destination.value==='form')await forms()}form.onsubmit({preventDefault(){}})});
+
         if(!form.elements.file.dataset.reviewListener){form.elements.file.dataset.reviewListener='true';form.elements.file.addEventListener('change',()=>{if(!review.hidden)form.onsubmit({preventDefault(){}})})}
+
         $('#cmBack').onclick=()=>{form.hidden=false;review.hidden=true;editorDialog.scrollTop=0;form.elements.destination.focus({preventScroll:true})};$('#cmSend').onclick=async()=>{if(busy)return;const missing=[...form.elements].filter(input=>input.willValidate&&!input.validity.valid);if(missing.length){$('#cmSendStatus').textContent=missing.includes(form.elements.file)?'Selecione um criativo no card para continuar.':'Complete as informa\u00e7\u00f5es obrigat\u00f3rias em Editar antes de enviar.';return}busy=true;$('#cmReviewMedia').disabled=true;$('#cmSend').disabled=true;$('#cmBack').disabled=true;const progress=$('#cmSendStatus');let stopPublishLoader=null;try{progress.textContent='Enviando criativo...';if(!p.media){if(!file)throw new Error('Selecione um criativo antes de enviar.');p.media=(await uploadCampaignMedia((action,data)=>api(action,{},data,owner),file,selectedMediaType,percent=>{progress.textContent=percent<100?'Enviando criativo... '+percent+'%':'Confirmando criativo na Meta...'})).key;uploadedFiles.set(file,p.media)}progress.textContent='Criando campanha, conjunto e anúncio ativos...';stopPublishLoader=showCampaignPublishLoader(editorDialog);const result=await api('create',{},p,owner);cache.clear();if(owner===account){progress.textContent='Criação confirmada pela Meta. Anúncio '+result.created.ad+' ativo.';await load(true)}}catch(e){progress.textContent=e instanceof TypeError?'A conex\u00e3o com o servidor foi interrompida. Seu arquivo foi mantido. Confira as opera\u00e7\u00f5es antes de tentar enviar novamente.':e.message;$('#cmSend').disabled=false;$('#cmBack').disabled=false;if(owner===account)await operations()}finally{stopPublishLoader?.();busy=false;$('#cmReviewMedia').disabled=false}};
+
       };if(suggestion){for(const [key,value] of Object.entries(suggestion)){const input=form.elements[key];if(input&&input.type!=='file')input.value=Array.isArray(value)?value.join(', '):String(value)}sync();if(suggestion.destination==='form'){await forms();if(suggestion.form)form.elements.form.value=suggestion.form;}if(suggestion.location){form.elements.countries.readOnly=true;form.elements.countries.closest('label').insertAdjacentHTML('afterend','<p class="cm-notice">Localização: '+esc(suggestion.location?.name||'BR')+' · '+esc(suggestion.location.region)+' · '+esc(suggestion.location.country)+'. Para mudar, volte à criação rápida.</p>')}form.insertAdjacentHTML('afterbegin','<p class="cm-notice">Plano preparado pela IA. '+esc(suggestion.rationale)+' Revise a oferta, a categoria e o orçamento sugerido. Complete o destino e escolha o criativo para continuar.</p>')}if(!suggestion){const grid=form.querySelector('.cm-grid');const groups=[['Destino e identidade',['name','destination','page','instagram','url','phone','form']],['Público e orçamento',['dailyBudget','countries','ageMin','ageMax','category']],['Criativo e mensagem',['headline','message','file']]];for(const [title,names] of groups){const nodes=[...grid.children].filter(el=>names.some(name=>el.querySelector('[name="'+name+'"]')));if(!nodes.length)continue;const group=document.createElement('fieldset');group.className='cm-fieldset';const legend=document.createElement('legend');legend.textContent=title;group.append(legend);const content=document.createElement('div');content.className='cm-grid';content.append(...nodes);group.append(content);grid.before(group)}grid.remove();form.elements.file.closest('label').after(fileNotice)}if(suggestion){const advanced=document.createElement('details');advanced.className='cm-advanced';advanced.innerHTML='<summary>Editar configurações e textos preparados pela IA</summary><div class="cm-grid"></div>';form.querySelector('.cm-grid').after(advanced);for(const name of ['name','dailyBudget','countries','ageMin','ageMax','category','headline','message']){const input=form.elements[name];if(input)advanced.querySelector('.cm-grid').append(input.closest('label'))}form.insertAdjacentHTML('afterbegin','<div class="cm-plan-summary"><strong>'+esc(suggestion.name)+'</strong><p>'+esc(suggestion.headline)+'</p><p>'+esc(suggestion.message)+'</p><p>Orçamento sugerido: '+esc(suggestion.dailyBudget)+' '+esc(currency)+'/dia · Público: '+esc(suggestion.location?.name||'BR')+'</p></div>');form.addEventListener('invalid',()=>{advanced.open=true},true)}else form.elements.name.focus({preventScroll:true});editorDialog.scrollTop=0;
+
       if(suggestion?.media){form.elements.file.required=false;fileNotice.textContent='Vídeo analisado e salvo para esta revisão. Use o seletor abaixo apenas se quiser trocar o criativo.';}
+
       if(suggestion&&form.elements.countries)form.elements.countries.readOnly=false;
+
       if(suggestion){await new Promise(resolve=>requestAnimationFrame(resolve));$('#cmPreparingReview')?.remove();form.onsubmit({preventDefault(){}})}
+
     }catch(e){notice(e.message);if(suggestion){dispose();throw e}}}
+
   const chooser=document.createElement('dialog');chooser.className='cm-choice';chooser.setAttribute('aria-labelledby','cmChoiceTitle');panel.append(chooser);
+
   let choiceTrigger=null,quickTurn=0;chooser.addEventListener('keydown',event=>{if(event.key==='Escape')event.stopPropagation()});
+
   chooser.addEventListener('close',()=>{quickTurn++;choiceTrigger?.focus({preventScroll:true})});
+
   function choose(){if(!canManage||busy)return;choiceTrigger=$('[data-cm="new"]');chooser.innerHTML='<header class="cm-heading"><div><h3 id="cmChoiceTitle">Como você quer criar?</h3><p>Escolha o modo que combina com esta campanha.</p></div><button type="button" id="cmChoiceClose" aria-label="Fechar criação">Fechar</button></header><div class="cm-grid"><button type="button" id="cmChooseQuick" class="cm-mode"><strong>Criação inteligente</strong><span>Escolha onde receber os leads e onde anunciar. A IA prepara um rascunho editável.</span></button><button type="button" id="cmChooseManual" class="cm-mode"><strong>Criação manual</strong><span>Defina os textos, público, orçamento e criativo com liberdade.</span></button></div><p>Você revisa antes de enviar. As campanhas são publicadas ativas.</p>';chooser.showModal();chooser.querySelector('#cmChoiceClose').onclick=()=>chooser.close();chooser.querySelector('#cmChooseManual').onclick=()=>{chooser.close();edit()};const quickButton=chooser.querySelector('#cmChooseQuick');quickButton.disabled=level==='ad';if(level==='ad')quickButton.querySelector('span').textContent='Disponível ao criar uma campanha nova. Neste conjunto, use a criação manual.';quickButton.onclick=quick;}
+
   const aiLoader='<div class="cm-ai-loader" hidden role="status" aria-live="assertive"><svg viewBox="0 0 200 200" aria-hidden="true" focusable="false" class="cm-ai-pencil"><defs><clipPath id="cm-pencil-eraser"><rect height="30" width="30" ry="5" rx="5"></rect></clipPath></defs><circle transform="rotate(-113,100,100)" stroke-linecap="round" stroke-dashoffset="439.82" stroke-dasharray="439.82 439.82" stroke-width="2" fill="none" r="70" class="cm-pencil-stroke"></circle><g transform="translate(100,100)" class="cm-pencil-rotate"><g fill="none"><circle transform="rotate(-90)" stroke-dashoffset="402" stroke-dasharray="402.12 402.12" stroke-width="30" r="64" class="cm-pencil-body1"></circle><circle transform="rotate(-90)" stroke-dashoffset="465" stroke-dasharray="464.96 464.96" stroke-width="10" r="74" class="cm-pencil-body2"></circle><circle transform="rotate(-90)" stroke-dashoffset="339" stroke-dasharray="339.29 339.29" stroke-width="10" r="54" class="cm-pencil-body3"></circle></g><g transform="rotate(-90) translate(49,0)" class="cm-pencil-eraser"><g class="cm-pencil-eraser-skew"><rect height="30" width="30" ry="5" rx="5" class="cm-pencil-eraser-top"></rect><rect clip-path="url(#cm-pencil-eraser)" height="30" width="5" class="cm-pencil-eraser-side"></rect><rect height="20" width="30" class="cm-pencil-metal"></rect><rect height="20" width="15" class="cm-pencil-metal-dark"></rect><rect height="20" width="5" class="cm-pencil-metal-mid"></rect><rect height="2" width="30" y="6" class="cm-pencil-shadow"></rect><rect height="2" width="30" y="13" class="cm-pencil-shadow"></rect></g></g><g transform="rotate(-90) translate(49,-30)" class="cm-pencil-point"><polygon points="15 0,30 30,0 30" class="cm-pencil-wood"></polygon><polygon points="15 0,6 30,0 30" class="cm-pencil-wood-dark"></polygon><polygon points="15 0,20 10,10 10" class="cm-pencil-lead"></polygon></g></g></svg><div><strong>Montando sua campanha</strong><p>A IA está definindo objetivo, público, localização e posicionamentos.</p></div></div>';
+
   const missingQuickDetails=value=>{const text=String(value||''),budget=/(?:r\$\s*\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)?\s*(?:reais?|brl)|(?:orçamento|invest(?:ir|imento)?)[^.\n]{0,48}\d+)/i.test(text),age=/\b(?:1[89]|[2-5]\d|6[0-5])\s*(?:a|até|[-–])\s*(?:1[89]|[2-5]\d|6[0-5])\s*anos?\b/i.test(text),destination=/\b(?:whats(?:app)?|formul[aá]rio(?:\s+de\s+leads?)?|site|website|landing\s*page)\b/i.test(text),placement=/\b(?:posicionamento|posicionamentos|facebook|instagram|reels?|stories|feed(?:s)?)\b/i.test(text);return [!budget&&'o orçamento diário (ex.: R$ 40 por dia)',!age&&'a faixa etária (ex.: 25 a 45 anos)',!destination&&'o destino dos leads (WhatsApp, formulário ou site)',!placement&&'os posicionamentos (ex.: Facebook e Instagram, Reels e Stories)'].filter(Boolean)};
+
   async function quick(){const turn=++quickTurn,owner=account;chooser.setAttribute('aria-busy','true');try{chooser.innerHTML='<header class="cm-heading"><div><h3 id="cmChoiceTitle">Criação inteligente</h3><p>Descreva a campanha como falaria com um gestor de tráfego.</p></div><button type="button" id="cmQuickClose">Fechar</button></header><form id="cmQuickForm"><label class="cm-wide">Como você quer configurar a campanha?<textarea name="description" rows="7" minlength="12" maxlength="1500" required autofocus placeholder="Ex.: Quero divulgar avaliação odontológica para adultos em Belém, com foco em pessoas interessadas em saúde e estética. Quero receber contatos pelo WhatsApp, investir R$ 40 por dia e usar posicionamentos automáticos."></textarea><small>Informe sempre o orçamento diário, a faixa etária e o destino dos leads. A IA encontra e valida localização e interesses na Meta.</small></label><p class="cm-notice">A IA prepara o plano completo. Antes de enviar, você poderá revisar e editar orçamento, público, interesses, posicionamentos, destino e criativo. A campanha será publicada ativa.</p><p id="cmQuickStatus" role="alert" aria-live="assertive"></p><button type="submit" class="cm-primary">Montar campanha com IA</button>'+aiLoader+'</form>';const form=chooser.querySelector('form'),status=chooser.querySelector('#cmQuickStatus'),loader=form.querySelector('.cm-ai-loader');chooser.querySelector('#cmQuickClose').onclick=()=>chooser.close();form.onsubmit=async e=>{e.preventDefault();const missing=missingQuickDetails(form.elements.description.value);if(missing.length){status.textContent='Para montar a campanha, informe '+missing.join(', ') + '.';form.elements.description.focus({preventScroll:true});return}const button=form.querySelector('[type="submit"]');button.disabled=true;form.setAttribute('aria-busy','true');form.classList.add('is-loading');loader.hidden=false;status.textContent='';try{const result=await api('plan',{}, {description:form.elements.description.value},owner);if(turn!==quickTurn||owner!==account)return;chooser.close();level='campaign';parent=null;await edit(result.draft)}catch(error){status.textContent=error.message}finally{button.disabled=false;form.classList.remove('is-loading');loader.hidden=true;form.removeAttribute('aria-busy')}};
+
     }catch(e){notice(e.message);chooser.close()}finally{chooser.removeAttribute('aria-busy')}}
+
   const handleCampaignClick=async event=>{const button=event.target.closest('[data-cm]');if(!button||busy)return;const action=button.dataset.cm;
+
     if(action==='authorize'){window.dispatchEvent(new Event('hurtz-connect-ads'));return}
+
     if(action==='cancel'){dispose();if(editorDialog.open)editorDialog.close();return}if(action==='new'){choose();return}if(action==='refresh'){await load(true);return}
+
     if(action==='campaigns'){dispose();level='campaign';parent=null;await load();return}if(action==='adsets'){dispose();level='adset';parent=campaign;await load();return}
+
     if(action==='children'){dispose();if(level==='campaign'){campaign=button.dataset.id;level='adset'}else level='ad';parent=button.dataset.id;await load();return}
+
     if(action==='toggle'){const item=items.find(x=>x.id===button.dataset.id);const status=item.status==='ACTIVE'?'PAUSED':'ACTIVE';if(!confirm((status==='ACTIVE'?'Ativar':'Pausar')+' '+labels[level].toLowerCase()+' “'+item.name+'” nesta conta?'+(status==='ACTIVE'?' Isso pode iniciar gastos nos anúncios elegíveis que estiverem ativos.':'')))return;busy=true;button.disabled=true;try{await api('status',{}, {kind:level,id:item.id,status,confirm:true});cache.clear();await load(true);notice('Alteração confirmada pela Meta.')}catch(e){notice(e.message)}finally{busy=false;button.disabled=false}}
+
   };
+
   panel.addEventListener('click',handleCampaignClick);editorDialog.addEventListener('click',handleCampaignClick);
+
   async function quickVideo(){const turn=++quickTurn,owner=account;chooser.setAttribute('aria-busy','true');try{chooser.innerHTML='<header class="cm-heading"><div><h3 id="cmChoiceTitle">Criação inteligente por vídeo</h3><p>Selecione o vídeo do anúncio. A IA analisa fala, textos e imagens para preparar um rascunho editável.</p></div><button type="button" id="cmQuickClose">Fechar</button></header><form id="cmQuickForm"><label class="cm-video-picker">Selecionar vídeo do anúncio<input name="file" type="file" accept="video/mp4" required><span>MP4 · até 100 MB</span></label><p class="cm-notice">A IA procura referências de localização, oferta, público e destino. Se identificar um convite para conversar no WhatsApp, esta será a sugestão inicial. Você revisa e altera tudo antes de publicar.</p><p id="cmQuickStatus" role="alert" aria-live="assertive"></p><button type="submit" class="cm-primary">Analisar vídeo</button>'+aiLoader+'</form>';const form=chooser.querySelector('form'),status=chooser.querySelector('#cmQuickStatus'),loader=form.querySelector('.cm-ai-loader');chooser.querySelector('#cmQuickClose').onclick=()=>chooser.close();form.onsubmit=async event=>{event.preventDefault();const file=form.elements.file.files[0];if(!file||file.type!=='video/mp4'||file.size>100*1024*1024){status.textContent='Selecione um vídeo MP4 de até 100 MB.';return}const button=form.querySelector('[type="submit"]');button.disabled=true;form.setAttribute('aria-busy','true');form.classList.add('is-loading');loader.hidden=false;status.textContent='Enviando o vídeo para análise...';try{const analysisData=new FormData();analysisData.append('file',file,file.name);const result=await api('analyze',{},analysisData,owner);if(turn!==quickTurn||owner!==account)return;status.textContent='Salvando o criativo para a revisão...';const uploadData=new FormData();uploadData.append('file',file,file.name);const media=await api('upload',{},uploadData,owner);if(turn!==quickTurn||owner!==account)return;chooser.close();level='campaign';parent=null;await edit({...result.draft,media:media.key})}catch(error){status.textContent=error.message}finally{button.disabled=false;form.classList.remove('is-loading');loader.hidden=true;form.removeAttribute('aria-busy')}}}catch(error){notice(error.message);chooser.close()}finally{chooser.removeAttribute('aria-busy')}}quick=quickVideo;
+
   window.addEventListener('hurtz-ads-authorized',()=>{cache.clear();if(!panel.hidden)load(true)});
+
   async function prepare(destination,description,isCurrent=()=>true){
+
     if(busy)throw new Error('Aguarde a publica\u00e7\u00e3o em andamento.');
+
     dispose();if(chooser.open)chooser.close();const stamp=++generation;
+
     const target=lockAccount(destination);account=target.id;destinationAccount=target;workflowAccount=target;currency=target.currency||'';canManage=false;level='campaign';parent=null;campaign=null;
+
     const result=await api('plan',{}, {description},target.id);
+
     if(!isCurrent()||stamp!==generation||account!==target.id||workflowAccount!==target)return;
+
     if(result?.draft)result.draft.dailyBudget=Math.max(6,Number(result.draft.dailyBudget)||6);
+
     if(!result?.draft)throw new Error('N\u00e3o foi poss\u00edvel preparar o plano. Tente novamente.');
+
     canManage=true;await edit(result.draft);
+
     if(!isCurrent()&&stamp===generation)dispose();
+
   }
+
   async function prepareVideo(destination,file,isCurrent=()=>true,onProgress=()=>{}){
+    if(file&&['video/quicktime','video/x-m4v'].includes(String(file.type||'').toLowerCase()))try{Object.defineProperty(file,'type',{value:'video/mp4',configurable:true})}catch{}
+
     if(busy)throw new Error('Aguarde a publicação em andamento.');
+
     if(!file||file.type!=='video/mp4'||file.size>100*1024*1024)throw new Error('Selecione um vídeo MP4 de até 100 MB.');
+
     dispose();if(chooser.open)chooser.close();const stamp=++generation;
+
     const target=lockAccount(destination);account=target.id;destinationAccount=target;workflowAccount=target;currency=target.currency||'';canManage=false;level='campaign';parent=null;campaign=null;
+
     onProgress(0,'Enviando o vídeo para análise');const analysisData=new FormData();analysisData.append('file',file,file.name);
+
     const result=await apiUpload('analyze',analysisData,target.id,percent=>{const uploaded=Math.round(percent*.35);onProgress(uploaded,percent<100?'Enviando o vídeo para análise ('+percent+'%)':'Vídeo recebido. Extraindo fala e imagens')});
+
     if(!isCurrent()||stamp!==generation||account!==target.id||workflowAccount!==target)return;
+
     if(result?.draft)result.draft.dailyBudget=Math.max(6,Number(result.draft.dailyBudget)||6);
+
     if(!result?.draft)throw new Error('Não foi possível analisar o vídeo. Tente novamente.');
+
     // New API responses already contain the Meta media key. Retain the fallback
+
     // for an older API during a rolling deploy, but never send the file twice
+
     // once both sides are current.
+
     let mediaKey=result.media;if(!mediaKey){onProgress(70,'Salvando o criativo');const uploadData=new FormData();uploadData.append('file',file,file.name);mediaKey=(await apiUpload('upload',uploadData,target.id,percent=>onProgress(70+Math.round(percent*.15),'Salvando o criativo na Meta ('+percent+'%)'))).key}
+
     if(!isCurrent()||stamp!==generation||account!==target.id||workflowAccount!==target)return;
+
     onProgress(85,'Análise e criativo confirmados. Carregando ativos da conta');canManage=true;await edit({...result.draft,media:mediaKey});
+
     if(!isCurrent()&&stamp===generation)dispose();
+
   }
+
   return {panel,prepare,prepareVideo,close(){if(busy)return;dispose();if(chooser.open)chooser.close();workflowAccount=null;destinationAccount=null;generation++},open(){const a=getAccount();if(!a)return;const target=lockAccount(a);workflowAccount=null;destinationAccount=target;if(account!==target.id){dispose();account=target.id;level='campaign';parent=null;campaign=null;canManage=false;$('[data-cm="new"]').disabled=true}load()},busy:()=>busy};
+
 }
