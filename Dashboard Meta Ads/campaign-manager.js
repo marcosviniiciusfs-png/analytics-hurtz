@@ -63,6 +63,12 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
     // Return it immediately so opening the composer never waits on Meta's
     // unavailable multi-number Page endpoint.
     if(auditPage&&numbers.some(item=>String(item.pageId)===String(auditPage)))return {state:'ready',items:numbers,audited:[...audited],message:'Números confirmados na configuração da Página.' ,retryable:false};
+    // Do not fall back to WABA/BM discovery. The campaign flow is deliberately
+    // Page-owned: show the Page's public number plus this user's Page-confirmed
+    // catalog, scoped to the selected advertising account and Page.
+    const directItems=auditPage?numbers.filter(item=>String(item.pageId)===String(auditPage)):numbers;
+    if(directItems.length)return {state:'ready',items:directItems,audited:[...audited],message:'Números vinculados diretamente à Página.',retryable:false};
+    return {state:'empty',items:[],audited:[...audited],message:'Nenhum WhatsApp vinculado foi encontrado nesta Página. Adicione na lista somente um número exibido nas Contas vinculadas da Página.',retryable:false};
     // A v25 removeu este field da Página. A v22 ainda o oferece e é usada somente
     // para identificar o vínculo Página → WABA; a BM continua sendo a fonte dos telefones.
     const linkedWabas=[];
