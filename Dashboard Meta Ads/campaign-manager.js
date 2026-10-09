@@ -24,17 +24,17 @@ function draftFromVideoAnalysis(analysis={}){
 
   const pick=(...values)=>values.map(value=>copyFact(value)).find(Boolean)||'';
 
-  const location=pick(analysis.location),offer=pick(analysis.offer,analysis.visibleText?.[0])||'Conheça nossa oferta',transcript=pick(analysis.transcript),headline=offer.slice(0,100),name=('Campanha — '+headline).slice(0,200),used=new Set([copyKey(offer),copyKey(headline),copyKey(location)]);
+  const location=pick(analysis.location),offer=pick(analysis.offer)||'Conheça nossa oferta',transcript=pick(analysis.transcript),headline=offer.slice(0,100),name=('Campanha — '+headline).slice(0,200),used=new Set([copyKey(offer),copyKey(headline)]);
 
   const benefits=[];
 
-  for(const value of [...(analysis.benefits||[]),...(analysis.visibleText||[]),transcript]){const fact=copyFact(value),key=copyKey(fact);if(!fact||used.has(key))continue;used.add(key);benefits.push(fact);if(benefits.length===3)break}
+  for(const value of (analysis.benefits||[])){const fact=copyFact(value),key=copyKey(fact);if(!fact||used.has(key))continue;used.add(key);benefits.push(fact);if(benefits.length===3)break}
 
   while(benefits.length<3)benefits.push(['Informações claras para você','Atendimento para tirar suas dúvidas','Orientação para o próximo passo'][benefits.length]);
 
-  const cta=pick(analysis.cta)||'Fale com nossa equipe.',illustrative=illustrativeCreative([offer,transcript,...(analysis.visibleText||[]),...(analysis.benefits||[])].join(' '));
+  const suggestedCta=pick(analysis.cta),cta=suggestedCta&&copyKey(suggestedCta)!==copyKey('Saiba mais sobre esta oportunidade.')?suggestedCta:'Fale com nossa equipe.',illustrative=illustrativeCreative([offer,transcript,...(analysis.visibleText||[]),...(analysis.benefits||[])].join(' '));
 
-  const message=['🏠 '+offer,...(location?[location]:[]),...(transcript&&copyKey(transcript)!==copyKey(offer)?[transcript]:[]),'✅ '+benefits[0],'✅ '+benefits[1],'✅ '+benefits[2],'Saiba mais sobre esta oportunidade.','📲 '+cta,...(illustrative?['Imagem ilustrativa']:[])].join('\n').slice(0,2200);
+  const message=['🏠 '+offer,'✅ '+benefits[0],'✅ '+benefits[1],'✅ '+benefits[2],'Saiba mais sobre esta oportunidade.','📲 '+cta,...(illustrative?['Imagem ilustrativa']:[])].join('\n').slice(0,2200);
 
   return {name,headline,message,dailyBudget:6,category:'',rationale:'Rascunho preparado a partir das informações encontradas no vídeo. Revise os campos antes de publicar.',destination:['whatsapp','site','form'].includes(analysis.destination)?analysis.destination:'site',locationQuery:location||'Brasil',ageMin:Number.isInteger(analysis.audience?.ageMin)?analysis.audience.ageMin:18,ageMax:Number.isInteger(analysis.audience?.ageMax)?analysis.audience.ageMax:65,interestQueries:Array.isArray(analysis.interestQueries)?analysis.interestQueries.slice(0,5):[],placements:'automatic'};
 
