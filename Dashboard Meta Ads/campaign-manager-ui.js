@@ -217,9 +217,9 @@ export function initializeCampaignManager({request,uploadRequest=request,getAcco
 
         const hasMedia=!!(file||p.media||suggestion?.mediaPreview);const mediaBox=document.createElement('div');mediaBox.id='cmReviewMedia';mediaBox.className='cm-review-media';
 
-        mediaBox.innerHTML='<button type="button" id="cmReviewMediaAction">'+(hasMedia?'Trocar criativo':'Selecionar criativo')+'</button>';
+        mediaBox.innerHTML='<p class="cm-review-media-label">Prévia do criativo</p><button type="button" id="cmReviewMediaAction">'+(hasMedia?'Trocar criativo':'Selecionar criativo')+'</button>';
 
-        if(preview){preview.remove();if(preview.tagName==='VIDEO'){preview.controls=true;preview.muted=false;preview.classList.add('cm-review-video');const fitVideo=()=>preview.classList.toggle('is-portrait',preview.videoHeight>preview.videoWidth);preview.addEventListener('loadedmetadata',fitVideo);fitVideo()}mediaBox.prepend(preview);const sizeMedia=()=>{const width=preview.naturalWidth||preview.videoWidth,height=preview.naturalHeight||preview.videoHeight;if(width&&height)mediaBox.style.setProperty('--cm-media-width',Math.min(width,280*width/height)+36+'px')};preview.addEventListener('load',sizeMedia);preview.addEventListener('loadedmetadata',sizeMedia);sizeMedia()}
+        if(preview){preview.remove();if(preview.tagName==='VIDEO'){preview.controls=true;preview.muted=false;preview.classList.add('cm-review-video');const fitVideo=()=>preview.classList.toggle('is-portrait',preview.videoHeight>preview.videoWidth);preview.addEventListener('loadedmetadata',fitVideo);fitVideo()}mediaBox.querySelector('.cm-review-media-label').after(preview);const sizeMedia=()=>{const width=preview.naturalWidth||preview.videoWidth,height=preview.naturalHeight||preview.videoHeight;if(width&&height)mediaBox.style.setProperty('--cm-media-width',Math.min(width,280*width/height)+36+'px')};preview.addEventListener('load',sizeMedia);preview.addEventListener('loadedmetadata',sizeMedia);sizeMedia()}
 
          review.querySelector('dl').before(mediaBox);$('#cmReviewMediaAction').onclick=()=>{if(!busy)form.elements.file.click()};
 
