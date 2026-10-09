@@ -8,7 +8,7 @@ function configuration(){
  // token merely because the OAuth credentials were stored in the standard .env.
  const files=['/opt/meta-ads-cli/secrets/.env','/opt/meta-ads-cli/secrets/tryv-oauth.env',process.env.META_OAUTH_FILE].filter((file,index,all)=>file&&all.indexOf(file)===index);
  const values=Object.assign({},...files.map(parse));
- const appId=process.env.META_OAUTH_APP_ID||values.META_OAUTH_APP_ID||values.FACEBOOK_APP_ID,secret=process.env.META_OAUTH_APP_SECRET||values.META_OAUTH_APP_SECRET||values.FACEBOOK_APP_SECRET;
+ const appId=process.env.META_OAUTH_APP_ID||process.env.META_APP_ID||values.META_OAUTH_APP_ID||values.META_APP_ID||values.FACEBOOK_APP_ID,secret=process.env.META_OAUTH_APP_SECRET||process.env.META_APP_SECRET||values.META_OAUTH_APP_SECRET||values.META_APP_SECRET||values.FACEBOOK_APP_SECRET;
  return appId===APP_ID&&secret?{appId,secret}:null;
 }
 async function exchange(token,{fetchImpl=fetch,config=configuration(),facebookId}={}){
