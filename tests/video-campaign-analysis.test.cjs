@@ -33,6 +33,12 @@ test('an app campaign has mandatory product interests',async()=>{
  assert.equal(result.offer,'Aplicativo');assert.equal(result.requiresInterests,true);assert.ok(result.interestQueries.length>0);
 });
 
+test('video analysis recognizes a city tagged as a regional offer',async()=>{
+ const answers={destination:{type:'choice',choice:'site',confidence:.9},product:{type:'choice',choice:'other',confidence:.9},audience:{type:'choice',choice:'all',confidence:.9},illustrative:{type:'noul',noul:0},cta:{type:'choice',choice:'learn_more',confidence:.9}};
+ const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({images:[],visibleText:['Parauapebas e região'],audio:''}),fetchImpl:async()=>({ok:true,text:async()=>JSON.stringify({answers})})});
+ assert.equal(result.location,'PARAUAPEBAS');
+});
+
 test('video analysis gives a clear retry error when Jev is temporarily limited',async()=>{
  const result=analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({images:[],visibleText:['OFERTA'],audio:''}),fetchImpl:async()=>({ok:false,status:429,text:async()=>JSON.stringify({error:{message:'rate limited'}})})});
  await assert.rejects(result,/limitou o Jev/);
