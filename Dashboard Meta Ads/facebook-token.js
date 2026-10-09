@@ -8,8 +8,12 @@ function configuration(){
  // token merely because the OAuth credentials were stored in the standard .env.
  const files=['/opt/meta-ads-cli/secrets/.env','/opt/meta-ads-cli/secrets/tryv-oauth.env',process.env.META_OAUTH_FILE].filter((file,index,all)=>file&&all.indexOf(file)===index);
  const values=Object.assign({},...files.map(parse));
- const appId=process.env.META_OAUTH_APP_ID||process.env.META_APP_ID||values.META_OAUTH_APP_ID||values.META_APP_ID||values.FACEBOOK_APP_ID,secret=process.env.META_OAUTH_APP_SECRET||process.env.META_APP_SECRET||values.META_OAUTH_APP_SECRET||values.META_APP_SECRET||values.FACEBOOK_APP_SECRET;
- return appId===APP_ID&&secret?{appId,secret}:null;
+ const configuredId=process.env.META_OAUTH_APP_ID||process.env.META_APP_ID||values.META_OAUTH_APP_ID||values.META_APP_ID||values.FACEBOOK_APP_ID,secret=process.env.META_OAUTH_APP_SECRET||process.env.META_APP_SECRET||values.META_OAUTH_APP_SECRET||values.META_APP_SECRET||values.FACEBOOK_APP_SECRET;
+ // APP_ID is the only app allowed by this service. The secret is enough to
+ // perform the server-side exchange; an absent duplicate ID in .env must not
+ // downgrade a user back to the SDK's short-lived browser token.
+ if (configuredId && configuredId!==APP_ID) return null;
+ return secret?{appId:APP_ID,secret}:null;
 }
 async function exchange(token,{fetchImpl=fetch,config=configuration(),facebookId}={}){
  if(!config||config.appId!==APP_ID||!config.secret)return null;
