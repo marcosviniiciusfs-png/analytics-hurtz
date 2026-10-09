@@ -233,6 +233,12 @@ test('an expired local hint is renewed when Meta still accepts the saved token',
  const result=await f.request(f.sessionA,'/api/meta/connection');const renewed=f.api.read('connection','user-a');
  assert.equal(result.body.connected,true);assert.ok(renewed.expiresAt>Date.now()+59*86400000);assert.ok(renewed.token.endsWith('-long'));
 });
+test('account operations renew a near-expiry Meta connection before using it',async t=>{
+ const f=fixture(t,null,{oauthConfig:{appId:'2093320124537661',secret:'test-app-secret'}});await f.connect(f.sessionA,f.tokens.a);
+ const initial=f.api.read('connection','user-a');f.api.write('connection','user-a',{...initial,expiresAt:Date.now()+60000,longLived:true,exchangeAttemptAt:0});
+ const result=await f.request(f.sessionA,'/api/meta-accounts');const renewed=f.api.read('connection','user-a');
+ assert.equal(result.status,200);assert.ok(renewed.expiresAt>Date.now()+59*86400000);assert.ok(renewed.token.endsWith('-long'));
+});
 
 test('HTTP 200 without expires_in persists the inspected token beyond SDK expiration and restart',async t=>{
  const f=fixture(t,null,{missingExpiry:true,oauthConfig:{appId:'2093320124537661',secret:'test-app-secret'}});

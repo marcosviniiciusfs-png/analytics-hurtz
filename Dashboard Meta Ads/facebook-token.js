@@ -2,8 +2,13 @@
 const fs=require('node:fs');
 const APP_ID='2093320124537661';
 function configuration(){
- let values={};try{values=Object.fromEntries(fs.readFileSync(process.env.META_OAUTH_FILE||'/opt/meta-ads-cli/secrets/tryv-oauth.env','utf8').split(/\r?\n/).filter(x=>/^[A-Z_]+=/.test(x)).map(x=>{const i=x.indexOf('=');return [x.slice(0,i),x.slice(i+1).trim().replace(/^(['"])(.*)\1$/,'$2')]}))}catch{}
- const appId=process.env.META_OAUTH_APP_ID||values.META_OAUTH_APP_ID,secret=process.env.META_OAUTH_APP_SECRET||values.META_OAUTH_APP_SECRET;
+ const parse=file=>{try{return Object.fromEntries(fs.readFileSync(file,'utf8').split(/\r?\n/).map(line=>line.trim()).filter(line=>/^[A-Z_][A-Z0-9_]*=/.test(line)).map(line=>{const i=line.indexOf('=');return [line.slice(0,i),line.slice(i+1).trim().replace(/^(['"])(.*)\1$/,'$2')]}))}catch{return {}}};
+ // The production container already receives /opt/meta-ads-cli/secrets/.env.
+ // Keep the legacy file for compatibility, but never fall back to a browser SDK
+ // token merely because the OAuth credentials were stored in the standard .env.
+ const files=['/opt/meta-ads-cli/secrets/.env','/opt/meta-ads-cli/secrets/tryv-oauth.env',process.env.META_OAUTH_FILE].filter((file,index,all)=>file&&all.indexOf(file)===index);
+ const values=Object.assign({},...files.map(parse));
+ const appId=process.env.META_OAUTH_APP_ID||values.META_OAUTH_APP_ID||values.FACEBOOK_APP_ID,secret=process.env.META_OAUTH_APP_SECRET||values.META_OAUTH_APP_SECRET||values.FACEBOOK_APP_SECRET;
  return appId===APP_ID&&secret?{appId,secret}:null;
 }
 async function exchange(token,{fetchImpl=fetch,config=configuration(),facebookId}={}){

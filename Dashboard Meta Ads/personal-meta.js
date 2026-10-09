@@ -130,8 +130,16 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if ((value.expiresAt && value.expiresAt <= Date.now()) || (value.dataExpiresAt && value.dataExpiresAt <= Date.now())) throw fail(409, 'Sua conexão com o Facebook expirou. Conecte novamente.');
     return value;
   }
+  async function activeConnection(user) {
+    // Every Meta operation passes here, not only the settings screen. This gives
+    // a long-lived token a chance to renew before its final 14-day window ends.
+    const value = await upgradeConnection(user);
+    if (!value) throw fail(409, 'Conecte sua conta do Facebook para consultar os anúncios.');
+    if ((value.expiresAt && value.expiresAt <= Date.now()) || (value.dataExpiresAt && value.dataExpiresAt <= Date.now())) throw fail(409, 'Sua conexão com o Facebook expirou. Conecte novamente.');
+    return value;
+  }
   async function catalog(user, pictures = false) {
-    const conn = connection(user);
+    const conn = await activeConnection(user);
     let accounts;
     if (pictures) {try {accounts = await rows(conn.token, 'me/adaccounts', {fields: 'id,name,account_status,currency,business{id,name,profile_picture_uri},is_prepay_account'});} catch(error) {if([403,409,429].includes(error.status))throw error; /* Optional business photo must not block the account catalog. */ }}
     if (!accounts) accounts = await rows(conn.token, 'me/adaccounts', {fields: 'id,name,account_status,currency,business,is_prepay_account'});
@@ -141,7 +149,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   const accountAuthorizations=new Map(),pendingAccountAuthorizations=new Map();
   async function authorizeAccounts(user, ids) {
     if (!ids.length || ids.length > 100 || ids.some(id => !/^act_\d+$/.test(id))) throw fail(400, 'Selecione contas válidas.');
-    const conn=connection(user),key=user.id+':'+conn.revision,hit=accountAuthorizations.get(user.id);
+    const conn=await activeConnection(user),key=user.id+':'+conn.revision,hit=accountAuthorizations.get(user.id);
     let result=hit?.revision===conn.revision&&hit.expires>Date.now()?hit.result:null;
     if(!result){let pending=pendingAccountAuthorizations.get(key);if(!pending){pending=catalog(user).then(result=>{accountAuthorizations.set(user.id,{revision:conn.revision,expires:Date.now()+60000,result});return result}).finally(()=>pendingAccountAuthorizations.delete(key));pendingAccountAuthorizations.set(key,pending)}result=await pending}
     if(connection(user).revision!==conn.revision)throw fail(409,'A conexão mudou. Atualize a consulta.');
