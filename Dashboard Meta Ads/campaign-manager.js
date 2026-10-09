@@ -276,7 +276,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
 
   async function locationFor(conn,query){const result=await graph(conn.token,'search',{type:'adgeolocation',location_types:JSON.stringify(['city','region','country']),q:query,limit:10});const item=(result.data||[]).find(x=>['city','region','country'].includes(x.type)&&x.key&&/^[A-Z]{2}$/.test(x.country_code||x.key));if(!item)throw fail(400,'A Meta não encontrou a localização sugerida. Descreva a cidade, estado ou país com mais precisão.');return {key:String(item.key),type:item.type,name:item.name,country:item.country_code||item.key,region:item.region||''}}
 
-  const interestOnly=item=>{const type=String(item?.type||'').toLowerCase();return !!(item?.id&&item?.name)&&(!type||/interest/.test(type))};
+  const interestOnly=item=>{const type=String(item?.type||'').toLowerCase();return !!(item?.id&&item?.name)&&!/industry|indústria/.test(type)};
   async function interestMatches(conn,query,limit=5){const result=await graph(conn.token,'search',{type:'adinterest',q:query,limit});return (result.data||[]).filter(interestOnly).map(item=>({id:String(item.id),name:String(item.name).slice(0,120)}))}
   async function interestsFor(conn,queries){const found=[];for(const query of queries){try{const item=(await interestMatches(conn,query,5))[0];if(item&&!found.some(x=>x.id===item.id))found.push(item)}catch{}}return found}
 
