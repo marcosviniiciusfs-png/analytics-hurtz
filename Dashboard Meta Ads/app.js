@@ -2267,4 +2267,4 @@ showDashboardView=function(view){
 const trafficInitialView=new URLSearchParams(location.search).get('view')||(location.hash==='#accounts'?'accounts':'overview');
 if(trafficInitialView!=='account')showDashboardView(trafficInitialView);
 
-})().catch(error=>{console.error("Falha ao iniciar o Traffic pocket");const status=document.querySelector("#accountSearchStatus");if(status)status.textContent="Não foi possível iniciar. Atualize a página."});
+})().catch(error=>{console.error("Falha ao iniciar o Traffic pocket",error);const status=document.querySelector("#accountSearchStatus");if(status)status.textContent="Não foi possível iniciar. Atualize a página."});
