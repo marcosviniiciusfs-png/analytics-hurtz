@@ -39,6 +39,13 @@ test('video analysis recognizes a city tagged as a regional offer',async()=>{
  assert.equal(result.location,'PARAUAPEBAS');
 });
 
+test('video analysis recognizes a city in an OCR product banner without a state',async()=>{
+ const answers={destination:{type:'choice',choice:'whatsapp',confidence:.9},product:{type:'choice',choice:'vehicle_credit',confidence:.9},audience:{type:'choice',choice:'all',confidence:.9},illustrative:{type:'noul',noul:.9},cta:{type:'choice',choice:'whatsapp',confidence:.9}};
+ const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({images:[],visibleText:['PARAUAPEBAS CRÉDITO PARA VEÍCULOS'],audio:''}),fetchImpl:async()=>({ok:true,text:async()=>JSON.stringify({answers})})});
+ assert.equal(result.location,'PARAUAPEBAS');
+ assert.equal(result.offer,'Crédito para veículo');
+});
+
 test('video analysis turns a city mentioned for residents into campaign targeting',async()=>{
  const answers={destination:{type:'choice',choice:'whatsapp',confidence:.9},product:{type:'choice',choice:'vehicle_credit',confidence:.9},audience:{type:'choice',choice:'all',confidence:.9},illustrative:{type:'noul',noul:.9},cta:{type:'choice',choice:'whatsapp',confidence:.9}};
  const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({images:[],visibleText:['Credito para veiculo para quem mora em Belem - PA'],audio:''}),fetchImpl:async()=>({ok:true,text:async()=>JSON.stringify({answers})})});

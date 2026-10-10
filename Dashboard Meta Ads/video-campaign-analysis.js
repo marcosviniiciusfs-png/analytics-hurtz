@@ -46,6 +46,10 @@ locationFromText=function(values=[]){
     if(withState)return withState[1].replace(/\s+/g,' ').trim()+' - '+withState[2];
     const tagged=text.match(new RegExp('\\b([A-Z]{2,}(?:\\s+[A-Z]{2,}){0,4})\\s*[-,]\\s*('+states+')\\b'));
     if(tagged)return tagged[1].replace(/\s+/g,' ').trim()+' - '+tagged[2];
+    // OCR banners often show only "CITY / PRODUCT". The product word is a
+    // reliable boundary, so retain the city and let Meta resolve it.
+    const productBanner=text.match(/\b([A-Z]{3,}(?:\s+(?!(?:CREDITO|FINANCIAMENTO|CONSORCIO|IMOVEL|VEICULO|VEICULOS|CARRO|CARROS|MOTO|MOTOS|MAQUINARIO|IPHONE|MACBOOK|APLICATIVO|OFERTA)\b)[A-Z]{2,}){0,3})\s+(?=(?:CREDITO|FINANCIAMENTO|CONSORCIO|IMOVEL|VEICULO|VEICULOS|CARRO|CARROS|MOTO|MOTOS|MAQUINARIO|IPHONE|MACBOOK|APLICATIVO|OFERTA)\b)/);
+    if(productBanner)return productBanner[1].replace(/\s+/g,' ').trim();
     const city=text.match(/\b(?:PARA QUEM MORA EM|PARA QUEM VIVE EM|MORADORES? DE|NA CIDADE DE|CIDADE DE|EM)\s+([A-Z]{3,}(?:\s+[A-Z]{3,}){0,3}?)(?=\s*(?:[,.;!?]|\b(?:COM|NO|NA|DO|DA|QUE|ONDE|HOJE|AGORA|TEMOS|VOCE|VOCES|PESSOAS)\b|$))/);
     if(city)return city[1].replace(/\s+/g,' ').trim();
     const regional=text.match(/\b([A-Z]{3,}(?:\s+[A-Z]{3,}){0,3})\s+(?:E\s+)?REGIAO\b/);
