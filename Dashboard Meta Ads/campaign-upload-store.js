@@ -3,10 +3,11 @@ const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),cryp
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 function createUploadStore(){
  const sessions=new Map(),ttl=30*60*1000;
+  const supported=new Set(['image/jpeg','image/png','video/mp4','video/quicktime','video/x-m4v']);
  function owned(key,user,account){const s=sessions.get(key);if(!s||s.user!==user||s.account!==account)throw fail(410,'O envio expirou. Selecione o arquivo novamente.');return s}
  function cleanFile(s){if(s.file){fs.unlinkSync(s.file);fs.rmdirSync(s.directory);s.file=null}}
  function start(user,account,{size,type}){
-  if(!Number.isInteger(size)||size<1||size>100*1024*1024||!['image/jpeg','image/png','video/mp4'].includes(type))throw fail(400,'Use JPG, PNG ou MP4 de até 100 MB.');
+  if(!Number.isInteger(size)||size<1||size>100*1024*1024||!supported.has(String(type||'').toLowerCase()))throw fail(400,'Use JPG, PNG, MP4, MOV ou M4V de até 100 MB.');
   if(sessions.size>=100||[...sessions.values()].filter(s=>s.user===user&&s.file).length>=2)throw fail(429,'Conclua o envio em andamento antes de iniciar outro.');
   const key=crypto.randomUUID(),directory=fs.mkdtempSync(path.join(os.tmpdir(),'hurtz-upload-'));fs.chmodSync(directory,0o700);const file=path.join(directory,'media');fs.writeFileSync(file,Buffer.alloc(0),{mode:0o600});
   const s={user,account,size,type,file,directory,received:0};sessions.set(key,s);

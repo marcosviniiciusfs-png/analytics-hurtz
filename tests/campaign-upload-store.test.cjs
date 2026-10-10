@@ -14,3 +14,7 @@ test('uncertain provider failure is never automatically sent to Meta twice',asyn
  const store=createUploadStore(),s=store.start('a','act_1',{size:3,type:'image/png'});store.part(s.upload,'a','act_1',0,Buffer.from('abc'));let calls=0;const send=async()=>{calls++;throw Error('uncertain')};
  await assert.rejects(store.finish(s.upload,'a','act_1',send),/uncertain/);await assert.rejects(store.finish(s.upload,'a','act_1',send),/uncertain/);assert.equal(calls,1);
 });
+test('MOV and M4V are accepted by the resumable upload transport',()=>{
+ const store=createUploadStore();
+ for(const type of ['video/quicktime','video/x-m4v']){const session=store.start('a','act_1',{size:3,type});assert.deepEqual(store.part(session.upload,'a','act_1',0,Buffer.from('abc')),{received:3});}
+});

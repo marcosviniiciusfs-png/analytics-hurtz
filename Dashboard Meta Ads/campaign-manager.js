@@ -6,6 +6,13 @@ const {createUploadStore}=require('./campaign-upload-store');
 
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 
+const mediaTypeFor=file=>{
+  const byExtension={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',mp4:'video/mp4',mov:'video/quicktime',m4v:'video/x-m4v'};
+  const declared=String(file?.type||'').toLowerCase();
+  if(['image/jpeg','image/png','video/mp4','video/quicktime','video/x-m4v'].includes(declared))return declared;
+  return byExtension[String(file?.name||'').split('.').pop().toLowerCase()]||'';
+};
+
 const id=value=>{if(!/^\d+$/.test(String(value||'')))throw fail(400,'Identificador inválido.');return String(value)};
 
 const text=(value,max=200)=>{if(typeof value!=='string'||!value.trim()||value.length>max)throw fail(400,'Preencha os textos dentro do limite indicado.');return value.trim()};
@@ -286,15 +293,13 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
   async function post(user,conn,endpoint,params){current(user,conn);let response,payload;try{const data=params instanceof FormData?params:new URLSearchParams(Object.entries(params).map(([k,v])=>[k,typeof v==='object'?JSON.stringify(v):String(v)]));response=await fetchImpl(new URL('https://graph.facebook.com/v25.0/'+endpoint),{method:'POST',headers:{Authorization:'Bearer '+conn.token},body:data,signal:AbortSignal.timeout(120000)});payload=await response.json()}catch{throw fail(502,'A Meta não confirmou a operação. Atualize a lista antes de tentar criar novamente.')}if(!response.ok||payload.error){const e=payload.error||{};console.error('[meta-publish] operação recusada.',{endpoint,status:response.status,code:e.code,subcode:e.error_subcode,message:e.error_user_msg||e.error_user_title||e.message||'sem mensagem'});throw fail(e.code===190?409:400,(e.error_user_msg||e.error_user_title||e.message||'A Meta recusou a operação. Confira o acesso, as configurações e as regras da conta.').slice(0,600))}current(user,conn);return payload}
 
   async function uploadMedia(user,conn,account,p){
-      if(p.file&&['video/quicktime','video/x-m4v'].includes(String(p.file.type||'').toLowerCase()))p.file.type='video/mp4';
-
-      const file=p.file&&Buffer.isBuffer(p.file.data)?p.file:null,mediaType=file?.type||p.type;if(!['image/jpeg','image/png','video/mp4'].includes(mediaType)||(!file&&(typeof p.data!=='string'||!/^[A-Za-z0-9+/]+={0,2}$/.test(p.data))))throw fail(400,'Envie uma imagem JPG/PNG ou um vídeo MP4.');
+      const file=p.file&&Buffer.isBuffer(p.file.data)?p.file:null,mediaType=mediaTypeFor(file)||String(p.type||'').toLowerCase();if(!['image/jpeg','image/png','video/mp4','video/quicktime','video/x-m4v'].includes(mediaType)||(!file&&(typeof p.data!=='string'||!/^[A-Za-z0-9+/]+={0,2}$/.test(p.data))))throw fail(400,'Envie uma imagem JPG/PNG ou um vídeo MP4, MOV ou M4V.');
 
       const bytes=file?.data||Buffer.from(p.data,'base64');if(!bytes.length||bytes.length>100*1024*1024)throw fail(413,'Use um arquivo de até 100 MB.');
 
       const image=mediaType.startsWith('image/');const valid=mediaType==='image/png'?bytes.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')):mediaType==='image/jpeg'?bytes[0]===255&&bytes[1]===216:bytes.toString('ascii',4,8)==='ftyp';if(!valid)throw fail(400,'O conteúdo não corresponde ao formato do arquivo.');
 
-      let result;if(image)result=await post(user,conn,account+'/adimages',{bytes:bytes.toString('base64')});else{const form=new FormData();form.append('source',new Blob([bytes],{type:mediaType}),'creative.mp4');result=await post(user,conn,account+'/advideos',form)}
+      let result;if(image)result=await post(user,conn,account+'/adimages',{bytes:bytes.toString('base64')});else{const form=new FormData();form.append('source',new Blob([bytes],{type:mediaType}),'creative.'+(mediaType==='video/quicktime'?'mov':mediaType==='video/x-m4v'?'m4v':'mp4'));result=await post(user,conn,account+'/advideos',form)}
 
       const value=image?Object.values(result.images||{})[0]?.hash:result.id;if(!value)throw fail(502,'A Meta não retornou o identificador do criativo.');const media={key:crypto.randomUUID(),account,kind:image?'image':'video',value,created:Date.now()};write('ads-media',user.id,[...(read('ads-media',user.id)||[]).slice(-199),media]);return {key:media.key,kind:media.kind};
 
