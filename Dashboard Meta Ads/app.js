@@ -1,5 +1,4 @@
 ;(async()=>{
-document.body.classList.remove('overview-ready');
 document.body.classList.toggle('campaign-overview',(new URLSearchParams(location.search).get('view')||(location.hash==='#accounts'?'accounts':'overview'))==='overview');
 const MONITOR_API_BASE=location.hostname==='analytics.hurtzcompany.com'?'https://traffic-api.hurtzcompany.com':'';
 const MONITOR_SESSION_KEY='hurtz-monitor-session-v2';
@@ -2247,16 +2246,9 @@ document.querySelector('.sidebar nav').addEventListener('click',event=>{if(event
 routeAccount();
 window.addEventListener('storage',event=>{if(event.key===MONITOR_SESSION_KEY)location.reload()});
 /* Description-first campaign entry; monitoring loads only in Accounts. */
+const overviewModule=await import('./overview-campaign.js?v=20260918-video-entry');
 const overviewMount=document.createElement('section');overviewMount.id='overviewCampaign';overviewMount.hidden=true;document.querySelector('main>header').after(overviewMount);
-try{
-  const overviewModule=await import('./overview-campaign.js?v=20260918-video-entry');
-  overviewComposer=overviewModule.initializeOverviewCampaign({mount:overviewMount,getAccounts:()=>accounts,isReady:()=>accountCatalogReady,isConnected:()=>!!facebookSettings?.connected,prepareVideo:(...args)=>campaignManagerUI.prepareVideo(...args),connect:()=>window.dispatchEvent(new Event('hurtz-connect-ads')),reload:()=>findMetaAccounts(false)});
-}catch(error){
-  console.error('Overview load failed',error);
-  overviewMount.innerHTML='<section class="overview-recovery" role="alert"><h1>Nao foi possivel abrir a Visao geral</h1><p>Atualize esta pagina para tentar novamente. Seus dados e contas permanecem seguros.</p><button type="button" id="overviewRetry">Atualizar pagina</button></section>';
-  overviewMount.querySelector('#overviewRetry').onclick=()=>location.reload();
-  overviewComposer={refresh(){},setVisible(value){overviewMount.hidden=!value}};
-}
+overviewComposer=overviewModule.initializeOverviewCampaign({mount:overviewMount,getAccounts:()=>accounts,isReady:()=>accountCatalogReady,isConnected:()=>!!facebookSettings?.connected,prepareVideo:(...args)=>campaignManagerUI.prepareVideo(...args),connect:()=>window.dispatchEvent(new Event('hurtz-connect-ads')),reload:()=>findMetaAccounts(false)});
 const trafficViewRouter=showDashboardView;
 showDashboardView=function(view){
   if(campaignManagerUI.busy())return;
@@ -2265,7 +2257,6 @@ showDashboardView=function(view){
   trafficViewRouter(view);
   overviewComposer.setVisible(view==='overview');
   document.body.classList.toggle('campaign-overview',view==='overview');
-  document.body.classList.toggle('overview-ready',view==='overview');
   if(view!=='overview'&&view!=='accounts')return;
   const summary=document.querySelector('#summaryCards'),catalog=document.querySelector('#accounts'),header=document.querySelector('main>header');
   const title=header.querySelector('h1'),subtitle=header.querySelector('.subtitle'),eyebrow=header.querySelector('.eyebrow');
