@@ -286,6 +286,7 @@ export function initializeCampaignManager({request,uploadRequest=request,getAcco
         locationInput.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();searchLocation()}});radiusInput.addEventListener('input',()=>{if(suggestion.location)suggestion.location.radius=Math.max(1,Math.min(80,Math.round(Number(radiusInput.value)||17)))});form.querySelector('.cm-advanced')?.before(locationPicker);
       }
       if(suggestion&&form.elements.countries)form.elements.countries.readOnly=false;
+      if(suggestion)[...form.querySelectorAll('.cm-notice')].filter(node=>{const message=String(node.textContent||'').trim();return message.startsWith('Plano preparado')||message.startsWith('Localiza')||message.startsWith('A publica')}).forEach(node=>node.remove());
 
       if(suggestion){await new Promise(resolve=>requestAnimationFrame(resolve));$('#cmPreparingReview')?.remove();form.onsubmit({preventDefault(){}})}
 

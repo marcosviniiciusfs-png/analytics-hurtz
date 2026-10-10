@@ -37,4 +37,33 @@ function analysisDescription(analysis){return ['Transcricao: '+(analysis.transcr
 // This declaration intentionally follows the generic analyser so it is the version used at runtime.
 function jevAnalysis(evidence,transcript,answers){const visibleText=(evidence.visibleText||[]).map(value=>clean(value,240)).filter(Boolean).slice(0,12),combined=[transcript,...visibleText].filter(Boolean),product=contextProduct(combined,decisionChoice(answers,'product','other')),destination=decisionChoice(answers,'destination','unknown'),cta=decisionChoice(answers,'cta','unknown'),audience=decisionChoice(answers,'audience','unknown'),offer={iphone:'iPhone',macbook:'MacBook',app:'Aplicativo',real_estate:'Imóvel',housing_credit:'Crédito para imóvel',vehicle:'Veículo',vehicle_credit:'Crédito para veículo',machinery:'Maquinário',machinery_credit:'Crédito para maquinário',general_credit:'Crédito sob medida',other:'Oportunidade'}[product]||'Oportunidade',interestQueries={iphone:['iPhone','Apple Inc.','iOS','MacBook','Eletrônicos de consumo'],macbook:['MacBook','Apple Inc.','macOS','iPhone','Computadores portáteis'],app:['Aplicativos móveis','Desenvolvimento de aplicativos','Tecnologia móvel','Software','Empreendedorismo'],real_estate:['Imóveis','Casa própria','Compra de imóveis','Investimento imobiliário','Arquitetura'],housing_credit:['Financiamento imobiliário','Imóveis','Casa própria','Investimento imobiliário','Construção civil'],vehicle:['Automóveis','Compra de veículos','Carros','Concessionária','Financiamento de veículos'],vehicle_credit:['Financiamento de veículos','Consórcio de veículos','Automóveis','Compra de veículos','Carros'],machinery:['Máquinas agrícolas','Equipamentos agrícolas','Tratores','Agronegócio','Construção civil'],machinery_credit:['Máquinas agrícolas','Crédito','Agronegócio','Equipamentos agrícolas','Tratores'],general_credit:['Crédito','Investimentos','Empreendedorismo']}[product]||[],requiresInterests=['iphone','macbook','app','real_estate','housing_credit','vehicle','vehicle_credit','machinery','machinery_credit'].includes(product),needsIllustrative=Number(answers?.illustrative?.noul)>=.5||['real_estate','housing_credit','vehicle','vehicle_credit','machinery','machinery_credit'].includes(product),confidence=['destination','product','audience','cta'].map(id=>Number(answers?.[id]?.confidence)||0).reduce((sum,value)=>sum+value,0)/4;return normalize({transcript,visibleText,location:locationFromText(combined),destination,audience:{gender:['women','men','all'].includes(audience)?audience:'unknown',ageMin:null,ageMax:null},offer,benefits:needsIllustrative?['Condições para você avaliar','Atendimento especializado']:['Condições para você avaliar'],interestQueries,requiresInterests,cta:cta==='whatsapp'?'Fale com nossa equipe no WhatsApp.':cta==='visit_site'?'Acesse e saiba mais.':'Saiba mais sobre esta oportunidade.',confidence:confidence>=.7?'high':confidence>=.4?'medium':'low'});}
 
+// The creative may name the city only in speech, without the "Cidade - UF" card.
+// Keep a concise candidate and let Meta validate it before the campaign is created.
+locationFromText=function(values=[]){
+  for(const value of values){
+    const text=String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+    const withState=text.match(new RegExp('\\b(?:PARA QUEM MORA EM|PARA QUEM VIVE EM|MORADORES? DE|NA CIDADE DE|CIDADE DE|EM|PARA)\\s+([A-Z]{2,}(?:\\s+[A-Z]{2,}){0,4}?)\\s*(?:[-,]\\s*|\\s+)('+states+')\\b'));
+    if(withState)return withState[1].replace(/\s+/g,' ').trim()+' - '+withState[2];
+    const tagged=text.match(new RegExp('\\b([A-Z]{2,}(?:\\s+[A-Z]{2,}){0,4})\\s*[-,]\\s*('+states+')\\b'));
+    if(tagged)return tagged[1].replace(/\s+/g,' ').trim()+' - '+tagged[2];
+    const city=text.match(/\b(?:PARA QUEM MORA EM|PARA QUEM VIVE EM|MORADORES? DE|NA CIDADE DE|CIDADE DE|EM)\s+([A-Z]{3,}(?:\s+[A-Z]{3,}){0,3}?)(?=\s*(?:[,.;!?]|\b(?:COM|NO|NA|DO|DA|QUE|ONDE|HOJE|AGORA|TEMOS|VOCE|VOCES|PESSOAS)\b|$))/);
+    if(city)return city[1].replace(/\s+/g,' ').trim();
+    const regional=text.match(/\b([A-Z]{3,}(?:\s+[A-Z]{3,}){0,3})\s+(?:E\s+)?REGIAO\b/);
+    if(regional)return regional[1].replace(/\s+/g,' ').trim();
+  }
+  return '';
+};
+
+function audienceRange(values=[]){
+  const text=values.join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+  const match=text.match(/\b(?:DE\s+)?(1[89]|[2-5]\d|6[0-5])\s*(?:A|ATE)\s*(1[89]|[2-5]\d|6[0-5])\s*ANOS?\b/);
+  return match?[Number(match[1]),Number(match[2])]:[null,null];
+}
+
+const structuredJevAnalysis=jevAnalysis;
+jevAnalysis=function(evidence,transcript,answers){
+  const result=structuredJevAnalysis(evidence,transcript,answers),combined=[transcript,...(evidence.visibleText||[])],location=locationFromText(combined)||result.location,[ageMin,ageMax]=audienceRange(combined);
+  return normalize({...result,location,audience:{...result.audience,ageMin,ageMax}});
+};
+
 module.exports={analyzeCampaignVideo,analysisDescription,normalize,extractEvidence,transcribeAudio};

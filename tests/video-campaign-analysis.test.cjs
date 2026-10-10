@@ -39,6 +39,15 @@ test('video analysis recognizes a city tagged as a regional offer',async()=>{
  assert.equal(result.location,'PARAUAPEBAS');
 });
 
+test('video analysis turns a city mentioned for residents into campaign targeting',async()=>{
+ const answers={destination:{type:'choice',choice:'whatsapp',confidence:.9},product:{type:'choice',choice:'vehicle_credit',confidence:.9},audience:{type:'choice',choice:'all',confidence:.9},illustrative:{type:'noul',noul:.9},cta:{type:'choice',choice:'whatsapp',confidence:.9}};
+ const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({images:[],visibleText:['Credito para veiculo para quem mora em Belem - PA'],audio:''}),fetchImpl:async()=>({ok:true,text:async()=>JSON.stringify({answers})})});
+ assert.equal(result.location,'BELEM - PA');
+ assert.equal(result.destination,'whatsapp');
+ assert.equal(result.requiresInterests,true);
+ assert.ok(result.interestQueries.includes('Financiamento de veículos'));
+});
+
 test('video analysis gives a clear retry error when Jev is temporarily limited',async()=>{
  const result=analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({images:[],visibleText:['OFERTA'],audio:''}),fetchImpl:async()=>({ok:false,status:429,text:async()=>JSON.stringify({error:{message:'rate limited'}})})});
  await assert.rejects(result,/limitou o Jev/);
