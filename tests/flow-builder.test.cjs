@@ -7,7 +7,7 @@ test('HTTP and Google Sheets flow projects persist, list and delete safely',asyn
  t.after(async()=>{child.kill();await new Promise(resolve=>child.once('close',resolve));fs.rmSync(dir,{recursive:true,force:true})});
  await new Promise((resolve,reject)=>{child.stdout.once('data',resolve);child.once('error',reject);child.once('exit',()=>reject(new Error('Servidor encerrou antes de iniciar')))});
  const request=async(route,method='GET',body)=>{const response=await fetch(`http://127.0.0.1:${port}${route}`,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json','X-Require-Personal-Meta':'1'},...(body?{body:JSON.stringify(body)}:{})});return {status:response.status,body:await response.json()}};
- const created=await request('/api/flows','POST',{name:'Leads do site'});assert.equal(created.status,201);assert.equal(created.body.source,'facebook');
+ const created=await request('/api/flows','POST',{name:'Leads do site'});assert.equal(created.status,201);assert.equal(created.body.source,'facebook');assert.match(created.body.http.endpoint,/^\/api\/flow\/inbound\//);
  const saved=await request(`/api/flows/${created.body.id}`,'PUT',{enabled:false,source:'http',destination:'google-sheets',googleSheets:{spreadsheetId:'12345678901234567890',sheetName:'Leads',headers:['Nome','E-mail'],mapping:{Nome:'name','E-mail':'email'}},facebook:{},whatsapp:{}});
  assert.equal(saved.status,200);assert.equal(saved.body.source,'http');assert.equal(saved.body.destination,'google-sheets');assert.match(saved.body.http.endpoint,/^\/api\/flow\/inbound\//);assert.equal(saved.body.googleSheets.mapping.Nome,'name');
  assert.equal((await request(`/api/flows/${created.body.id}`,'PUT',{enabled:true,source:'http',destination:'google-sheets',googleSheets:{spreadsheetId:'12345678901234567890',sheetName:'Leads',headers:['Nome'],mapping:{Nome:'name'}},facebook:{},whatsapp:{}})).status,409);
@@ -18,7 +18,7 @@ test('HTTP and Google Sheets flow projects persist, list and delete safely',asyn
 test('flow editor exposes source, destination, mapping and deletion controls',()=>{
  const html=fs.readFileSync(path.resolve(__dirname,'../Dashboard Meta Ads/index.html'),'utf8'),script=fs.readFileSync(path.resolve(__dirname,'../Dashboard Meta Ads/flow-builder.js'),'utf8');
  for(const id of ['flowSource','flowDestination','flowHttpEndpoint','flowGoogleNode','flowSpreadsheet','flowSheet','flowMapping','flowDelete'])assert.ok(html.includes(`id="${id}"`));
- assert.match(script,/\/api\/flow\/google\/spreadsheets/);assert.match(script,/method: 'DELETE'/);assert.match(script,/source: \$\('flowSource'\)\.value/);assert.match(script,/canvas\.insertBefore\(http, connector\)/);assert.match(script,/canvas\.insertBefore\(google, whatsapp\)/);assert.match(script,/HURTZ_API_ROUTER_READY/);assert.match(script,/hurtz-api-router-ready/);
+ assert.match(script,/\/api\/flow\/google\/spreadsheets/);assert.match(script,/method: 'DELETE'/);assert.match(script,/source: \$\('flowSource'\)\.value/);assert.match(script,/canvas\.insertBefore\(http, connector\)/);assert.match(script,/canvas\.insertBefore\(google, whatsapp\)/);assert.match(script,/HURTZ_API_ROUTER_READY/);assert.match(script,/hurtz-api-router-ready/);assert.match(script,/flowCopyHttpEndpoint/);assert.match(script,/flowSpreadsheetManual/);assert.match(script,/HURTZ_API_BASE/);
  assert.ok(html.indexOf('src="app.js') < html.indexOf('src="flow-builder.js'), 'o roteador da API deve iniciar antes da primeira listagem de fluxos');
 });
 

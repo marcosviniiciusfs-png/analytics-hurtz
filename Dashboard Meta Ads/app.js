@@ -1,6 +1,7 @@
 ;(async()=>{
 document.body.classList.toggle('campaign-overview',(new URLSearchParams(location.search).get('view')||(location.hash==='#accounts'?'accounts':'overview'))==='overview');
 const MONITOR_API_BASE=location.hostname==='analytics.hurtzcompany.com'?'https://traffic-api.hurtzcompany.com':'';
+window.HURTZ_API_BASE=MONITOR_API_BASE||location.origin;
 const MONITOR_SESSION_KEY='hurtz-monitor-session-v2';
 const browserFetch=window.fetch.bind(window);
 const optionalScripts=new Map();

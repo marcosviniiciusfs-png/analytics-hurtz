@@ -69,7 +69,9 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (!value || value.userId !== user.id) throw fail(404, 'Fluxo não encontrado.');
     return value;
   }
-  const publicFlow = value => ({id: value.id, name: value.name, enabled: Boolean(value.enabled), createdAt: value.createdAt, updatedAt: value.updatedAt, source: value.source || 'facebook', destination: value.destination || 'whatsapp', facebook: value.facebook || {}, http: value.source === 'http' ? {endpoint: `/api/flow/inbound/${value.id}/${value.http?.secret || ''}`} : {}, whatsapp: value.whatsapp || {}, googleSheets: value.googleSheets || {}});
+  // The flow secret is generated at project creation. Its owner may configure
+  // the website before saving the source selection as HTTP.
+  const publicFlow = value => ({id: value.id, name: value.name, enabled: Boolean(value.enabled), createdAt: value.createdAt, updatedAt: value.updatedAt, source: value.source || 'facebook', destination: value.destination || 'whatsapp', facebook: value.facebook || {}, http: {endpoint: `/api/flow/inbound/${value.id}/${value.http?.secret || ''}`}, whatsapp: value.whatsapp || {}, googleSheets: value.googleSheets || {}});
   const googleConfig = () => ({clientId: String(process.env.GOOGLE_OAUTH_CLIENT_ID || ''), clientSecret: String(process.env.GOOGLE_OAUTH_CLIENT_SECRET || ''), redirectUri: String(process.env.GOOGLE_OAUTH_REDIRECT_URI || '')});
   const googleConfigured = () => { const config = googleConfig(); return Boolean(config.clientId && config.clientSecret && config.redirectUri); };
   const googleRequest = async (url, options = {}) => {
@@ -433,7 +435,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const state = payload?.instance?.state || payload?.instance?.status || payload?.state || 'unknown';
       return send(res, 200, {instance, state, connected: ['open', 'connected'].includes(String(state).toLowerCase())});
     }
-    if (route === '/api/flow/google/status' && req.method === 'GET') return send(res, 200, {configured: googleConfigured(), connected: Boolean(read('google-sheets', user.id)?.refreshToken)});
+    if (route === '/api/flow/google/status' && req.method === 'GET') return send(res, 200, {configured: googleConfigured(), connected: Boolean(read('google-sheets', user.id)?.refreshToken), projectNumber: googleConfig().clientId.split('-')[0] || ''});
     if (route === '/api/flow/google/connect' && req.method === 'POST') return send(res, 200, {url: beginGoogleAuth(user)});
     if (route === '/api/flow/google/spreadsheets' && req.method === 'GET') return send(res, 200, {spreadsheets: await googleSpreadsheets(user)});
     const googleSheetMatch = route.match(/^\/api\/flow\/google\/spreadsheets\/([A-Za-z0-9_-]{20,200})\/sheets$/);
