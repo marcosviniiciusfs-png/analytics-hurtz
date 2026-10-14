@@ -138,6 +138,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     const config = flow.googleSheets || {}, headers = Array.isArray(config.headers) ? config.headers : [], mapping = config.mapping || {};
     if (!flow.userId || !config.spreadsheetId || !config.sheetName || !headers.length) throw fail(400, 'Este fluxo não possui uma planilha e colunas configuradas.');
     const row = headers.map(header => { const value = readPath(payload, mapping[header] || header); return value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value); });
+    if (!row.some(value => value.trim())) throw fail(400, 'Nenhum campo recebido corresponde ao mapeamento da planilha. Revise o mapeamento antes de enviar.');
     const range = `'${String(config.sheetName).replace(/'/g, "''")}'!A1`;
     await googleApi(flow.userId, `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(config.spreadsheetId)}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({values: [row]})});
     return {headers, row};

@@ -122,7 +122,17 @@
   let fieldChoices = ['name','full_name','email','phone','phone_number','message','created_time','fields.name','fields.email','fields.phone_number'];
   const flattenFields = (value, prefix = '') => Object.entries(value || {}).flatMap(([key, item]) => { const name = prefix ? `${prefix}.${key}` : key; return item && typeof item === 'object' && !Array.isArray(item) ? flattenFields(item, name) : [name]; }).slice(0, 100);
   let httpListenTimer = null;
-  const applyHttpSample = sample => { const fields = flattenFields(sample?.payload); if (!fields.length) return; fieldChoices = fields; const selected = sheetCatalog.find(row => row.name === $('flowSheet').value); renderMapping(selected?.headers || [], currentFlow?.googleSheets?.mapping || {}); $('flowHttpListenStatus').textContent = `Teste recebido agora: ${fields.join(', ')}. Escolha esses campos nas colunas da planilha e clique em “Enviar teste para a planilha”.`; $('flowListenHttpEndpoint').textContent = 'Teste recebido'; $('flowSendHttpSample').hidden = false; clearInterval(httpListenTimer); };
+  const normalizeField = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const suggestMapping = (headers, fields, saved = {}) => {
+    const aliases = {nome: ['nome completo','full name','full_name','name'], telefone: ['whatsapp','telefone','phone','phone number','phone_number'], celular: ['whatsapp','telefone','phone','phone number','phone_number'], whatsapp: ['whatsapp','telefone','phone','phone number','phone_number'], interesse: ['interesse','interest'], email: ['email','e mail'], data: ['data de entrada','created time','created_time','date']};
+    return Object.fromEntries(headers.map(header => {
+      if (saved[header]) return [header, saved[header]];
+      const normalizedHeader = normalizeField(header), preferred = Object.entries(aliases).find(([key]) => normalizedHeader.includes(key))?.[1] || [normalizedHeader];
+      const field = fields.find(value => preferred.includes(normalizeField(value))) || fields.find(value => normalizeField(value) === normalizedHeader);
+      return field ? [header, field] : [header, ''];
+    }).filter(([, value]) => value));
+  };
+  const applyHttpSample = sample => { const fields = flattenFields(sample?.payload); if (!fields.length) return; fieldChoices = fields; const selected = sheetCatalog.find(row => row.name === $('flowSheet').value), saved = currentFlow?.googleSheets?.mapping || {}, suggested = suggestMapping(selected?.headers || [], fields, saved); renderMapping(selected?.headers || [], suggested); const suggestedCount = Object.keys(suggested).filter(header => !saved[header]).length; $('flowHttpListenStatus').textContent = suggestedCount ? `Teste recebido. Preenchi automaticamente ${suggestedCount} mapeamento(s); revise e clique em “Enviar teste para a planilha”.` : `Teste recebido agora: ${fields.join(', ')}. Clique em “Enviar teste para a planilha”.`; $('flowListenHttpEndpoint').textContent = 'Teste recebido'; $('flowSendHttpSample').hidden = false; clearInterval(httpListenTimer); if (suggestedCount && selected?.headers?.length) setTimeout(() => $('flowBuilder').requestSubmit(), 0); };
   function updateFlowKinds() {
     const source = $('flowSource').value, destination = $('flowDestination').value, canvas = document.querySelector('.flow-canvas'), connector = document.querySelector('.flow-link'), facebook = document.querySelector('.flow-facebook'), whatsapp = document.querySelector('.flow-whatsapp'), http = $('flowHttpPanel'), google = $('flowGoogleNode');
     // Mantém os dois tipos de origem/destino no mesmo canvas visual. Assim HTTP →
