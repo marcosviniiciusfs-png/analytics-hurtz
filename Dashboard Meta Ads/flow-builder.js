@@ -96,6 +96,7 @@
       if ($('flowSource').value === 'facebook' && currentFlow.facebook?.pageId) await loadForms(currentFlow.facebook.formId);
       if ($('flowDestination').value === 'whatsapp') await syncWhatsAppState(currentFlow.whatsapp?.groupJid || '');
       if ($('flowDestination').value === 'google-sheets') await loadSpreadsheets(currentFlow.googleSheets?.spreadsheetId || '');
+      if ($('flowSource').value === 'http') { const sample = await api(`/api/flows/${encodeURIComponent(currentFlow.id)}/http-sample`).catch(() => null); if (sample?.sample) applyHttpSample(sample.sample); }
       status(nextCatalog.error ? 'Conecte seu Facebook nas Configurações para escolher a página e o formulário.' : 'Configure os blocos e salve este fluxo.');
     } catch (error) { status(error.message); }
   }
