@@ -278,24 +278,12 @@ export function initializeCampaignManager({request,uploadRequest=request,getAcco
       if(suggestion?.media){form.elements.file.required=false;fileNotice.textContent='Vídeo analisado e salvo para esta revisão. Use o seletor abaixo apenas se quiser trocar o criativo.';}
 
       */
-      if(suggestion&&!existing){
-        fileLabel.hidden=true;fileNotice.hidden=true;form.elements.file.required=false;
-        const replaceCreative=document.createElement('button');replaceCreative.type='button';replaceCreative.className='cm-replace-creative';replaceCreative.textContent='Trocar criativo';replaceCreative.onclick=()=>form.elements.file.click();$('#cmPreview').after(replaceCreative);
-        const initialLocation=suggestion.location||{name:'Brasil',region:'',country:'BR',type:'country',key:'BR'};
-        const locationPicker=document.createElement('section');locationPicker.className='cm-location-picker';
-        locationPicker.innerHTML='<div><h4>Localizacao</h4><p>Pesquise uma cidade e defina o raio de alcance.</p></div><label>Buscar cidade ou regiao<input type="search" placeholder="Ex.: Parauapebas, PA" value="'+esc(initialLocation.name)+'"></label><button type="button" data-search-location>Buscar</button><div class="cm-location-results" role="listbox"></div><label class="cm-location-radius">Raio de alcance (km)<input type="number" min="1" max="80" step="1" value="'+Math.max(1,Math.min(80,Number(initialLocation.radius)||17))+'"></label>';
-        const locationInput=locationPicker.querySelector('input[type="search"]'),radiusInput=locationPicker.querySelector('input[type="number"]'),results=locationPicker.querySelector('.cm-location-results');
-        const applyLocation=item=>{const radius=Math.max(1,Math.min(80,Math.round(Number(radiusInput.value)||17)));suggestion.location={...item,radius};form.elements.countries.value=item.country;locationInput.value=item.name;results.replaceChildren()};
-        const searchLocation=async()=>{const q=locationInput.value.trim();if(q.length<2){locationInput.focus();return}const searchButton=locationPicker.querySelector('[data-search-location]');searchButton.disabled=true;try{const data=await api('locations',{q},undefined,owner);results.innerHTML=(data.items||[]).map(item=>'<button type="button" role="option" data-location-key="'+esc(item.key)+'" data-location-type="'+esc(item.type)+'" data-location-country="'+esc(item.country)+'" data-location-region="'+esc(item.region)+'">'+esc(item.name)+(item.region?' · '+esc(item.region):'')+' · '+esc(item.country)+'</button>').join('')}catch(error){results.textContent=error.message}finally{searchButton.disabled=false}};
-        locationPicker.addEventListener('click',event=>{const result=event.target.closest('[data-location-key]');if(result){applyLocation({key:result.dataset.locationKey,type:result.dataset.locationType,name:result.textContent.split(' · ')[0],country:result.dataset.locationCountry,region:result.dataset.locationRegion});return}if(event.target.closest('[data-search-location]'))searchLocation()});
-        locationInput.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();searchLocation()}});radiusInput.addEventListener('input',()=>{if(suggestion.location)suggestion.location.radius=Math.max(1,Math.min(80,Math.round(Number(radiusInput.value)||17)))});form.querySelector('.cm-advanced')?.before(locationPicker);
-      }
       if(!existing){
         form.querySelector('.cm-location-picker')?.remove();
         const initialLocation=['city','region'].includes(suggestion?.location?.type)?suggestion.location:null;
         const initialLocations=Array.isArray(suggestion?.locations)&&suggestion.locations.length?suggestion.locations:initialLocation?[{...initialLocation,mode:'include',radius:initialLocation.type==='city'?17:null,unit:'km'}]:[];
         const locationsField=document.createElement('input');locationsField.type='hidden';locationsField.name='locations';form.append(locationsField);
-        const syncLocations=locations=>{if(suggestion)suggestion.locations=locations;locationsField.value=JSON.stringify(locations);const included=locations.find(item=>item.mode==='include');if(included?.country)form.elements.countries.value=included.country;if(suggestion&&included?.type!=='pin')suggestion.location={...included,radius:included.radius}};
+        const syncLocations=locations=>{if(suggestion)suggestion.locations=locations;locationsField.value=JSON.stringify(locations);const included=locations.find(item=>item.mode==='include');if(included?.country)form.elements.countries.value=included.country;if(suggestion&&included&&included.type!=='pin')suggestion.location={...included,radius:included.radius}};
         const picker=createLocationPicker({value:initialLocations,searchLocations:(q,{signal}={})=>api('locations',{q},undefined,owner,{signal}),onChange:syncLocations});syncLocations(initialLocations);
         (form.querySelector('.cm-advanced')||form.querySelector('button[type="submit"]'))?.before(picker.element);
       }
