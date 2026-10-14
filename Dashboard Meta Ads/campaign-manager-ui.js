@@ -1,3 +1,5 @@
+import {createLocationPicker} from './location-picker.js';
+
 // Compact staged loader shared by the review and publication flow.
 
 const dialogOpen=dialog=>dialog.hasAttribute('open');
@@ -154,15 +156,15 @@ export function initializeCampaignManager({request,uploadRequest=request,getAcco
 
   const cache=new Map(),labels={campaign:'Campanha',adset:'Conjunto',ad:'Anúncio'},statusName={ACTIVE:'Ativo',PAUSED:'Pausado',CAMPAIGN_PAUSED:'Campanha pausada',ADSET_PAUSED:'Conjunto pausado',PENDING_REVIEW:'Em análise',DISAPPROVED:'Reprovado',WITH_ISSUES:'Com problemas',IN_PROCESS:'Processando',ARCHIVED:'Arquivado',DELETED:'Excluído'};
 
-  let api=(action,params={},payload,owner=account)=>request('/api/ads-manager/'+action+'?'+new URLSearchParams({account:owner,...params}),payload?{method:'POST',body:payload instanceof FormData?payload:JSON.stringify(payload)}:{});
+  let api=(action,params={},payload,owner=account,options={})=>request('/api/ads-manager/'+action+'?'+new URLSearchParams({account:owner,...params}),payload?{...options,method:'POST',body:payload instanceof FormData?payload:JSON.stringify(payload)}:options);
 
   const apiRequest=api;
 
   const apiUpload=(action,payload,owner,onProgress)=>uploadRequest('/api/ads-manager/'+action+'?'+new URLSearchParams({account:owner}),{method:'POST',body:payload},onProgress);
 
-  api=async(action,params={},payload,owner=account)=>{
+  api=async(action,params={},payload,owner=account,options={})=>{
 
-    if(action!=='create')return apiRequest(action,params,payload,owner);
+    if(action!=='create')return apiRequest(action,params,payload,owner,options);
 
     const deadline=Date.now()+5*60*1000,loader=editorDialog.querySelector('.cm-publish-loader')?.publishLoader;
 
@@ -287,6 +289,15 @@ export function initializeCampaignManager({request,uploadRequest=request,getAcco
         const searchLocation=async()=>{const q=locationInput.value.trim();if(q.length<2){locationInput.focus();return}const searchButton=locationPicker.querySelector('[data-search-location]');searchButton.disabled=true;try{const data=await api('locations',{q},undefined,owner);results.innerHTML=(data.items||[]).map(item=>'<button type="button" role="option" data-location-key="'+esc(item.key)+'" data-location-type="'+esc(item.type)+'" data-location-country="'+esc(item.country)+'" data-location-region="'+esc(item.region)+'">'+esc(item.name)+(item.region?' · '+esc(item.region):'')+' · '+esc(item.country)+'</button>').join('')}catch(error){results.textContent=error.message}finally{searchButton.disabled=false}};
         locationPicker.addEventListener('click',event=>{const result=event.target.closest('[data-location-key]');if(result){applyLocation({key:result.dataset.locationKey,type:result.dataset.locationType,name:result.textContent.split(' · ')[0],country:result.dataset.locationCountry,region:result.dataset.locationRegion});return}if(event.target.closest('[data-search-location]'))searchLocation()});
         locationInput.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();searchLocation()}});radiusInput.addEventListener('input',()=>{if(suggestion.location)suggestion.location.radius=Math.max(1,Math.min(80,Math.round(Number(radiusInput.value)||17)))});form.querySelector('.cm-advanced')?.before(locationPicker);
+      }
+      if(!existing){
+        form.querySelector('.cm-location-picker')?.remove();
+        const initialLocation=['city','region'].includes(suggestion?.location?.type)?suggestion.location:null;
+        const initialLocations=Array.isArray(suggestion?.locations)&&suggestion.locations.length?suggestion.locations:initialLocation?[{...initialLocation,mode:'include',radius:initialLocation.type==='city'?17:null,unit:'km'}]:[];
+        const locationsField=document.createElement('input');locationsField.type='hidden';locationsField.name='locations';form.append(locationsField);
+        const syncLocations=locations=>{if(suggestion)suggestion.locations=locations;locationsField.value=JSON.stringify(locations);const included=locations.find(item=>item.mode==='include');if(included?.country)form.elements.countries.value=included.country;if(suggestion&&included?.type!=='pin')suggestion.location={...included,radius:included.radius}};
+        const picker=createLocationPicker({value:initialLocations,searchLocations:(q,{signal}={})=>api('locations',{q},undefined,owner,{signal}),onChange:syncLocations});syncLocations(initialLocations);
+        (form.querySelector('.cm-advanced')||form.querySelector('button[type="submit"]'))?.before(picker.element);
       }
       if(suggestion&&form.elements.countries)form.elements.countries.readOnly=false;
       if(suggestion)[...form.querySelectorAll('.cm-notice')].filter(node=>{const message=String(node.textContent||'').trim();return message.startsWith('Plano preparado')||message.startsWith('Localiza')||message.startsWith('A publica')}).forEach(node=>node.remove());
