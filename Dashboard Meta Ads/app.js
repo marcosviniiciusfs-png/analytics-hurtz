@@ -94,6 +94,11 @@ async function personalReportFetch(input,options={}){
 }
 const personalMetaRoutes=new Set(['/api/meta-accounts','/api/meta-billing-balances','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync','/api/report-product-rules','/api/flow/meta/catalog','/api/flow/meta/forms','/api/flow/whatsapp/groups','/api/flow/whatsapp/instance','/api/flow/whatsapp/qr','/api/flow/whatsapp/status','/api/flow/config']);
 window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input?.url||'',route=url.split('?')[0],isMonitorApi=url.startsWith('/api/'),isPersonalMetaRoute=personalMetaRoutes.has(route)||route.startsWith('/api/flow/')||route==='/api/flows'||route.startsWith('/api/flows/');if(!isMonitorApi)return browserFetch(input,options);if(isPersonalMetaRoute){const personalOptions={...options,headers:{...(options.headers||{}),'X-Require-Personal-Meta':'1'}};return personalIdentity?.personal&&/^\/api\/meta-(spend|analysis)\?/.test(url)?personalReportFetch(url,personalOptions):monitorApiFetch(input,personalOptions)}return cachedMetadataFetch(input,options)};
+// Scripts independentes (como o construtor de fluxos) s\u00f3 podem consultar a API
+// depois que este roteador estiver ativo. Com sess\u00e3o salva, esta IIFE aguarda a
+// valida\u00e7\u00e3o da sess\u00e3o antes de chegar aqui.
+window.HURTZ_API_ROUTER_READY=true;
+window.dispatchEvent(new Event('hurtz-api-router-ready'));
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 async function fetchJsonWithRetry(url,{attempts=3,delay=700,...options}={}){
   let lastError;
