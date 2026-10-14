@@ -19,6 +19,7 @@ test('flow editor exposes source, destination, mapping and deletion controls',()
  const html=fs.readFileSync(path.resolve(__dirname,'../Dashboard Meta Ads/index.html'),'utf8'),script=fs.readFileSync(path.resolve(__dirname,'../Dashboard Meta Ads/flow-builder.js'),'utf8');
  for(const id of ['flowSource','flowDestination','flowHttpEndpoint','flowGoogleNode','flowSpreadsheet','flowSheet','flowMapping','flowDelete'])assert.ok(html.includes(`id="${id}"`));
  assert.match(script,/\/api\/flow\/google\/spreadsheets/);assert.match(script,/method: 'DELETE'/);assert.match(script,/source: \$\('flowSource'\)\.value/);assert.match(script,/canvas\.insertBefore\(http, connector\)/);assert.match(script,/canvas\.insertBefore\(google, whatsapp\)/);
+ assert.ok(html.indexOf('src="app.js') < html.indexOf('src="flow-builder.js'), 'o roteador da API deve iniciar antes da primeira listagem de fluxos');
 });
 
 test('Google OAuth stays server-side and sheet rows follow saved column mapping',async t=>{
