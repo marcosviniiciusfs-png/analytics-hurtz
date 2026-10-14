@@ -103,8 +103,22 @@ async function deliverFlowLead(leadgenId,value){
 function handleFlowWebhook(req,res,url){
   if(req.method==='GET'){const valid=url.searchParams.get('hub.mode')==='subscribe'&&url.searchParams.get('hub.verify_token')===String(process.env.META_VERIFY_TOKEN||process.env.VERIFY_TOKEN||'');return valid?(res.writeHead(200),res.end(url.searchParams.get('hub.challenge')||'')):(res.writeHead(403),res.end());}
   if(req.method!=='POST'){res.writeHead(405);return res.end();}const chunks=[];let size=0;req.on('data',chunk=>{size+=chunk.length;if(size<=1024*1024)chunks.push(chunk);else req.destroy()});req.on('end',()=>{const raw=Buffer.concat(chunks),signature=String(req.headers['x-hub-signature-256']||''),expected=`sha256=${crypto.createHmac('sha256',String(process.env.META_APP_SECRET||'')).update(raw).digest('hex')}`;if(!process.env.META_APP_SECRET||!safeEqual(signature,expected)){res.writeHead(403);return res.end();}res.writeHead(200);res.end();try{const payload=JSON.parse(raw.toString('utf8'));for(const entry of payload.entry||[])for(const change of entry.changes||[])if(change.field==='leadgen'&&change.value?.leadgen_id)void deliverFlowLead(change.value.leadgen_id,change.value)}catch{console.error('[Fluxo] Webhook recebeu JSON inválido.')}});}
+const flowCorsOrigins=()=>new Set(['https://ribeiroparauapebas.simulead.com.br',...String(process.env.FLOW_HTTP_ALLOWED_ORIGINS||'').split(',').map(value=>value.trim()).filter(Boolean)]);
+const applyFlowCors=(req,res)=>{
+  const origin=String(req.headers.origin||'');
+  if(!origin)return true;
+  if(!flowCorsOrigins().has(origin))return false;
+  res.setHeader('Access-Control-Allow-Origin',origin);
+  res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers','Content-Type');
+  res.setHeader('Access-Control-Max-Age','600');
+  res.setHeader('Vary','Origin');
+  return true;
+};
 function handleHttpFlow(req,res,url){
-  if(req.method!=='POST'){res.writeHead(405,{Allow:'POST'});return res.end();}
+  if(!applyFlowCors(req,res)){res.writeHead(403,{'Content-Type':'application/json; charset=utf-8','Vary':'Origin'});return res.end(JSON.stringify({error:'Origem não autorizada para este endpoint.'}));}
+  if(req.method==='OPTIONS'){res.writeHead(204);return res.end();}
+  if(req.method!=='POST'){res.writeHead(405,{Allow:'POST, OPTIONS','Content-Type':'application/json; charset=utf-8'});return res.end(JSON.stringify({error:'Método não permitido.'}));}
   const match=url.pathname.match(/^\/api\/flow\/inbound\/([a-f0-9-]{36})\/([A-Za-z0-9_-]{20,})$/i),flow=match&&personalMeta.httpFlow(match[1],match[2],true);
   if(!flow){res.writeHead(404,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Endpoint de fluxo não encontrado.'}));}
   const chunks=[];let size=0;req.on('data',chunk=>{size+=chunk.length;if(size>512*1024)req.destroy();else chunks.push(chunk)});req.on('end',async()=>{try{const payload=JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');if(!payload||Array.isArray(payload)||typeof payload!=='object')throw new Error('Envie um objeto JSON.');if(flow.destination==='google-sheets'){await personalMeta.appendGoogleLead(flow,payload)}else{const base=String(process.env.EVOLUTION_API_URL||'').replace(/\/$/,''),key=String(process.env.EVOLUTION_API_KEY||'');if(!base||!key)throw new Error('Evolution API não configurada.');const text=['Novo lead HTTP','',...Object.entries(payload).map(([name,value])=>`*${name}:* ${typeof value==='object'?JSON.stringify(value):value}`)].join('\n'),response=await fetch(`${base}/message/sendText/${encodeURIComponent(flow.whatsapp.instance)}`,{method:'POST',headers:{'Content-Type':'application/json',apikey:key},body:JSON.stringify({number:flow.whatsapp.groupJid,text})});if(!response.ok)throw new Error(`Evolution respondeu ${response.status}`)}res.writeHead(202,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true}))}catch(error){res.writeHead(error.status||400,{'Content-Type':'application/json'});res.end(JSON.stringify({error:error.message||'Não foi possível processar o lead.'}))}});
