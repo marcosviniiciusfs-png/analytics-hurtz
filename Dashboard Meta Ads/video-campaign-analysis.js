@@ -43,7 +43,11 @@ function jevAnalysis(evidence,transcript,answers){const visibleText=(evidence.vi
 // The creative may name the city only in speech, without the "Cidade - UF" card.
 // Keep a concise candidate and let Meta validate it before the campaign is created.
 locationFromText=function(values=[]){
-  for(const value of values){
+  // Tesseract frequently separates the colored city banner and the product
+  // banner into different blocks. Inspect both each block and their joined
+  // reading order so "PARAUAPEBAS" + "CRÉDITO PARA VEÍCULOS" is recognized.
+  const candidates=[...values,values.join(' ')];
+  for(const value of candidates){
     const text=String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
     const withState=text.match(new RegExp('\\b(?:PARA QUEM MORA EM|PARA QUEM VIVE EM|MORADORES? DE|NA CIDADE DE|CIDADE DE|EM|PARA)\\s+([A-Z]{2,}(?:\\s+[A-Z]{2,}){0,4}?)\\s*(?:[-,]\\s*|\\s+)('+states+')\\b'));
     if(withState)return withState[1].replace(/\s+/g,' ').trim()+' - '+withState[2];
@@ -51,7 +55,7 @@ locationFromText=function(values=[]){
     if(tagged)return tagged[1].replace(/\s+/g,' ').trim()+' - '+tagged[2];
     // OCR banners often show only "CITY / PRODUCT". The product word is a
     // reliable boundary, so retain the city and let Meta resolve it.
-    const productBanner=text.match(/\b([A-Z]{3,}(?:\s+(?!(?:CREDITO|FINANCIAMENTO|CONSORCIO|IMOVEL|VEICULO|VEICULOS|CARRO|CARROS|MOTO|MOTOS|MAQUINARIO|IPHONE|MACBOOK|APLICATIVO|OFERTA)\b)[A-Z]{2,}){0,3})\s+(?=(?:CREDITO|FINANCIAMENTO|CONSORCIO|IMOVEL|VEICULO|VEICULOS|CARRO|CARROS|MOTO|MOTOS|MAQUINARIO|IPHONE|MACBOOK|APLICATIVO|OFERTA)\b)/);
+    const productBanner=text.match(/^\s*((?!(?:CREDITO|FINANCIAMENTO|CONSORCIO|IMOVEL|VEICULO|VEICULOS|CARRO|CARROS|MOTO|MOTOS|MAQUINARIO|IPHONE|MACBOOK|APLICATIVO|OFERTA|PARA)\b)[A-Z]{3,}(?:\s+(?!(?:CREDITO|FINANCIAMENTO|CONSORCIO|IMOVEL|VEICULO|VEICULOS|CARRO|CARROS|MOTO|MOTOS|MAQUINARIO|IPHONE|MACBOOK|APLICATIVO|OFERTA)\b)[A-Z]{2,}){0,3})\s+(?=(?:CREDITO|FINANCIAMENTO|CONSORCIO|IMOVEL|VEICULO|VEICULOS|CARRO|CARROS|MOTO|MOTOS|MAQUINARIO|IPHONE|MACBOOK|APLICATIVO|OFERTA)\b)/);
     if(productBanner)return productBanner[1].replace(/\s+/g,' ').trim();
     const city=text.match(/\b(?:PARA QUEM MORA EM|PARA QUEM VIVE EM|MORADORES? DE|NA CIDADE DE|CIDADE DE|EM)\s+([A-Z]{3,}(?:\s+[A-Z]{3,}){0,3}?)(?=\s*(?:[,.;!?]|\b(?:COM|NO|NA|DO|DA|QUE|ONDE|HOJE|AGORA|TEMOS|VOCE|VOCES|PESSOAS)\b|$))/);
     if(city)return city[1].replace(/\s+/g,' ').trim();
