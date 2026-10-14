@@ -114,12 +114,17 @@
   let spreadsheetCatalog = [], sheetCatalog = [];
   const fieldChoices = ['name','full_name','email','phone','phone_number','message','created_time','fields.name','fields.email','fields.phone_number'];
   function updateFlowKinds() {
-    const source = $('flowSource').value, destination = $('flowDestination').value;
+    const source = $('flowSource').value, destination = $('flowDestination').value, canvas = document.querySelector('.flow-canvas'), connector = document.querySelector('.flow-link'), facebook = document.querySelector('.flow-facebook'), whatsapp = document.querySelector('.flow-whatsapp'), http = $('flowHttpPanel'), google = $('flowGoogleNode');
+    // Mantém os dois tipos de origem/destino no mesmo canvas visual. Assim HTTP →
+    // Sheets ocupa exatamente as posições de Facebook → WhatsApp.
+    if (!canvas.contains(http)) canvas.insertBefore(http, connector);
+    if (!canvas.contains(google)) canvas.insertBefore(google, whatsapp);
+    http.classList.add('flow-node', 'flow-http');
     document.querySelector('.flow-facebook').hidden = source !== 'facebook';
-    document.querySelector('.flow-link').hidden = source !== 'facebook' || destination !== 'whatsapp';
-    document.querySelector('.flow-whatsapp').hidden = destination !== 'whatsapp';
-    $('flowGoogleNode').hidden = destination !== 'google-sheets';
-    $('flowHttpPanel').hidden = source !== 'http';
+    connector.hidden = false;
+    whatsapp.hidden = destination !== 'whatsapp';
+    google.hidden = destination !== 'google-sheets';
+    http.hidden = source !== 'http';
     $('flowHttpEndpoint').textContent = source === 'http' && currentFlow?.http?.endpoint ? `${location.origin}${currentFlow.http.endpoint}` : '';
   }
   function renderMapping(headers = [], mapping = {}) {
