@@ -45,11 +45,13 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     const a = Buffer.from(String(left || '')), b = Buffer.from(String(right || ''));
     return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b);
   };
-  function httpFlow(id, secret) {
+  function httpFlow(id, secret, includeDisabled = false) {
     if (!/^[a-f0-9-]{36}$/i.test(id || '')) return null;
     const flow = read('lead-flow-project', id);
-    return flow?.enabled && flow.source === 'http' && safeTokenEqual(secret, flow.http?.secret) ? flow : null;
+    return (includeDisabled || flow?.enabled) && flow?.source === 'http' && safeTokenEqual(secret, flow.http?.secret) ? flow : null;
   }
+  const samplePayload = value => { const text = JSON.stringify(value); if (text.length > 65536) throw fail(413, 'O teste do endpoint excede 64 KB.'); return JSON.parse(text); };
+  function saveHttpSample(flow, payload) { const next = {...flow, http: {...flow.http, sample: {payload: samplePayload(payload), receivedAt: Date.now()}}, updatedAt: Date.now()}; write('lead-flow-project', flow.id, next); return next; }
   function flowIds(user) {
     const settings = read('settings', user.id) || {};
     let ids = Array.isArray(settings.flow_ids) ? settings.flow_ids.filter(id => typeof id === 'string' && /^[a-f0-9-]{36}$/i.test(id)) : [];
@@ -132,6 +134,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   }
   const readPath = (value, pathValue) => String(pathValue || '').split('.').reduce((item, part) => item && typeof item === 'object' ? item[part] : undefined, value);
   async function appendGoogleLead(flow, payload) {
+    if (flow.source === 'http') { saveHttpSample(flow, payload); if (!flow.enabled) return {sampleOnly: true}; }
     const config = flow.googleSheets || {}, headers = Array.isArray(config.headers) ? config.headers : [], mapping = config.mapping || {};
     if (!flow.userId || !config.spreadsheetId || !config.sheetName || !headers.length) throw fail(400, 'Este fluxo não possui uma planilha e colunas configuradas.');
     const row = headers.map(header => { const value = readPath(payload, mapping[header] || header); return value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value); });
@@ -454,6 +457,13 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       return send(res, 201, publicFlow(value));
     }
     const flowMatch = route.match(/^\/api\/flows\/([a-f0-9-]{36})$/i);
+    const sampleMatch = route.match(/^\/api\/flows\/([a-f0-9-]{36})\/http-sample$/i);
+    if (sampleMatch) {
+      const flow = project(user, sampleMatch[1]);
+      if (req.method === 'GET') return send(res, 200, {sample: flow.http?.sample || null});
+      if (req.method === 'DELETE') { write('lead-flow-project', flow.id, {...flow, http: {...flow.http, sample: null}, updatedAt: Date.now()}); return send(res, 200, {ok: true}); }
+      throw fail(405, 'Método não permitido.');
+    }
     if (flowMatch) {
       const id = flowMatch[1], previous = project(user, id);
       if (req.method === 'GET') return send(res, 200, publicFlow(previous));
@@ -533,6 +543,6 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     // Existing administrative routes use shared resources and are never delegated to personal sessions.
     throw fail(403, 'Esta função está disponível apenas no acesso administrativo.');
   }
-  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow, httpFlow, appendGoogleLead, beginGoogleAuth, completeGoogleAuth};
+  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow, httpFlow, saveHttpSample, appendGoogleLead, beginGoogleAuth, completeGoogleAuth};
 }
 module.exports = {createPersonalMeta};
