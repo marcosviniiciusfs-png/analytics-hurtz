@@ -73,6 +73,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   // the website before saving the source selection as HTTP.
   const publicFlow = value => ({id: value.id, name: value.name, enabled: Boolean(value.enabled), createdAt: value.createdAt, updatedAt: value.updatedAt, source: value.source || 'facebook', destination: value.destination || 'whatsapp', facebook: value.facebook || {}, http: {endpoint: `/api/flow/inbound/${value.id}/${value.http?.secret || ''}`}, whatsapp: value.whatsapp || {}, googleSheets: value.googleSheets || {}});
   const googleConfig = () => ({clientId: String(process.env.GOOGLE_OAUTH_CLIENT_ID || ''), clientSecret: String(process.env.GOOGLE_OAUTH_CLIENT_SECRET || ''), redirectUri: String(process.env.GOOGLE_OAUTH_REDIRECT_URI || '')});
+  const googleEmail = idToken => { try { return String(JSON.parse(Buffer.from(String(idToken || '').split('.')[1] || '', 'base64url').toString()).email || '').slice(0, 320); } catch { return ''; } };
   const googleConfigured = () => { const config = googleConfig(); return Boolean(config.clientId && config.clientSecret && config.redirectUri); };
   const googleRequest = async (url, options = {}) => {
     const response = await fetchImpl(url, {...options, signal: options.signal || AbortSignal.timeout(15000)});
@@ -98,7 +99,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (!googleConfigured()) throw fail(503, 'Configure GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET e GOOGLE_OAUTH_REDIRECT_URI no servidor para conectar o Google Sheets.');
     const state = crypto.randomBytes(32).toString('base64url');
     write('google-oauth-state', state, {userId: user.id, expiresAt: Date.now() + 10 * 60 * 1000});
-    const query = new URLSearchParams({client_id: googleConfig().clientId, redirect_uri: googleConfig().redirectUri, response_type: 'code', access_type: 'offline', prompt: 'consent', scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata.readonly', state});
+    const query = new URLSearchParams({client_id: googleConfig().clientId, redirect_uri: googleConfig().redirectUri, response_type: 'code', access_type: 'offline', prompt: 'consent', scope: 'openid email https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata.readonly', state});
     return `https://accounts.google.com/o/oauth2/v2/auth?${query}`;
   }
   async function completeGoogleAuth(code, state) {
@@ -109,7 +110,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     const tokens = await googleRequest('https://oauth2.googleapis.com/token', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body});
     const before = read('google-sheets', pending.userId) || {};
     if (!tokens.refresh_token && !before.refreshToken) throw fail(502, 'O Google não retornou a autorização permanente. Remova o acesso do app na sua conta Google e conecte novamente.');
-    write('google-sheets', pending.userId, {refreshToken: tokens.refresh_token || before.refreshToken, accessToken: tokens.access_token, expiresAt: Date.now() + Number(tokens.expires_in || 3600) * 1000});
+    write('google-sheets', pending.userId, {refreshToken: tokens.refresh_token || before.refreshToken, accessToken: tokens.access_token, expiresAt: Date.now() + Number(tokens.expires_in || 3600) * 1000, email: googleEmail(tokens.id_token) || before.email || ''});
     return pending.userId;
   }
   async function googleSpreadsheets(user) {
@@ -435,7 +436,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const state = payload?.instance?.state || payload?.instance?.status || payload?.state || 'unknown';
       return send(res, 200, {instance, state, connected: ['open', 'connected'].includes(String(state).toLowerCase())});
     }
-    if (route === '/api/flow/google/status' && req.method === 'GET') return send(res, 200, {configured: googleConfigured(), connected: Boolean(read('google-sheets', user.id)?.refreshToken), projectNumber: googleConfig().clientId.split('-')[0] || ''});
+    if (route === '/api/flow/google/status' && req.method === 'GET') { const google = read('google-sheets', user.id) || {}; return send(res, 200, {configured: googleConfigured(), connected: Boolean(google.refreshToken), email: google.email || '', projectNumber: googleConfig().clientId.split('-')[0] || ''}); }
     if (route === '/api/flow/google/connect' && req.method === 'POST') return send(res, 200, {url: beginGoogleAuth(user)});
     if (route === '/api/flow/google/spreadsheets' && req.method === 'GET') return send(res, 200, {spreadsheets: await googleSpreadsheets(user)});
     const googleSheetMatch = route.match(/^\/api\/flow\/google\/spreadsheets\/([A-Za-z0-9_-]{20,200})\/sheets$/);

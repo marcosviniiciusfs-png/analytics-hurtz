@@ -25,10 +25,11 @@ test('flow editor exposes source, destination, mapping and deletion controls',()
 test('Google OAuth stays server-side and sheet rows follow saved column mapping',async t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'traffic-google-test-')),old={id:process.env.GOOGLE_OAUTH_CLIENT_ID,secret:process.env.GOOGLE_OAUTH_CLIENT_SECRET,redirect:process.env.GOOGLE_OAUTH_REDIRECT_URI};
  process.env.GOOGLE_OAUTH_CLIENT_ID='google-client';process.env.GOOGLE_OAUTH_CLIENT_SECRET='google-secret';process.env.GOOGLE_OAUTH_REDIRECT_URI='https://traffic-api.example.test/api/flow/google/callback';
- const calls=[],vault=createPersonalMeta({directory:dir,fetchImpl:async(url,options={})=>{calls.push({url:String(url),options});return {ok:true,status:200,json:async()=>String(url).includes('oauth2.googleapis.com')?{access_token:'server-only-token',refresh_token:'refresh-token',expires_in:3600}:{updates:{updatedRows:1}}}}});
+ const calls=[],vault=createPersonalMeta({directory:dir,fetchImpl:async(url,options={})=>{calls.push({url:String(url),options});return {ok:true,status:200,json:async()=>String(url).includes('oauth2.googleapis.com')?{access_token:'server-only-token',refresh_token:'refresh-token',id_token:`x.${Buffer.from(JSON.stringify({email:'owner@example.test'})).toString('base64url')}.x`,expires_in:3600}:{updates:{updatedRows:1}}}}});
  t.after(()=>{fs.rmSync(dir,{recursive:true,force:true});process.env.GOOGLE_OAUTH_CLIENT_ID=old.id;process.env.GOOGLE_OAUTH_CLIENT_SECRET=old.secret;process.env.GOOGLE_OAUTH_REDIRECT_URI=old.redirect});
- const authorization=new URL(vault.beginGoogleAuth({id:'google-user'}));assert.equal(authorization.searchParams.get('client_id'),'google-client');assert.match(authorization.searchParams.get('scope'),/spreadsheets/);
+ const authorization=new URL(vault.beginGoogleAuth({id:'google-user'}));assert.equal(authorization.searchParams.get('client_id'),'google-client');assert.match(authorization.searchParams.get('scope'),/spreadsheets/);assert.match(authorization.searchParams.get('scope'),/email/);
  await vault.completeGoogleAuth('code',authorization.searchParams.get('state'));
+ assert.equal(vault.read('google-sheets','google-user').email,'owner@example.test');
  await vault.appendGoogleLead({userId:'google-user',googleSheets:{spreadsheetId:'12345678901234567890',sheetName:'Leads',headers:['Nome','Email'],mapping:{Nome:'fields.full_name',Email:'email'}}},{fields:{full_name:'Ana'},email:'ana@example.test'});
  const append=calls.find(call=>call.url.includes(':append'));assert.ok(append);assert.deepEqual(JSON.parse(append.options.body).values,[['Ana','ana@example.test']]);assert.ok(!JSON.stringify(append).includes('google-secret'));
 });
