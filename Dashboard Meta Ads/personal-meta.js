@@ -99,7 +99,9 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (!googleConfigured()) throw fail(503, 'Configure GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET e GOOGLE_OAUTH_REDIRECT_URI no servidor para conectar o Google Sheets.');
     const state = crypto.randomBytes(32).toString('base64url');
     write('google-oauth-state', state, {userId: user.id, expiresAt: Date.now() + 10 * 60 * 1000});
-    const query = new URLSearchParams({client_id: googleConfig().clientId, redirect_uri: googleConfig().redirectUri, response_type: 'code', access_type: 'offline', prompt: 'consent', scope: 'openid email https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata.readonly', state});
+    // select_account makes the explicit “Trocar conta” action open Google's
+    // account chooser instead of silently reusing the browser's last account.
+    const query = new URLSearchParams({client_id: googleConfig().clientId, redirect_uri: googleConfig().redirectUri, response_type: 'code', access_type: 'offline', prompt: 'select_account consent', scope: 'openid email https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata.readonly', state});
     return `https://accounts.google.com/o/oauth2/v2/auth?${query}`;
   }
   async function completeGoogleAuth(code, state) {

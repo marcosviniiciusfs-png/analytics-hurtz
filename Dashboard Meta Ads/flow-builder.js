@@ -12,6 +12,8 @@
 
   $('flowHttpPanel').insertAdjacentHTML('beforeend', '<div class="flow-endpoint-actions"><button type="button" id="flowCopyHttpEndpoint">Copiar endpoint</button></div><small>Depois de configurar, salve o fluxo e marque-o como ativo para receber os envios.</small><details class="flow-endpoint-example"><summary>Exemplo para conectar seu site</summary><pre id="flowHttpExample"></pre></details>');
   $('flowGoogleNode').insertAdjacentHTML('beforeend', '<p class="flow-google-account" id="flowGoogleAccount" hidden></p><button class="flow-google-switch" type="button" id="flowReconnectGoogle">Trocar conta Google</button><p class="flow-google-help" id="flowGoogleHelp" hidden>A conexão foi salva. Para listar planilhas automaticamente, <a id="flowEnableDriveApi" target="_blank" rel="noopener">ative a Google Drive API</a>. Ou cole a URL/ID da planilha abaixo.</p><label class="flow-manual-sheet">URL ou ID da planilha<div><input id="flowSpreadsheetManual" type="text" autocomplete="off" placeholder="Cole a URL ou o ID da planilha"><button type="button" id="flowUseSpreadsheet">Usar</button></div></label>');
+  $('flowConnectGoogle').insertAdjacentElement('afterend', $('flowReconnectGoogle'));
+  $('flowConnectGoogle').insertAdjacentElement('afterend', $('flowGoogleAccount'));
 
   // O painel não inventa porcentagem: a Evolution só informa o resultado final
   // da geração. Enquanto ela processa, mostramos estado indeterminado acessível.
