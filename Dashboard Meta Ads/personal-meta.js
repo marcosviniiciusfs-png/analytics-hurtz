@@ -493,6 +493,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (flow.enabled && source === 'facebook' && (!flow.facebook.pageId || !flow.facebook.formId)) throw fail(400, 'Selecione página e formulário antes de ativar o fluxo Facebook.');
       if (flow.enabled && destination === 'whatsapp' && (!flow.whatsapp.instance || !flow.whatsapp.groupJid)) throw fail(400, 'Conecte o WhatsApp e selecione o grupo antes de ativar o fluxo.');
       if (flow.enabled && destination === 'google-sheets' && (!flow.googleSheets.spreadsheetId || !flow.googleSheets.sheetName || !flow.googleSheets.headers.length)) throw fail(400, 'Selecione uma aba da planilha com colunas antes de ativar o fluxo.');
+      if (flow.enabled && destination === 'google-sheets' && !Object.keys(flow.googleSheets.mapping).length) throw fail(400, 'Mapeie pelo menos uma coluna da planilha antes de ativar o fluxo.');
       if (flow.enabled && destination === 'google-sheets' && !read('google-sheets', user.id)?.refreshToken) throw fail(409, 'Conecte sua conta Google antes de ativar este fluxo.');
       if (flow.enabled && destination === 'whatsapp' && settings.flow_whatsapp_instance !== flow.whatsapp.instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar o fluxo.');
       if (flow.enabled && source === 'facebook') {
