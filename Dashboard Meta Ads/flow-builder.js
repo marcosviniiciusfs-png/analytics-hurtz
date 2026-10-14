@@ -85,14 +85,16 @@
       const [connection, nextCatalog] = await Promise.all([api(`/api/flows/${encodeURIComponent(currentFlow.id)}`), api('/api/flow/meta/catalog').catch(error => ({error}))]);
       currentFlow = connection; catalog = nextCatalog.error ? {accounts: [], pages: []} : nextCatalog;
       $('flowTitle').textContent = currentFlow.name; $('flowConnect').hidden = Boolean(catalog.connected);
+      $('flowSource').value = currentFlow.source || 'facebook'; $('flowDestination').value = currentFlow.destination || 'whatsapp'; updateFlowKinds();
       resetControls(); $('flowEnabled').checked = Boolean(currentFlow.enabled); setWhatsAppButton(false);
-      if (currentFlow.facebook?.pageId) await loadForms(currentFlow.facebook.formId);
-      await syncWhatsAppState(currentFlow.whatsapp?.groupJid || '');
+      if ($('flowSource').value === 'facebook' && currentFlow.facebook?.pageId) await loadForms(currentFlow.facebook.formId);
+      if ($('flowDestination').value === 'whatsapp') await syncWhatsAppState(currentFlow.whatsapp?.groupJid || '');
+      if ($('flowDestination').value === 'google-sheets') await loadSpreadsheets(currentFlow.googleSheets?.spreadsheetId || '');
       status(nextCatalog.error ? 'Conecte seu Facebook nas Configurações para escolher a página e o formulário.' : 'Configure os blocos e salve este fluxo.');
     } catch (error) { status(error.message); }
   }
   const projectCard = flow => {
-    const origin = flow.facebook?.formName || flow.facebook?.formId || 'Formulário ainda não escolhido';
+    const origin = flow.source === 'http' ? 'Endpoint HTTP' : (flow.facebook?.formName || flow.facebook?.formId || 'Formulário ainda não escolhido');
     return `<button type="button" class="flow-project" data-flow-id="${esc(flow.id)}"><span class="flow-project-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h11M4 12h16M4 18h11"/><circle cx="18" cy="6" r="2"/><circle cx="8" cy="18" r="2"/></svg></span><span><strong>${esc(flow.name)}</strong><small>${esc(origin)}</small></span><b class="flow-project-state ${flow.enabled ? 'active' : ''}">${flow.enabled ? 'Ativo' : 'Rascunho'}</b><i aria-hidden="true">›</i></button>`;
   };
   async function listFlows() {
@@ -109,6 +111,35 @@
     let checking = false;
     clearInterval(qrTimer); qrTimer = setInterval(async () => { if (checking) return; checking = true; try { const state = await api(`/api/flow/whatsapp/status?instance=${encodeURIComponent(payload.instance)}`); if (state.connected) { clearInterval(qrTimer); setWhatsAppButton(true); await loadGroups(); $('flowQrPanel').hidden = true; status('WhatsApp conectado. Escolha o grupo de destino.'); } } catch (error) { $('flowQrStatus').textContent = error.message; } finally { checking = false; } }, 1000);
   }
+  let spreadsheetCatalog = [], sheetCatalog = [];
+  const fieldChoices = ['name','full_name','email','phone','phone_number','message','created_time','fields.name','fields.email','fields.phone_number'];
+  function updateFlowKinds() {
+    const source = $('flowSource').value, destination = $('flowDestination').value;
+    document.querySelector('.flow-facebook').hidden = source !== 'facebook';
+    document.querySelector('.flow-link').hidden = source !== 'facebook' || destination !== 'whatsapp';
+    document.querySelector('.flow-whatsapp').hidden = destination !== 'whatsapp';
+    $('flowGoogleNode').hidden = destination !== 'google-sheets';
+    $('flowHttpPanel').hidden = source !== 'http';
+    $('flowHttpEndpoint').textContent = source === 'http' && currentFlow?.http?.endpoint ? `${location.origin}${currentFlow.http.endpoint}` : '';
+  }
+  function renderMapping(headers = [], mapping = {}) {
+    $('flowMapping').innerHTML = headers.length ? `<strong>Mapeamento de colunas</strong>${headers.map(header => `<label>${esc(header)}<select data-sheet-header="${esc(header)}"><option value="">Não enviar</option>${fieldChoices.map(field => `<option value="${field}" ${mapping[header] === field ? 'selected' : ''}>${field}</option>`).join('')}</select></label>`).join('')}` : '<small>Escolha uma aba que tenha os nomes das colunas na primeira linha.</small>';
+  }
+  async function loadSpreadsheets(selected = '') {
+    const state = await api('/api/flow/google/status');
+    $('flowConnectGoogle').textContent = state.connected ? 'Google Sheets conectado' : 'Conectar Google Sheets';
+    if (!state.connected) return;
+    const data = await api('/api/flow/google/spreadsheets'); spreadsheetCatalog = data.spreadsheets || [];
+    $('flowSpreadsheet').innerHTML = '<option value="">Selecione uma planilha</option>' + spreadsheetCatalog.map(row => `<option value="${esc(row.id)}">${esc(row.name)}</option>`).join('');
+    $('flowSpreadsheet').value = selected || currentFlow?.googleSheets?.spreadsheetId || '';
+    if ($('flowSpreadsheet').value) await loadSheets(currentFlow?.googleSheets?.sheetName || '');
+  }
+  async function loadSheets(selected = '') {
+    const spreadsheetId = $('flowSpreadsheet').value; if (!spreadsheetId) return;
+    const data = await api(`/api/flow/google/spreadsheets/${encodeURIComponent(spreadsheetId)}/sheets`); sheetCatalog = data.sheets || [];
+    $('flowSheet').innerHTML = '<option value="">Selecione uma aba</option>' + sheetCatalog.map(row => `<option value="${esc(row.name)}">${esc(row.name)}</option>`).join('');
+    $('flowSheet').value = selected; const sheet = sheetCatalog.find(row => row.name === $('flowSheet').value); renderMapping(sheet?.headers || [], currentFlow?.googleSheets?.mapping || {});
+  }
   $('flowCreate').onclick = () => { $('flowName').value = ''; $('flowCreateDialog').showModal(); $('flowName').focus(); };
   $('flowCancelCreate').onclick = () => $('flowCreateDialog').close();
   $('flowCreateForm').onsubmit = async event => { event.preventDefault(); try { const flow = await api('/api/flows', {method: 'POST', body: JSON.stringify({name: $('flowName').value.trim()})}); $('flowCreateDialog').close(); await openFlow(flow.id); } catch (error) { $('flowName').setCustomValidity(error.message); $('flowName').reportValidity(); } };
@@ -116,8 +147,14 @@
   $('flowBack').onclick = () => { clearInterval(qrTimer); $('flowEditorView').hidden = true; $('flowProjectsView').hidden = false; listFlows(); };
   $('flowConnect').onclick = loadEditor;
   $('flowPageSearch').addEventListener('flowchange', () => loadForms());
+  $('flowSource').onchange = updateFlowKinds;
+  $('flowDestination').onchange = async () => { updateFlowKinds(); try { if ($('flowDestination').value === 'google-sheets') await loadSpreadsheets(); else await syncWhatsAppState(currentFlow?.whatsapp?.groupJid || ''); } catch (error) { status(error.message); } };
+  $('flowConnectGoogle').onclick = async () => { try { const state = await api('/api/flow/google/status'); if (!state.configured) throw new Error('A conexão Google ainda não foi configurada no servidor.'); if (!state.connected) { const result = await api('/api/flow/google/connect', {method: 'POST', body: '{}'}); location.assign(result.url); return; } await loadSpreadsheets(); } catch (error) { status(error.message); } };
+  $('flowSpreadsheet').onchange = () => loadSheets('');
+  $('flowSheet').onchange = () => { const sheet = sheetCatalog.find(row => row.name === $('flowSheet').value); renderMapping(sheet?.headers || [], currentFlow?.googleSheets?.mapping || {}); };
+  $('flowDelete').onclick = async () => { if (!currentFlow || !confirm(`Excluir o fluxo "${currentFlow.name}"? Esta ação não pode ser desfeita.`)) return; try { await api(`/api/flows/${encodeURIComponent(currentFlow.id)}`, {method: 'DELETE'}); $('flowBack').click(); } catch (error) { status(error.message); } };
   $('flowToggleConnection').onclick = event => { const connected = event.currentTarget.getAttribute('aria-pressed') !== 'true'; event.currentTarget.setAttribute('aria-pressed', connected); event.currentTarget.textContent = connected ? 'Blocos conectados' : 'Conectar blocos'; document.querySelector('.flow-canvas').classList.toggle('connected', connected); };
   $('flowConnectWhatsApp').onclick = async event => { const button = event.currentTarget; button.disabled = true; try { if (button.dataset.connected === 'true') { if (!(await askDisconnect())) return; status('Desconectando WhatsApp…'); await api('/api/flow/whatsapp/instance', {method: 'DELETE'}); clearInterval(qrTimer); $('flowQrPanel').hidden = true; controls.group.clear('Conecte seu WhatsApp'); setWhatsAppButton(false); status('WhatsApp desconectado.'); return; } showQrLoading('A Evolution está gerando seu QR Code…'); status('Aguardando o QR Code da Evolution…'); const result = await api('/api/flow/whatsapp/instance', {method: 'POST', body: '{}'}); await showQr(result); if (!result.connected) status('Leia o QR Code para conectar seu WhatsApp.'); } catch (error) { $('flowQrPanel').hidden = true; status(error.message); } finally { button.disabled = false; } };
-  $('flowBuilder').onsubmit = async event => { event.preventDefault(); status('Salvando fluxo…'); const flow = {enabled: $('flowEnabled').checked, facebook: {adAccountId: $('flowAdAccount').value, pageId: $('flowPage').value, formId: $('flowForm').value}, whatsapp: {instance: $('flowInstance').value.trim(), groupJid: $('flowGroup').value}}; try { currentFlow = await api(`/api/flows/${encodeURIComponent(currentFlow.id)}`, {method: 'PUT', body: JSON.stringify(flow)}); status(flow.enabled ? 'Fluxo ativo. A Página foi inscrita automaticamente nos novos leads.' : 'Fluxo salvo como rascunho.'); } catch (error) { status(error.message); } };
+  $('flowBuilder').onsubmit = async event => { event.preventDefault(); status('Salvando fluxo…'); const selectedSheet = sheetCatalog.find(row => row.name === $('flowSheet').value), mapping = Object.fromEntries([...document.querySelectorAll('[data-sheet-header]')].map(input => [input.dataset.sheetHeader, input.value]).filter(([, value]) => value)); const flow = {enabled: $('flowEnabled').checked, source: $('flowSource').value, destination: $('flowDestination').value, facebook: {adAccountId: $('flowAdAccount').value, pageId: $('flowPage').value, formId: $('flowForm').value}, whatsapp: {instance: $('flowInstance').value.trim(), groupJid: $('flowGroup').value}, googleSheets: {spreadsheetId: $('flowSpreadsheet').value, sheetName: $('flowSheet').value, headers: selectedSheet?.headers || [], mapping}}; try { currentFlow = await api(`/api/flows/${encodeURIComponent(currentFlow.id)}`, {method: 'PUT', body: JSON.stringify(flow)}); updateFlowKinds(); status(flow.enabled ? 'Fluxo ativo e pronto para receber leads.' : 'Fluxo salvo como rascunho.'); } catch (error) { status(error.message); } };
   listFlows();
 })();

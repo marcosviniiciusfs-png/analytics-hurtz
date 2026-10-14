@@ -36,10 +36,19 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   function remove(kind, id) { try { fs.unlinkSync(location(kind, id)); } catch (e) { if (e.code !== 'ENOENT') throw e; } }
   function leadFlow(formId) {
     const flow = read('lead-flow', String(formId));
-    if (!flow?.enabled || !flow.userId || !flow.facebook?.pageId || !flow.whatsapp?.instance || !flow.whatsapp?.groupJid) return null;
+    if (!flow?.enabled || !flow.userId || !flow.facebook?.pageId) return null;
     const conn = connection({id: flow.userId});
     const pageToken = conn.pageTokens?.[flow.facebook.pageId];
     return pageToken ? {...flow, pageToken} : null;
+  }
+  const safeTokenEqual = (left, right) => {
+    const a = Buffer.from(String(left || '')), b = Buffer.from(String(right || ''));
+    return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b);
+  };
+  function httpFlow(id, secret) {
+    if (!/^[a-f0-9-]{36}$/i.test(id || '')) return null;
+    const flow = read('lead-flow-project', id);
+    return flow?.enabled && flow.source === 'http' && safeTokenEqual(secret, flow.http?.secret) ? flow : null;
   }
   function flowIds(user) {
     const settings = read('settings', user.id) || {};
@@ -60,7 +69,71 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (!value || value.userId !== user.id) throw fail(404, 'Fluxo não encontrado.');
     return value;
   }
-  const publicFlow = value => ({id: value.id, name: value.name, enabled: Boolean(value.enabled), createdAt: value.createdAt, updatedAt: value.updatedAt, facebook: value.facebook || {}, whatsapp: value.whatsapp || {}});
+  const publicFlow = value => ({id: value.id, name: value.name, enabled: Boolean(value.enabled), createdAt: value.createdAt, updatedAt: value.updatedAt, source: value.source || 'facebook', destination: value.destination || 'whatsapp', facebook: value.facebook || {}, http: value.source === 'http' ? {endpoint: `/api/flow/inbound/${value.id}/${value.http?.secret || ''}`} : {}, whatsapp: value.whatsapp || {}, googleSheets: value.googleSheets || {}});
+  const googleConfig = () => ({clientId: String(process.env.GOOGLE_OAUTH_CLIENT_ID || ''), clientSecret: String(process.env.GOOGLE_OAUTH_CLIENT_SECRET || ''), redirectUri: String(process.env.GOOGLE_OAUTH_REDIRECT_URI || '')});
+  const googleConfigured = () => { const config = googleConfig(); return Boolean(config.clientId && config.clientSecret && config.redirectUri); };
+  const googleRequest = async (url, options = {}) => {
+    const response = await fetchImpl(url, {...options, signal: options.signal || AbortSignal.timeout(15000)});
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw fail(response.status === 401 ? 401 : 502, data.error?.message || data.error_description || 'O Google Sheets não respondeu.');
+    return data;
+  };
+  async function googleAccess(userId) {
+    const saved = read('google-sheets', userId);
+    if (!saved?.refreshToken) throw fail(409, 'Conecte uma conta Google antes de selecionar a planilha.');
+    if (saved.accessToken && saved.expiresAt > Date.now() + 60000) return saved.accessToken;
+    const config = googleConfig();
+    const body = new URLSearchParams({client_id: config.clientId, client_secret: config.clientSecret, refresh_token: saved.refreshToken, grant_type: 'refresh_token'});
+    const tokens = await googleRequest('https://oauth2.googleapis.com/token', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body});
+    const next = {...saved, accessToken: tokens.access_token, expiresAt: Date.now() + Number(tokens.expires_in || 3600) * 1000};
+    write('google-sheets', userId, next); return next.accessToken;
+  }
+  async function googleApi(userId, url, options = {}) {
+    const token = await googleAccess(userId);
+    return googleRequest(url, {...options, headers: {Authorization: `Bearer ${token}`, ...(options.headers || {})}});
+  }
+  function beginGoogleAuth(user) {
+    if (!googleConfigured()) throw fail(503, 'Configure GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET e GOOGLE_OAUTH_REDIRECT_URI no servidor para conectar o Google Sheets.');
+    const state = crypto.randomBytes(32).toString('base64url');
+    write('google-oauth-state', state, {userId: user.id, expiresAt: Date.now() + 10 * 60 * 1000});
+    const query = new URLSearchParams({client_id: googleConfig().clientId, redirect_uri: googleConfig().redirectUri, response_type: 'code', access_type: 'offline', prompt: 'consent', scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata.readonly', state});
+    return `https://accounts.google.com/o/oauth2/v2/auth?${query}`;
+  }
+  async function completeGoogleAuth(code, state) {
+    const pending = read('google-oauth-state', state);
+    remove('google-oauth-state', state);
+    if (!pending || pending.expiresAt < Date.now()) throw fail(400, 'A autorização Google expirou. Tente conectar novamente.');
+    const config = googleConfig(), body = new URLSearchParams({code, client_id: config.clientId, client_secret: config.clientSecret, redirect_uri: config.redirectUri, grant_type: 'authorization_code'});
+    const tokens = await googleRequest('https://oauth2.googleapis.com/token', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body});
+    const before = read('google-sheets', pending.userId) || {};
+    if (!tokens.refresh_token && !before.refreshToken) throw fail(502, 'O Google não retornou a autorização permanente. Remova o acesso do app na sua conta Google e conecte novamente.');
+    write('google-sheets', pending.userId, {refreshToken: tokens.refresh_token || before.refreshToken, accessToken: tokens.access_token, expiresAt: Date.now() + Number(tokens.expires_in || 3600) * 1000});
+    return pending.userId;
+  }
+  async function googleSpreadsheets(user) {
+    const data = await googleApi(user.id, 'https://www.googleapis.com/drive/v3/files?q=mimeType%3D%27application%2Fvnd.google-apps.spreadsheet%27%20and%20trashed%3Dfalse&fields=files(id%2Cname%2CmodifiedTime)&orderBy=modifiedTime%20desc&pageSize=100');
+    return (data.files || []).map(row => ({id: row.id, name: row.name || row.id, modifiedTime: row.modifiedTime || ''}));
+  }
+  async function googleSheetTabs(user, spreadsheetId) {
+    if (!/^[A-Za-z0-9_-]{20,200}$/.test(spreadsheetId || '')) throw fail(400, 'Planilha inválida.');
+    const meta = await googleApi(user.id, `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}?fields=sheets.properties`);
+    const sheets = [];
+    for (const sheet of meta.sheets || []) {
+      const name = sheet.properties?.title; if (!name) continue;
+      const values = await googleApi(user.id, `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(`'${name.replace(/'/g, "''")}'!1:1`)}`);
+      sheets.push({name, headers: (values.values?.[0] || []).map(value => String(value).trim()).filter(Boolean)});
+    }
+    return sheets;
+  }
+  const readPath = (value, pathValue) => String(pathValue || '').split('.').reduce((item, part) => item && typeof item === 'object' ? item[part] : undefined, value);
+  async function appendGoogleLead(flow, payload) {
+    const config = flow.googleSheets || {}, headers = Array.isArray(config.headers) ? config.headers : [], mapping = config.mapping || {};
+    if (!flow.userId || !config.spreadsheetId || !config.sheetName || !headers.length) throw fail(400, 'Este fluxo não possui uma planilha e colunas configuradas.');
+    const row = headers.map(header => { const value = readPath(payload, mapping[header] || header); return value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value); });
+    const range = `'${String(config.sheetName).replace(/'/g, "''")}'!A1`;
+    await googleApi(flow.userId, `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(config.spreadsheetId)}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({values: [row]})});
+    return {headers, row};
+  }
   function issueSession(user) {
     if (!user?.id) throw fail(401, 'Usuário não identificado.');
     const token = `pa_${crypto.randomBytes(32).toString('base64url')}`;
@@ -360,12 +433,17 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const state = payload?.instance?.state || payload?.instance?.status || payload?.state || 'unknown';
       return send(res, 200, {instance, state, connected: ['open', 'connected'].includes(String(state).toLowerCase())});
     }
+    if (route === '/api/flow/google/status' && req.method === 'GET') return send(res, 200, {configured: googleConfigured(), connected: Boolean(read('google-sheets', user.id)?.refreshToken)});
+    if (route === '/api/flow/google/connect' && req.method === 'POST') return send(res, 200, {url: beginGoogleAuth(user)});
+    if (route === '/api/flow/google/spreadsheets' && req.method === 'GET') return send(res, 200, {spreadsheets: await googleSpreadsheets(user)});
+    const googleSheetMatch = route.match(/^\/api\/flow\/google\/spreadsheets\/([A-Za-z0-9_-]{20,200})\/sheets$/);
+    if (googleSheetMatch && req.method === 'GET') return send(res, 200, {sheets: await googleSheetTabs(user, googleSheetMatch[1])});
     if (route === '/api/flows') {
       if (req.method === 'GET') return send(res, 200, {flows: flowIds(user).map(id => read('lead-flow-project', id)).filter(value => value?.userId === user.id).sort((a, b) => b.updatedAt - a.updatedAt).map(publicFlow)});
       if (req.method !== 'POST') throw fail(405, 'Método não permitido.');
       const name = String((await body(req)).name || '').trim();
       if (name.length < 2 || name.length > 80) throw fail(400, 'Dê ao fluxo um nome entre 2 e 80 caracteres.');
-      const id = crypto.randomUUID(), value = {id, userId: user.id, name, enabled: false, facebook: {}, whatsapp: {}, createdAt: Date.now(), updatedAt: Date.now()};
+      const id = crypto.randomUUID(), value = {id, userId: user.id, name, enabled: false, source: 'facebook', destination: 'whatsapp', facebook: {}, http: {secret: crypto.randomBytes(24).toString('base64url')}, whatsapp: {}, googleSheets: {}, createdAt: Date.now(), updatedAt: Date.now()};
       const settings = read('settings', user.id) || {}, ids = flowIds(user);
       write('lead-flow-project', id, value); write('settings', user.id, {...settings, flow_ids: [...ids, id]});
       return send(res, 201, publicFlow(value));
@@ -374,12 +452,25 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (flowMatch) {
       const id = flowMatch[1], previous = project(user, id);
       if (req.method === 'GET') return send(res, 200, publicFlow(previous));
+      if (req.method === 'DELETE') {
+        if (previous.facebook?.formId) remove('lead-flow', previous.facebook.formId);
+        remove('lead-flow-project', id);
+        const settings = read('settings', user.id) || {};
+        write('settings', user.id, {...settings, flow_ids: flowIds(user).filter(item => item !== id)});
+        return send(res, 200, {ok: true});
+      }
       if (req.method !== 'PUT') throw fail(405, 'Método não permitido.');
       const payload = await body(req), settings = read('settings', user.id) || {};
-      const flow = {...previous, enabled: Boolean(payload.enabled), facebook: {adAccountId: String(payload.facebook?.adAccountId || ''), pageId: String(payload.facebook?.pageId || ''), formId: String(payload.facebook?.formId || '')}, whatsapp: {instance: String(payload.whatsapp?.instance || ''), groupJid: String(payload.whatsapp?.groupJid || '')}, updatedAt: Date.now()};
-      if (flow.enabled && (!flow.facebook.pageId || !flow.facebook.formId || !flow.whatsapp.instance || !flow.whatsapp.groupJid)) throw fail(400, 'Selecione Página, formulário e grupo antes de ativar o fluxo.');
-      if (flow.enabled) {
-        if (settings.flow_whatsapp_instance !== flow.whatsapp.instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar o fluxo.');
+      const source = payload.source === 'http' ? 'http' : 'facebook', destination = payload.destination === 'google-sheets' ? 'google-sheets' : 'whatsapp';
+      const headers = Array.isArray(payload.googleSheets?.headers) ? payload.googleSheets.headers.map(value => String(value || '').trim()).filter(Boolean).slice(0,100) : [];
+      const mapping = Object.fromEntries(Object.entries(payload.googleSheets?.mapping || {}).filter(([header, value]) => headers.includes(header) && typeof value === 'string').map(([header, value]) => [header, value.slice(0,120)]));
+      const flow = {...previous, enabled: Boolean(payload.enabled), source, destination, facebook: {adAccountId: String(payload.facebook?.adAccountId || ''), pageId: String(payload.facebook?.pageId || ''), formId: String(payload.facebook?.formId || '')}, http: {...(previous.http || {}), secret: previous.http?.secret || crypto.randomBytes(24).toString('base64url')}, whatsapp: {instance: String(payload.whatsapp?.instance || ''), groupJid: String(payload.whatsapp?.groupJid || '')}, googleSheets: {spreadsheetId: String(payload.googleSheets?.spreadsheetId || ''), sheetName: String(payload.googleSheets?.sheetName || ''), headers, mapping}, updatedAt: Date.now()};
+      if (flow.enabled && source === 'facebook' && (!flow.facebook.pageId || !flow.facebook.formId)) throw fail(400, 'Selecione página e formulário antes de ativar o fluxo Facebook.');
+      if (flow.enabled && destination === 'whatsapp' && (!flow.whatsapp.instance || !flow.whatsapp.groupJid)) throw fail(400, 'Conecte o WhatsApp e selecione o grupo antes de ativar o fluxo.');
+      if (flow.enabled && destination === 'google-sheets' && (!flow.googleSheets.spreadsheetId || !flow.googleSheets.sheetName || !flow.googleSheets.headers.length)) throw fail(400, 'Selecione uma aba da planilha com colunas antes de ativar o fluxo.');
+      if (flow.enabled && destination === 'google-sheets' && !read('google-sheets', user.id)?.refreshToken) throw fail(409, 'Conecte sua conta Google antes de ativar este fluxo.');
+      if (flow.enabled && destination === 'whatsapp' && settings.flow_whatsapp_instance !== flow.whatsapp.instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar o fluxo.');
+      if (flow.enabled && source === 'facebook') {
         const conflict = read('lead-flow', flow.facebook.formId);
         if (conflict && conflict.id !== id) throw fail(409, 'Este formulário já está conectado a outro fluxo. Escolha outro formulário.');
         const conn = connection(user), pageToken = conn.pageTokens?.[flow.facebook.pageId];
@@ -387,8 +478,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
         await graph(pageToken, `${flow.facebook.pageId}/subscribed_apps`, {subscribed_fields: 'leadgen'}, VERSION, 'POST');
         write('lead-flow', flow.facebook.formId, flow);
       }
-      if (previous.facebook?.formId && previous.facebook.formId !== flow.facebook.formId) remove('lead-flow', previous.facebook.formId);
-      if (!flow.enabled && previous.facebook?.formId) remove('lead-flow', previous.facebook.formId);
+      if (previous.facebook?.formId && (previous.facebook.formId !== flow.facebook.formId || source !== 'facebook')) remove('lead-flow', previous.facebook.formId);
+      if ((!flow.enabled || source !== 'facebook') && previous.facebook?.formId) remove('lead-flow', previous.facebook.formId);
       write('lead-flow-project', id, flow);
       return send(res, 200, publicFlow(flow));
     }
@@ -437,6 +528,6 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     // Existing administrative routes use shared resources and are never delegated to personal sessions.
     throw fail(403, 'Esta função está disponível apenas no acesso administrativo.');
   }
-  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow};
+  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow, httpFlow, appendGoogleLead, beginGoogleAuth, completeGoogleAuth};
 }
 module.exports = {createPersonalMeta};

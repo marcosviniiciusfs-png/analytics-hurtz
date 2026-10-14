@@ -57,6 +57,30 @@ jobs:
               rm -f "$temp"
             '
 
+      - name: Sync Google Sheets OAuth when configured
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.TRAFFIC_POCKET_GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.TRAFFIC_POCKET_GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REDIRECT_URI: ${{ secrets.TRAFFIC_POCKET_GOOGLE_OAUTH_REDIRECT_URI }}
+        run: |
+          if [ -z "$GOOGLE_OAUTH_CLIENT_ID" ] || [ -z "$GOOGLE_OAUTH_CLIENT_SECRET" ] || [ -z "$GOOGLE_OAUTH_REDIRECT_URI" ]; then
+            echo 'Google Sheets OAuth secrets not configured; keeping the current server configuration.'
+            exit 0
+          fi
+          {
+            printf 'GOOGLE_OAUTH_CLIENT_ID=%s\n' "$GOOGLE_OAUTH_CLIENT_ID"
+            printf 'GOOGLE_OAUTH_CLIENT_SECRET=%s\n' "$GOOGLE_OAUTH_CLIENT_SECRET"
+            printf 'GOOGLE_OAUTH_REDIRECT_URI=%s\n' "$GOOGLE_OAUTH_REDIRECT_URI"
+          } | ssh -i ~/.ssh/traffic-pocket-deploy -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" '
+            set -eu
+            temp=$(mktemp)
+            file=/opt/traffic-pocket-supabase/secrets/campaign-ai.env
+            if sudo test -f "$file"; then sudo grep -v "^GOOGLE_OAUTH_" "$file" > "$temp" || true; fi
+            cat >> "$temp"
+            sudo install -m 600 "$temp" "$file"
+            rm -f "$temp"
+          '
+
       - name: Ensure Traffic Pocket HTTPS route
         run: |
           ssh -i ~/.ssh/traffic-pocket-deploy -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" "
