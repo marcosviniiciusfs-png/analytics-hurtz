@@ -133,8 +133,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     return sheets;
   }
   const readPath = (value, pathValue) => String(pathValue || '').split('.').reduce((item, part) => item && typeof item === 'object' ? item[part] : undefined, value);
-  async function appendGoogleLead(flow, payload) {
-    if (flow.source === 'http') { saveHttpSample(flow, payload); if (!flow.enabled) return {sampleOnly: true}; }
+  async function appendGoogleLead(flow, payload, {allowDisabled = false} = {}) {
+    if (flow.source === 'http') { saveHttpSample(flow, payload); if (!flow.enabled && !allowDisabled) return {sampleOnly: true}; }
     const config = flow.googleSheets || {}, headers = Array.isArray(config.headers) ? config.headers : [], mapping = config.mapping || {};
     if (!flow.userId || !config.spreadsheetId || !config.sheetName || !headers.length) throw fail(400, 'Este fluxo não possui uma planilha e colunas configuradas.');
     const row = headers.map(header => { const value = readPath(payload, mapping[header] || header); return value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value); });
@@ -463,6 +463,15 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (req.method === 'GET') return send(res, 200, {sample: flow.http?.sample || null});
       if (req.method === 'DELETE') { write('lead-flow-project', flow.id, {...flow, http: {...flow.http, sample: null}, updatedAt: Date.now()}); return send(res, 200, {ok: true}); }
       throw fail(405, 'Método não permitido.');
+    }
+    const sampleDeliveryMatch = route.match(/^\/api\/flows\/([a-f0-9-]{36})\/http-sample\/deliver$/i);
+    if (sampleDeliveryMatch) {
+      if (req.method !== 'POST') throw fail(405, 'Método não permitido.');
+      const flow = project(user, sampleDeliveryMatch[1]), sample = flow.http?.sample?.payload;
+      if (flow.source !== 'http' || flow.destination !== 'google-sheets') throw fail(400, 'Este teste está disponível apenas para fluxos HTTP enviados ao Google Sheets.');
+      if (!sample) throw fail(400, 'Clique em “Ouvir endpoint” e envie um teste do site antes de testar a planilha.');
+      const result = await appendGoogleLead(flow, sample, {allowDisabled: true});
+      return send(res, 200, {ok: true, row: result.row || []});
     }
     if (flowMatch) {
       const id = flowMatch[1], previous = project(user, id);
