@@ -9,11 +9,32 @@
   const status = text => { $('flowStatus').textContent = text; };
   const esc = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   let currentFlow = null, catalog = {accounts: [], pages: []}, qrTimer = null;
+  const lastFlowKey = 'traffic-pocket-last-open-flow';
 
   $('flowHttpPanel').insertAdjacentHTML('beforeend', '<div class="flow-endpoint-actions"><button type="button" id="flowListenHttpEndpoint">Ouvir endpoint para teste</button><button type="button" id="flowSendHttpSample" hidden>Enviar teste para a planilha</button><button type="button" id="flowCopyHttpEndpoint">Copiar endpoint</button></div><p class="flow-endpoint-listen" id="flowHttpListenStatus">Clique em “Ouvir endpoint” e envie um teste do seu site. Os campos recebidos aparecerão no mapeamento.</p><small>Depois de configurar, salve o fluxo e marque-o como ativo para receber os envios.</small><details class="flow-endpoint-example"><summary>Exemplo para conectar seu site</summary><pre id="flowHttpExample"></pre></details>');
   $('flowGoogleNode').insertAdjacentHTML('beforeend', '<p class="flow-google-account" id="flowGoogleAccount" hidden></p><button class="flow-google-switch" type="button" id="flowReconnectGoogle">Trocar conta Google</button><p class="flow-google-help" id="flowGoogleHelp" hidden>A conexão foi salva. Para listar planilhas automaticamente, <a id="flowEnableDriveApi" target="_blank" rel="noopener">ative a Google Drive API</a>. Ou cole a URL/ID da planilha abaixo.</p><label class="flow-manual-sheet">URL ou ID da planilha<div><input id="flowSpreadsheetManual" type="text" autocomplete="off" placeholder="Cole a URL ou o ID da planilha"><button type="button" id="flowUseSpreadsheet">Usar</button></div></label>');
   $('flowConnectGoogle').insertAdjacentElement('afterend', $('flowReconnectGoogle'));
   $('flowConnectGoogle').insertAdjacentElement('afterend', $('flowGoogleAccount'));
+  $('flowToggleConnection').remove();
+  document.querySelector('.flow-link').replaceChildren();
+  $('flowHttpPanel').querySelectorAll(':scope > small').forEach(element => element.remove());
+  $('flowHttpEndpoint').setAttribute('title', 'Endpoint exclusivo deste fluxo');
+  const googleAdvanced = document.createElement('details');
+  googleAdvanced.className = 'flow-google-advanced';
+  googleAdvanced.innerHTML = '<summary>Outras opções da planilha</summary>';
+  googleAdvanced.append($('flowReconnectGoogle'), $('flowGoogleHelp'), $('flowSpreadsheetManual').closest('label'));
+  $('flowGoogleNode').append(googleAdvanced);
+  $('flowGoogleNode').querySelector(':scope > p:not(.flow-google-account):not(.flow-google-help)')?.remove();
+  const mappingSection = document.createElement('section');
+  mappingSection.className = 'flow-mapping-section';
+  mappingSection.setAttribute('aria-label', 'Mapeamento de colunas');
+  mappingSection.append($('flowMapping'));
+  document.querySelector('.flow-canvas').insertAdjacentElement('afterend', mappingSection);
+  const endpointAdvanced = document.createElement('details');
+  endpointAdvanced.className = 'flow-endpoint-advanced';
+  endpointAdvanced.innerHTML = '<summary>Testar recebimento</summary>';
+  endpointAdvanced.append($('flowListenHttpEndpoint'), $('flowSendHttpSample'), $('flowHttpListenStatus'));
+  $('flowHttpPanel').append(endpointAdvanced);
 
   // O painel não inventa porcentagem: a Evolution só informa o resultado final
   // da geração. Enquanto ela processa, mostramos estado indeterminado acessível.
@@ -90,8 +111,9 @@
     try {
       const [connection, nextCatalog] = await Promise.all([api(`/api/flows/${encodeURIComponent(currentFlow.id)}`), api('/api/flow/meta/catalog').catch(error => ({error}))]);
       currentFlow = connection; catalog = nextCatalog.error ? {accounts: [], pages: []} : nextCatalog;
-      $('flowTitle').textContent = currentFlow.name; $('flowConnect').hidden = Boolean(catalog.connected);
+      $('flowTitle').textContent = currentFlow.name; $('flowConnect').hidden = Boolean(catalog.connected) || currentFlow.source === 'http';
       $('flowSource').value = currentFlow.source || 'facebook'; $('flowDestination').value = currentFlow.destination || 'whatsapp'; updateFlowKinds();
+      $('flowBuilder').hidden = false;
       resetControls(); $('flowEnabled').checked = Boolean(currentFlow.enabled); setWhatsAppButton(false);
       if ($('flowSource').value === 'facebook' && currentFlow.facebook?.pageId) await loadForms(currentFlow.facebook.formId);
       if ($('flowDestination').value === 'whatsapp') await syncWhatsAppState(currentFlow.whatsapp?.groupJid || '');
@@ -106,10 +128,10 @@
   };
   async function listFlows() {
     $('flowProjects').innerHTML = '<p class="flow-project-empty">Carregando seus fluxos…</p>';
-    try { const data = await api('/api/flows'); $('flowProjects').innerHTML = data.flows?.length ? data.flows.map(projectCard).join('') : '<div class="flow-project-empty"><strong>Nenhum fluxo criado</strong><span>Crie o primeiro fluxo para conectar seus Leads Ads ao WhatsApp.</span></div>'; }
+    try { const data = await api('/api/flows'); $('flowProjects').innerHTML = data.flows?.length ? data.flows.map(projectCard).join('') : '<div class="flow-project-empty"><strong>Nenhum fluxo criado</strong><span>Crie o primeiro fluxo para conectar seus leads ao destino desejado.</span></div>'; const lastId = sessionStorage.getItem(lastFlowKey); if (lastId && data.flows?.some(flow => flow.id === lastId) && !$('flowProjectsView').hidden) await openFlow(lastId); else if (lastId && !data.flows?.some(flow => flow.id === lastId)) sessionStorage.removeItem(lastFlowKey); }
     catch (error) { $('flowProjects').innerHTML = `<p class="flow-project-empty">${esc(error.message)}</p>`; }
   }
-  async function openFlow(id) { currentFlow = {id}; $('flowProjectsView').hidden = true; $('flowEditorView').hidden = false; await loadEditor(); }
+  async function openFlow(id) { clearInterval(httpListenTimer); currentFlow = {id}; sessionStorage.setItem(lastFlowKey, id); $('flowBuilder').hidden = true; $('flowSendHttpSample').hidden = true; $('flowListenHttpEndpoint').textContent = 'Ouvir endpoint para teste'; endpointAdvanced.querySelector('summary').textContent = 'Testar recebimento'; endpointAdvanced.open = false; googleAdvanced.open = false; $('flowTitle').textContent = 'Carregando fluxo…'; $('flowProjectsView').hidden = true; $('flowEditorView').hidden = false; await loadEditor(); }
   async function showQr(payload) {
     if (payload.connected) { $('flowQrPanel').hidden = true; setWhatsAppButton(true); await loadGroups(); status('WhatsApp já está conectado. Escolha o grupo de destino.'); return; }
     if (!payload.qr) throw new Error('A Evolution não retornou um QR Code.');
@@ -132,7 +154,7 @@
       return field ? [header, field] : [header, ''];
     }).filter(([, value]) => value));
   };
-  const applyHttpSample = sample => { const fields = flattenFields(sample?.payload); if (!fields.length) return; fieldChoices = fields; const selected = sheetCatalog.find(row => row.name === $('flowSheet').value), saved = currentFlow?.googleSheets?.mapping || {}, suggested = suggestMapping(selected?.headers || [], fields, saved); renderMapping(selected?.headers || [], suggested); const suggestedCount = Object.keys(suggested).filter(header => !saved[header]).length; $('flowHttpListenStatus').textContent = suggestedCount ? `Teste recebido. Preenchi automaticamente ${suggestedCount} mapeamento(s); revise e clique em “Enviar teste para a planilha”.` : `Teste recebido agora: ${fields.join(', ')}. Clique em “Enviar teste para a planilha”.`; $('flowListenHttpEndpoint').textContent = 'Teste recebido'; $('flowSendHttpSample').hidden = false; clearInterval(httpListenTimer); if (suggestedCount && selected?.headers?.length) setTimeout(() => $('flowBuilder').requestSubmit(), 0); };
+  const applyHttpSample = sample => { const fields = flattenFields(sample?.payload); if (!fields.length) return; fieldChoices = fields; const selected = sheetCatalog.find(row => row.name === $('flowSheet').value), saved = currentFlow?.googleSheets?.mapping || {}, suggested = suggestMapping(selected?.headers || [], fields, saved); renderMapping(selected?.headers || [], suggested); const suggestedCount = Object.keys(suggested).filter(header => !saved[header]).length; $('flowHttpListenStatus').textContent = suggestedCount ? `Teste recebido. Preenchi automaticamente ${suggestedCount} mapeamento(s); revise e clique em “Enviar teste para a planilha”.` : `Teste recebido agora: ${fields.join(', ')}. Clique em “Enviar teste para a planilha”.`; $('flowListenHttpEndpoint').textContent = 'Teste recebido'; endpointAdvanced.querySelector('summary').textContent = 'Teste recebido · Ver detalhes'; $('flowSendHttpSample').hidden = false; clearInterval(httpListenTimer); if (suggestedCount && selected?.headers?.length) setTimeout(() => $('flowBuilder').requestSubmit(), 0); };
   function updateFlowKinds() {
     const source = $('flowSource').value, destination = $('flowDestination').value, canvas = document.querySelector('.flow-canvas'), connector = document.querySelector('.flow-link'), facebook = document.querySelector('.flow-facebook'), whatsapp = document.querySelector('.flow-whatsapp'), http = $('flowHttpPanel'), google = $('flowGoogleNode');
     // Mantém os dois tipos de origem/destino no mesmo canvas visual. Assim HTTP →
@@ -144,13 +166,16 @@
     connector.hidden = false;
     whatsapp.hidden = destination !== 'whatsapp';
     google.hidden = destination !== 'google-sheets';
+    mappingSection.hidden = destination !== 'google-sheets';
     http.hidden = source !== 'http';
+    $('flowEditorView').querySelector('.flow-builder-heading p:not(.eyebrow)').textContent = source === 'http' ? 'Receba leads do seu site e envie para o destino escolhido.' : 'Escolha o formulário de origem e o destino dos leads.';
+    $('flowConnect').hidden = source === 'http' || !catalog.connected;
     const endpoint = source === 'http' && currentFlow?.http?.endpoint ? `${window.HURTZ_API_BASE || location.origin}${currentFlow.http.endpoint}` : '';
     $('flowHttpEndpoint').textContent = endpoint;
     $('flowHttpExample').textContent = endpoint ? `fetch(${JSON.stringify(endpoint)}, {\n  method: 'POST',\n  headers: {'Content-Type': 'application/json'},\n  body: JSON.stringify({name: 'Maria', email: 'maria@exemplo.com', phone: '+55 11 99999-9999'})\n});` : '';
   }
   function renderMapping(headers = [], mapping = {}) {
-    $('flowMapping').innerHTML = headers.length ? `<strong>Mapeamento de colunas</strong>${headers.map(header => `<label>${esc(header)}<select data-sheet-header="${esc(header)}"><option value="">Não enviar</option>${fieldChoices.map(field => `<option value="${field}" ${mapping[header] === field ? 'selected' : ''}>${field}</option>`).join('')}</select></label>`).join('')}` : '<small>Escolha uma aba que tenha os nomes das colunas na primeira linha.</small>';
+    $('flowMapping').innerHTML = headers.length ? `<div class="flow-mapping-heading"><strong>Mapeamento de colunas</strong><small>${headers.length} ${headers.length === 1 ? 'coluna' : 'colunas'} · deslize para ver todas</small></div><div class="flow-mapping-scroll" tabindex="0" role="region" aria-label="Mapeamento das colunas da planilha">${headers.map(header => `<label>${esc(header)}<select data-sheet-header="${esc(header)}"><option value="">Não enviar</option>${fieldChoices.map(field => `<option value="${esc(field)}" ${mapping[header] === field ? 'selected' : ''}>${esc(field)}</option>`).join('')}</select></label>`).join('')}</div>` : '<small>Escolha uma aba que tenha os nomes das colunas na primeira linha.</small>';
   }
   function spreadsheetId(value) {
     const text = String(value || '').trim();
@@ -159,7 +184,7 @@
   }
   async function loadSpreadsheets(selected = '') {
     const state = await api('/api/flow/google/status');
-    $('flowConnectGoogle').textContent = state.connected ? `Google Sheets conectado${state.email ? ` · ${state.email}` : ''}` : 'Conectar Google Sheets';
+    $('flowConnectGoogle').textContent = state.connected ? 'Google Sheets conectado' : 'Conectar Google Sheets';
     $('flowGoogleAccount').hidden = !state.connected; $('flowGoogleAccount').textContent = state.email ? `Conta conectada: ${state.email}` : 'Conta conectada. Use “Trocar conta Google” uma vez para identificar o e-mail desta conexão antiga.';
     if (!state.connected) return;
     try { const data = await api('/api/flow/google/spreadsheets'); spreadsheetCatalog = data.spreadsheets || []; $('flowGoogleHelp').hidden = true; }
@@ -179,7 +204,7 @@
   $('flowCancelCreate').onclick = () => $('flowCreateDialog').close();
   $('flowCreateForm').onsubmit = async event => { event.preventDefault(); try { const flow = await api('/api/flows', {method: 'POST', body: JSON.stringify({name: $('flowName').value.trim()})}); $('flowCreateDialog').close(); await openFlow(flow.id); } catch (error) { $('flowName').setCustomValidity(error.message); $('flowName').reportValidity(); } };
   $('flowProjects').onclick = event => { const card = event.target.closest('[data-flow-id]'); if (card) openFlow(card.dataset.flowId); };
-  $('flowBack').onclick = () => { clearInterval(qrTimer); $('flowEditorView').hidden = true; $('flowProjectsView').hidden = false; listFlows(); };
+  $('flowBack').onclick = () => { clearInterval(qrTimer); clearInterval(httpListenTimer); sessionStorage.removeItem(lastFlowKey); $('flowEditorView').hidden = true; $('flowProjectsView').hidden = false; listFlows(); };
   $('flowConnect').onclick = loadEditor;
   $('flowPageSearch').addEventListener('flowchange', () => loadForms());
   $('flowSource').onchange = updateFlowKinds;
@@ -188,7 +213,7 @@
   $('flowReconnectGoogle').onclick = async () => { try { const result = await api('/api/flow/google/connect', {method: 'POST', body: '{}'}); location.assign(result.url); } catch (error) { status(error.message); } };
   $('flowSpreadsheet').onchange = () => loadSheets('');
   $('flowUseSpreadsheet').onclick = async () => { const id = spreadsheetId($('flowSpreadsheetManual').value); if (!id) { $('flowSpreadsheetManual').setCustomValidity('Cole uma URL ou ID de planilha válido.'); $('flowSpreadsheetManual').reportValidity(); return; } $('flowSpreadsheetManual').setCustomValidity(''); if (![...$('flowSpreadsheet').options].some(option => option.value === id)) $('flowSpreadsheet').append(new Option('Planilha informada manualmente', id)); $('flowSpreadsheet').value = id; try { await loadSheets(''); } catch (error) { status(error.message); } };
-  $('flowListenHttpEndpoint').onclick = async () => { if (!currentFlow?.id) return; try { await api(`/api/flows/${encodeURIComponent(currentFlow.id)}/http-sample`, {method: 'DELETE'}); clearInterval(httpListenTimer); $('flowListenHttpEndpoint').textContent = 'Ouvindo…'; $('flowHttpListenStatus').textContent = 'Aguardando o próximo POST do seu site neste endpoint. O teste não será enviado à planilha enquanto o fluxo estiver inativo.'; httpListenTimer = setInterval(async () => { try { const data = await api(`/api/flows/${encodeURIComponent(currentFlow.id)}/http-sample`); if (data.sample) applyHttpSample(data.sample); } catch (error) { clearInterval(httpListenTimer); $('flowHttpListenStatus').textContent = error.message; } }, 1200); } catch (error) { $('flowHttpListenStatus').textContent = error.message; } };
+  $('flowListenHttpEndpoint').onclick = async () => { if (!currentFlow?.id) return; try { await api(`/api/flows/${encodeURIComponent(currentFlow.id)}/http-sample`, {method: 'DELETE'}); clearInterval(httpListenTimer); endpointAdvanced.querySelector('summary').textContent = 'Aguardando teste do site'; $('flowListenHttpEndpoint').textContent = 'Ouvindo…'; $('flowHttpListenStatus').textContent = 'Aguardando o próximo POST do seu site neste endpoint. O teste não será enviado à planilha enquanto o fluxo estiver inativo.'; httpListenTimer = setInterval(async () => { try { const data = await api(`/api/flows/${encodeURIComponent(currentFlow.id)}/http-sample`); if (data.sample) applyHttpSample(data.sample); } catch (error) { clearInterval(httpListenTimer); $('flowHttpListenStatus').textContent = error.message; } }, 1200); } catch (error) { $('flowHttpListenStatus').textContent = error.message; } };
   $('flowSendHttpSample').onclick = async event => { if (!currentFlow?.id) return; const button = event.currentTarget; button.disabled = true; button.textContent = 'Enviando…'; try { await api(`/api/flows/${encodeURIComponent(currentFlow.id)}/http-sample/deliver`, {method: 'POST', body: '{}'}); $('flowHttpListenStatus').textContent = 'Teste enviado com sucesso para a planilha. Confira uma nova linha na aba selecionada.'; button.textContent = 'Teste enviado'; } catch (error) { $('flowHttpListenStatus').textContent = `Não foi possível enviar o teste: ${error.message}`; button.textContent = 'Tentar enviar novamente'; button.disabled = false; } };
   $('flowCopyHttpEndpoint').onclick = async () => { const endpoint = $('flowHttpEndpoint').textContent; if (!endpoint) return; try { await navigator.clipboard.writeText(endpoint); $('flowCopyHttpEndpoint').textContent = 'Copiado'; setTimeout(() => { $('flowCopyHttpEndpoint').textContent = 'Copiar endpoint'; }, 1600); } catch { status('Não foi possível copiar. Selecione e copie o endereço manualmente.'); } };
   $('flowSheet').onchange = () => { const sheet = sheetCatalog.find(row => row.name === $('flowSheet').value); renderMapping(sheet?.headers || [], currentFlow?.googleSheets?.mapping || {}); };
@@ -197,7 +222,6 @@
   $('flowBuilder').addEventListener('change', saveDraftSoon);
   $('flowBuilder').addEventListener('flowchange', saveDraftSoon);
   $('flowDelete').onclick = async () => { if (!currentFlow || !confirm(`Excluir o fluxo "${currentFlow.name}"? Esta ação não pode ser desfeita.`)) return; try { await api(`/api/flows/${encodeURIComponent(currentFlow.id)}`, {method: 'DELETE'}); $('flowBack').click(); } catch (error) { status(error.message); } };
-  $('flowToggleConnection').onclick = event => { const connected = event.currentTarget.getAttribute('aria-pressed') !== 'true'; event.currentTarget.setAttribute('aria-pressed', connected); event.currentTarget.textContent = connected ? 'Blocos conectados' : 'Conectar blocos'; document.querySelector('.flow-canvas').classList.toggle('connected', connected); };
   $('flowConnectWhatsApp').onclick = async event => { const button = event.currentTarget; button.disabled = true; try { if (button.dataset.connected === 'true') { if (!(await askDisconnect())) return; status('Desconectando WhatsApp…'); await api('/api/flow/whatsapp/instance', {method: 'DELETE'}); clearInterval(qrTimer); $('flowQrPanel').hidden = true; controls.group.clear('Conecte seu WhatsApp'); setWhatsAppButton(false); status('WhatsApp desconectado.'); return; } showQrLoading('A Evolution está gerando seu QR Code…'); status('Aguardando o QR Code da Evolution…'); const result = await api('/api/flow/whatsapp/instance', {method: 'POST', body: '{}'}); await showQr(result); if (!result.connected) status('Leia o QR Code para conectar seu WhatsApp.'); } catch (error) { $('flowQrPanel').hidden = true; status(error.message); } finally { button.disabled = false; } };
   $('flowBuilder').onsubmit = async event => { event.preventDefault(); status('Salvando fluxo…'); const selectedSheet = sheetCatalog.find(row => row.name === $('flowSheet').value), mapping = Object.fromEntries([...document.querySelectorAll('[data-sheet-header]')].map(input => [input.dataset.sheetHeader, input.value]).filter(([, value]) => value)); const flow = {enabled: $('flowEnabled').checked, source: $('flowSource').value, destination: $('flowDestination').value, facebook: {adAccountId: $('flowAdAccount').value, pageId: $('flowPage').value, formId: $('flowForm').value}, whatsapp: {instance: $('flowInstance').value.trim(), groupJid: $('flowGroup').value}, googleSheets: {spreadsheetId: $('flowSpreadsheet').value, sheetName: $('flowSheet').value, headers: selectedSheet?.headers || [], mapping}}; try { currentFlow = await api(`/api/flows/${encodeURIComponent(currentFlow.id)}`, {method: 'PUT', body: JSON.stringify(flow)}); updateFlowKinds(); status(flow.enabled ? 'Fluxo ativo e pronto para receber leads.' : 'Fluxo salvo como rascunho.'); } catch (error) { status(error.message); } };
   // app.js valida uma sess\u00e3o existente de forma ass\u00edncrona. N\u00e3o deixe a
