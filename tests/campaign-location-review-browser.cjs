@@ -15,7 +15,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
     import {initializeCampaignManager} from './campaign-manager-ui.js';
     window.writes=[];window.searches=[];
     const warning='Não foi possível confirmar "ITAJAI - SC" na Meta. Busque e selecione a localização antes de publicar.';
-    const draft={name:'Crédito para imóvel',destination:'form',page:'1',instagram:'',form:'3',dailyBudget:6,countries:['BR'],ageMin:18,ageMax:65,headline:'Crédito para imóvel',message:'Conheça as condições.',location:null,locationQuery:'ITAJAI - SC',locationNeedsReview:true,locationWarning:warning,media:'video-key',interests:[]};
+    const draft={name:'Crédito para imóvel',destination:'form',page:'1',instagram:'',form:'3',dailyBudget:6,countries:['BR'],ageMin:18,ageMax:65,headline:'Crédito para imóvel',message:'Conheça as condições.',location:null,locationQuery:'ITAJAI - SC',locationNeedsReview:true,locationWarning:warning,media:'video-key',mediaName:'anuncio-itajai.mp4',mediaPreviewVideo:true,interests:[]};
     const request=async(url,options={})=>{
      const parsed=new URL(url,location.href),action=parsed.pathname.split('/').pop();
      if(action==='plan')return {draft};
@@ -39,6 +39,11 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   await page.locator('#cmSend').click();assert.equal(await page.evaluate(()=>writes.length),0);
   assert.match(await page.locator('#cmSendStatus').innerText(),/localização antes de publicar/);
   await page.locator('#cmBack').click();
+  assert.equal(await page.locator('#cmForm input[name="file"]').isVisible(),false);
+  assert.equal(await page.locator('#cmForm input[name="file"]').getAttribute('required'),null);
+  assert.match(await page.locator('#cmFileStatus').innerText(),/anuncio-itajai\.mp4/);
+  const fileChooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Trocar vídeo',exact:true}).click();await(await fileChooser).setFiles([]);
+  assert.match(await page.locator('#cmFileStatus').innerText(),/anuncio-itajai\.mp4/);
   assert.equal(await page.locator('[data-location-search]').inputValue(),'ITAJAI - SC');
   await page.locator('[data-location-search]').fill('Itajaí - SC');
   await page.locator('[data-location-suggestion="0"]').click();
