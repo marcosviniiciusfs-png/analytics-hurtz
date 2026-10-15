@@ -81,6 +81,24 @@ jobs:
             rm -f "$temp"
           '
 
+      - name: Sync Meta OAuth when configured
+        env:
+          META_OAUTH_APP_SECRET: ${{ secrets.TRAFFIC_POCKET_META_APP_SECRET }}
+        run: |
+          if [ -z "$META_OAUTH_APP_SECRET" ]; then
+            echo 'Meta OAuth secret not configured in GitHub; checking the existing server configuration.'
+            exit 0
+          fi
+          printf '%s\n' "$META_OAUTH_APP_SECRET" |
+            ssh -i ~/.ssh/traffic-pocket-deploy -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" '
+              set -eu
+              IFS= read -r secret
+              temp=$(mktemp)
+              trap '\''rm -f "$temp"'\'' EXIT
+              printf "META_OAUTH_APP_ID=2093320124537661\nMETA_OAUTH_APP_SECRET=%s\n" "$secret" > "$temp"
+              sudo install -m 600 "$temp" /opt/meta-ads-cli/secrets/tryv-oauth.env
+            '
+
       - name: Ensure Traffic Pocket HTTPS route
         run: |
           ssh -i ~/.ssh/traffic-pocket-deploy -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" "
