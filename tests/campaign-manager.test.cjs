@@ -26,7 +26,7 @@ function fixture(options={}){
  const store=new Map(),calls=[],graphs=[],nodes=new Map();let sequence=100,revision='one',whatsappReadinessFailures=options.whatsappReadinessFailures||0;
  const sourceAds=options.sourceAds===undefined?[{creative:{object_story_spec:{page_id:'1',link_data:{call_to_action:{value:{link:'https://wa.me/5594999999999'}}}}}}]:options.sourceAds;
  const user={id:'a'},conn={token:'private-test-token',revision:'one',scopes:options.readOnly?['ads_read']:['ads_read','ads_management','whatsapp_business_management']};
- const graph=async(token,object,params,version)=>{graphs.push({object,version});
+ const graph=async(token,object,params,version)=>{graphs.push({object,version,params});
   if(options.graphFailure&&object==='search')throw new Error('Meta indisponível para geolocalização');
   if(object==='act_111/ads')return {data:options.sourceAds||[]};
   if(object==='search')return {data:options.locations||[{key:'city1',type:'city',name:'Belém',country_code:'BR',region:'Pará'}]};
@@ -66,7 +66,27 @@ test('video analysis still opens review when Meta cannot resolve the suggested l
  const f=fixture({graphFailure:true,videoAnalysis:async()=>({offer:'Casa nova',transcript:'Fale pelo WhatsApp',visibleText:[],location:'Rio Branco, Acre',destination:'whatsapp',audience:{gender:'all',ageMin:20,ageMax:45},cta:'Chame no WhatsApp',confidence:'high'})});
  const bytes=Buffer.from('00000018667479706d703432000000006d70343269736f6d','hex'),form=new FormData();form.append('file',new Blob([bytes],{type:'video/mp4'}),'creative.mp4');
  const request=new Request('https://test/api/ads-manager/analyze?account=act_111',{method:'POST',body:form}),req=Object.assign(Readable.fromWeb(request.body),{method:'POST',headers:Object.fromEntries(request.headers)});
- const result=await f.api.handle(req,{id:'a'},new URL(request.url));assert.equal(result.reviewRequired,true);assert.deepEqual(result.draft.location,{key:'BR',type:'country',name:'Brasil',country:'BR',region:''});assert.equal(result.draft.locationQuery,'Brasil');assert.equal(result.draft.destination,'whatsapp');
+ const result=await f.api.handle(req,{id:'a'},new URL(request.url));assert.equal(result.reviewRequired,true);assert.equal(result.draft.location,null);assert.equal(result.draft.locationQuery,'Rio Branco, Acre');assert.equal(result.draft.locationNeedsReview,true);assert.match(result.draft.locationWarning,/Rio Branco, Acre/);assert.equal(f.store.get('ads-media:a').find(item=>item.key===result.media).locationReviewRequired,true);assert.equal(result.draft.destination,'whatsapp');
+});
+
+test('Itajai office banner reaches review with the Meta city key in Santa Catarina',async()=>{
+ const {normalize}=require('../Dashboard Meta Ads/video-campaign-analysis');
+ const f=fixture({locations:[{key:'wrong',type:'city',name:'Itajaí',country_code:'BR',region:'São Paulo'},{key:'itajai-sc',type:'city',name:'Itajaí',country_code:'BR',region:'Santa Catarina'}],videoAnalysis:async()=>normalize({visibleText:['ESCRITÓRIO: ITAJAÍ - SC','CRÉDITO PARA IMÓVEL'],destination:'whatsapp'})});
+ const bytes=Buffer.from('00000018667479706d703432000000006d70343269736f6d','hex'),form=new FormData();form.append('file',new Blob([bytes],{type:'video/mp4'}),'itajai.mp4');
+ const request=new Request('https://test/api/ads-manager/analyze?account=act_111',{method:'POST',body:form}),req=Object.assign(Readable.fromWeb(request.body),{method:'POST',headers:Object.fromEntries(request.headers)});
+ const result=await f.api.handle(req,{id:'a'},new URL(request.url));
+ assert.equal(result.draft.locationQuery,'ITAJAI - SC');assert.equal(result.draft.location.key,'itajai-sc');assert.equal(result.draft.location.region,'Santa Catarina');assert.equal(result.draft.locationNeedsReview,undefined);
+ const search=f.graphs.find(call=>call.object==='search'&&call.params.type==='adgeolocation');assert.equal(search.params.q,'ITAJAI');assert.equal(search.params.country_code,'BR');
+ await f.run('create',f.draft({media:result.media,location:result.draft.location}));
+ const targeting=JSON.parse(f.calls.find(call=>call.endpoint.endsWith('/adsets')).params.targeting);assert.deepEqual(targeting.geo_locations,{cities:[{key:'itajai-sc',radius:17,distance_unit:'kilometer'}]});
+});
+
+test('an unresolved video city cannot silently publish to the whole country',async()=>{
+ const f=fixture();f.store.get('ads-media:a').find(item=>item.key==='video').locationReviewRequired=true;
+ await assert.rejects(f.run('create',f.draft({media:'video'})),/Confirme a localização/);assert.equal(f.calls.length,0);
+ f.store.set('ads-locations:a',[{key:'itajai-sc',type:'city',name:'Itajaí',country:'BR',region:'Santa Catarina'}]);
+ await f.run('create',f.draft({media:'video',locations:[{key:'itajai-sc',type:'city',mode:'include',radius:17,unit:'km'}]}));
+ const targeting=JSON.parse(f.calls.find(call=>call.endpoint.endsWith('/adsets')).params.targeting);assert.deepEqual(targeting.geo_locations,{cities:[{key:'itajai-sc',radius:17,distance_unit:'kilometer'}]});
 });
 test('existing compatible adset creates the creative and active ad',async()=>{const f=fixture();await f.run('create',f.draft({adset:'11'}));assert.equal(f.calls.length,2);assert.equal(f.calls[1].params.adset_id,'11');assert.equal(f.calls[1].params.status,'ACTIVE')});
 test('rejects wrong account, missing write permission, foreign page, Instagram and media',async()=>{const f=fixture();await assert.rejects(f.run('create',f.draft(),{id:'a'},'act_222'),/denied/);await assert.rejects(f.run('create',f.draft({page:'9'})),/Página/);await assert.rejects(f.run('create',f.draft({instagram:'9'})),/Instagram/);await assert.rejects(f.run('create',f.draft(),{id:'b'}),/criativo/);const readOnly=fixture({readOnly:true});await assert.rejects(readOnly.run('create',readOnly.draft()),/gerenciamento/);assert.equal(f.calls.length,0);assert.equal(readOnly.calls.length,0)});

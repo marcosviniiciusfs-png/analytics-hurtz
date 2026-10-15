@@ -284,9 +284,8 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
 
   }
 
-  const comparableLocation=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'');
-  const locationDistance=(a,b)=>{if(a===b)return 0;if(Math.abs(a.length-b.length)>1)return 2;let previous=Array.from({length:b.length+1},(_,index)=>index);for(let row=1;row<=a.length;row++){const current=[row];for(let column=1;column<=b.length;column++)current[column]=Math.min(current[column-1]+1,previous[column]+1,previous[column-1]+(a[row-1]===b[column-1]?0:1));previous=current}return previous[b.length]};
-  async function locationFor(conn,query){const requested=String(query||'').trim(),result=await graph(conn.token,'search',{type:'adgeolocation',location_types:JSON.stringify(['city','region','country']),q:requested,limit:10}),items=(result.data||[]).filter(x=>['city','region','country'].includes(x.type)&&x.key&&/^[A-Z]{2}$/.test(x.country_code||x.key)),withoutState=requested.replace(/\s*[-,]\s*(?:[A-Z]{2}|ACRE|ALAGOAS|AMAPA|AMAZONAS|BAHIA|CEARA|DISTRITO FEDERAL|ESPIRITO SANTO|GOIAS|MARANHAO|MATO GROSSO|MATO GROSSO DO SUL|MINAS GERAIS|PARA|PARAIBA|PARANA|PERNAMBUCO|PIAUI|RIO DE JANEIRO|RIO GRANDE DO NORTE|RIO GRANDE DO SUL|RONDONIA|RORAIMA|SANTA CATARINA|SAO PAULO|SERGIPE|TOCANTINS)\s*$/i,''),expected=comparableLocation(withoutState||requested),item=items.find(candidate=>comparableLocation(candidate.name)===expected)||items.find(candidate=>expected.length>=4&&locationDistance(comparableLocation(candidate.name),expected)<=1);if(!item)throw fail(400,'A Meta não confirmou a cidade ou região "'+requested+'". Escolha uma localização válida na revisão.');return {key:String(item.key),type:item.type,name:item.name,country:item.country_code||item.key,region:item.region||''}}
+  const {searchLocations,resolveLocation}=require('./meta-location-search');
+  const locationFor=(conn,query)=>resolveLocation(graph,conn.token,query);
 
   async function locationCoordinates(item){
     if(Number.isFinite(Number(item?.latitude))&&Number.isFinite(Number(item?.longitude)))return {latitude:Number(item.latitude),longitude:Number(item.longitude)};
@@ -324,9 +323,9 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
 
         const q=String(url.searchParams.get('q')||'').trim();if(q.length<2||q.length>100)throw fail(400,'Digite uma localização com 2 a 100 caracteres.');
 
-        const data=await graph(conn.token,'search',{type:'adgeolocation',location_types:JSON.stringify(['city','region','country']),q,limit:20});current(user,conn);
+        const {items:found}=await searchLocations(graph,conn.token,q);current(user,conn);
 
-        const raw=(data.data||[]).filter(x=>['city','region'].includes(x.type)&&x.key&&/^[A-Z]{2}$/.test(x.country_code||x.key)).slice(0,10).map(x=>({key:String(x.key),type:x.type,name:x.name,country:x.country_code||x.key,region:x.region||'',latitude:x.latitude,longitude:x.longitude}));
+        const raw=found.filter(x=>['city','region'].includes(x.type)&&x.key&&/^[A-Z]{2}$/.test(x.country_code||x.key)).slice(0,10).map(x=>({key:String(x.key),type:x.type,name:x.name,country:x.country_code||x.key,region:x.region||'',latitude:x.latitude,longitude:x.longitude}));
         const items=await Promise.all(raw.map(async item=>({...item,...await locationCoordinates(item)})));
 
         const saved=read('ads-locations',user.id)||[];write('ads-locations',user.id,[...saved.filter(x=>!items.some(y=>x.key===y.key&&x.type===y.type)),...items].slice(-200));return {items};
@@ -422,9 +421,17 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
 
         if(analysis.audience.ageMin!=null&&analysis.audience.ageMax!=null&&analysis.audience.ageMin<=analysis.audience.ageMax){draft.ageMin=analysis.audience.ageMin;draft.ageMax=analysis.audience.ageMax}
 
-        stage='validando a localização sugerida';let location;try{location=await Promise.race([locationFor(conn,draft.locationQuery||'Brasil'),new Promise((_,reject)=>setTimeout(()=>reject(fail(504,'A Meta demorou para validar a localização.')),12000))])}catch(error){console.warn('[campaign-video] localização sugerida indisponível; usando Brasil como padrão.',{account,user:user.id,message:error?.message||'erro sem mensagem'});location={key:'BR',type:'country',name:'Brasil',country:'BR',region:''};draft.locationQuery='Brasil'}current(user,conn);
-
-        const saved=read('ads-locations',user.id)||[];write('ads-locations',user.id,[...saved.filter(item=>item.key!==location.key||item.type!==location.type),location].slice(-200));
+        stage='validando a localização sugerida';let location=null,timer;
+        try{
+          location=await Promise.race([locationFor(conn,draft.locationQuery||'Brasil'),new Promise((_,reject)=>{timer=setTimeout(()=>reject(fail(504,'A Meta demorou para validar a localização.')),12000)})]);
+        }catch(error){
+          if([403,409,429].includes(error.status))throw error;
+          draft.locationNeedsReview=true;
+          draft.locationWarning='Não foi possível confirmar "'+draft.locationQuery+'" na Meta. Busque e selecione a localização antes de publicar.';
+          console.warn('[campaign-video] localização pendente de revisão.',{account,user:user.id,message:error?.message||'erro sem mensagem'});
+        }finally{clearTimeout(timer)}
+        current(user,conn);
+        if(location){const saved=read('ads-locations',user.id)||[];write('ads-locations',user.id,[...saved.filter(item=>item.key!==location.key||item.type!==location.type),location].slice(-200));}
 
         // The video is already in memory from analysis. Upload it to Meta here
 
@@ -434,8 +441,9 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
 
         stage='validando os interesses sugeridos';const interests=await interestsFor(conn,draft.interestQueries||[]);current(user,conn);
         stage='enviando o criativo para a Meta';const media=await uploadMedia(user,conn,account,{file});
+        if(draft.locationNeedsReview)write('ads-media',user.id,(read('ads-media',user.id)||[]).map(item=>item.key===media.key?{...item,locationReviewRequired:true}:item));
 
-        return {draft:{...draft,page:page.id,countries:[location.country],location,interests,analysis},media:media.key,reviewRequired:true};
+        return {draft:{...draft,page:page.id,countries:location?[location.country]:['BR'],location,interests,analysis},media:media.key,reviewRequired:true};
 
       }catch(error){console.error('[campaign-video] falha ao preparar revisão.',{stage,account,user:user.id,status:error?.status||500,message:error?.message||'erro sem mensagem'});throw error?.status?error:fail(502,'Não foi possível preparar a revisão do vídeo. Tente novamente.')}finally{planning.delete(user.id)}
 
@@ -562,6 +570,11 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
       let budget,targeting,categories;if(!existing){if(!['BRL','USD','EUR','GBP'].includes(accountInfo.currency))throw fail(400,'Criação de conjuntos disponível para contas em BRL, USD, EUR e GBP.');if(p.requiresInterests&&!(Array.isArray(p.interests)&&p.interests.length))throw fail(400,'Selecione pelo menos um interesse da Meta para este produto antes de publicar.');budget=Number(p.dailyBudget);if(!Number.isFinite(budget)||budget<=0||budget>100000)throw fail(400,'Informe um orçamento diário válido, até 100.000 na moeda da conta.');const category=p.category||'';if(!['','HOUSING','EMPLOYMENT','FINANCIAL_PRODUCTS_SERVICES','ISSUES_ELECTIONS_POLITICS'].includes(category))throw fail(400,'Categoria especial inválida.');categories=category?[category]:[];const countries=Array.isArray(p.countries)?p.countries:[];if(!countries.length||countries.length>10||countries.some(x=>!/^[A-Z]{2}$/.test(x)))throw fail(400,'Informe os países do público com códigos de duas letras.');const min=Number(p.ageMin),max=Number(p.ageMax);if(!Number.isInteger(min)||!Number.isInteger(max)||min<18||max>65||min>max)throw fail(400,'Confira a faixa etária.');const interests=Array.isArray(p.interests)?p.interests:[];if(interests.length>5||interests.some(x=>!x||!/^\d+$/.test(String(x.id||''))||typeof x.name!=='string'||x.name.length>120))throw fail(400,'Os interesses precisam ser confirmados pela Meta. Gere o plano novamente.');const automatic=p.placements==='automatic';if(!automatic&&p.placements!=='feeds'&&p.placements!==undefined)throw fail(400,'Posicionamento inválido.');targeting={geo_locations:{countries},age_min:categories.length?18:min,age_max:categories.length?65:max,...(interests.length?{flexible_spec:[{interests:interests.map(x=>({id:String(x.id),name:x.name}))}]}:{}),...(automatic?{}:{publisher_platforms:instagram?['facebook','instagram']:['facebook'],facebook_positions:['feed'],...(instagram?{instagram_positions:['stream']}:{})})};}
 
       let campaignLocations=[];if(Array.isArray(p.locations))campaignLocations=p.locations;else if(typeof p.locations==='string'&&p.locations){try{campaignLocations=JSON.parse(p.locations)}catch{throw fail(400,'As localizações enviadas são inválidas.')}}
+      if(!existing&&media.locationReviewRequired){
+        const saved=read('ads-locations',user.id)||[],confirmed=item=>item&&['city','region'].includes(item.type)&&saved.some(value=>value.key===item.key&&value.type===item.type);
+        const selected=campaignLocations.some(item=>item.mode==='include'&&(item.type==='pin'||confirmed(item)))||confirmed(p.location);
+        if(!selected)throw fail(400,'Confirme a localização da campanha antes de publicar. A cidade do vídeo não foi validada pela Meta.');
+      }
       if(!existing&&campaignLocations.length){const geography=targetingForLocations(campaignLocations);if(!Object.keys(geography.geo_locations).length)throw fail(400,'Inclua ao menos uma localização para anunciar.');targeting.geo_locations=geography.geo_locations;if(Object.keys(geography.excluded_geo_locations).length)targeting.excluded_geo_locations=geography.excluded_geo_locations;}
       else if(p.location&&!existing&&p.countries.length===1&&p.countries[0]===p.location.country){const geo=(read('ads-locations',user.id)||[]).find(x=>x.key===p.location.key&&x.type===p.location.type);if(!geo)throw fail(400,'A localização não está mais disponível. Gere o plano novamente ou altere o país.');const radius=Math.round(Number(p.location.radius??17));if(geo.type==='city'&&(!Number.isInteger(radius)||radius<17||radius>80))throw fail(400,'Para cidades, informe um raio entre 17 e 80 km.');targeting.geo_locations=geo.type==='country'?{countries:[geo.country]}:geo.type==='region'?{regions:[{key:geo.key}]}:{cities:[{key:geo.key,radius,distance_unit:'kilometer'}]};}
 

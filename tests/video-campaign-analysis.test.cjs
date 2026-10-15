@@ -72,3 +72,21 @@ test('video analysis gives a clear retry error when Jev is temporarily limited',
  const result=analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({images:[],visibleText:['OFERTA'],audio:''}),fetchImpl:async()=>({ok:false,status:429,text:async()=>JSON.stringify({error:{message:'rate limited'}})})});
  await assert.rejects(result,/limitou o Jev/);
 });
+
+test('office city/state banners are preserved across OCR labels, separators and later frames',async()=>{
+ const {normalize}=require('../Dashboard Meta Ads/video-campaign-analysis');
+ for(const text of ['ESCRITÓRIO: ITAJAÍ - SC','ESCRITÓRIO ITAJAÍ - SC','CRÉDITO PARA IMÓVEL ESCRITÓRIO: ITAJAÍ - SC','ESCRITÓRIO: ITAJAÍ / SC','ESCRITÓRIO:\nITAJAÍ — SC\nCRÉDITO PARA IMÓVEL']){
+   assert.equal(normalize({visibleText:[text]}).location,'ITAJAI - SC',text);
+ }
+ let evidence;
+ const frames=Array.from({length:30},()=> 'Crédito para imóvel');
+ frames[29]='ESCRITÓRIO: ITAJAÍ - SC\nCRÉDITO PARA IMÓVEL';
+ const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({visibleText:frames,audio:''}),fetchImpl:async(_,request)=>{evidence=JSON.parse(request.body).state.evidence;return {ok:true,text:async()=>JSON.stringify({answers:{}})}}});
+ assert.equal(result.location,'ITAJAI - SC');
+ assert.match(evidence,/ITAJAI - SC/);
+});
+
+test('an explicit city/state is read before weaker speech hints and beyond preview truncation',async()=>{
+ const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({visibleText:['Atendimento em outras cidades. '+ 'Oferta '.repeat(50)+'ESCRITÓRIO: ITAJAÍ - SC'],audio:''}),fetchImpl:async()=>({ok:true,text:async()=>JSON.stringify({answers:{}})})});
+ assert.equal(result.location,'ITAJAI - SC');
+});
