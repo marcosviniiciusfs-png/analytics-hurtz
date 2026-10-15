@@ -39,4 +39,6 @@ test('Google OAuth stays server-side and sheet rows follow saved column mapping'
  assert.equal(vault.read('google-sheets','google-user').email,'owner@example.test');
  await vault.appendGoogleLead({userId:'google-user',googleSheets:{spreadsheetId:'12345678901234567890',sheetName:'Leads',headers:['Nome','Email'],mapping:{Nome:'fields.full_name',Email:'email'}}},{fields:{full_name:'Ana'},email:'ana@example.test'});
  const append=calls.find(call=>call.url.includes(':append'));assert.ok(append);assert.deepEqual(JSON.parse(append.options.body).values,[['Ana','ana@example.test']]);assert.ok(!JSON.stringify(append).includes('google-secret'));
+ await vault.appendGoogleLead({id:'15babdbf-41c1-4ea4-a08e-68931ca8d901',userId:'google-user',enabled:true,source:'http',googleSheets:{spreadsheetId:'12345678901234567890',sheetName:'Leads',headers:['Nome','Telefone','Interesse'],mapping:{Nome:'fields.name',Telefone:'fields.phone',Interesse:'fields.interest'}}},{'Data de Entrada':'15/10/2026','Nome Completo':'Maria','WhatsApp':'5594999999999','Interesse':'Veículos'});
+ const httpAppend=calls.filter(call=>call.url.includes(':append')).at(-1);assert.deepEqual(JSON.parse(httpAppend.options.body).values,[['Maria','5594999999999','Veículos']]);
 });
