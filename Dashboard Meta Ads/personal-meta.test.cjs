@@ -16,7 +16,7 @@ function fixture(t, runner, overrides = {}) {
     if(endpoint.startsWith('/instance/')&&overrides.evolution)return overrides.evolution(url,options);
     if(endpoint.endsWith('/debug_token')){assert.ok(overrides.oauthConfig,'only server credentials can inspect exchanged tokens');return {ok:true,json:async()=>({data:{is_valid:true,type:'USER',app_id:'2093320124537661',user_id:'a',expires_at:overrides.noFixedExpiry?0:Math.floor(Date.now()/1000)+5184000,data_access_expires_at:Math.floor(Date.now()/1000)+7776000}})}}
     overrides.requests?.push(new URL(url).searchParams.get('fields'));
-    if(endpoint.endsWith('/oauth/access_token')){assert.equal(options.method,'GET');if(overrides.exchangeFailure)return {ok:false,status:400,json:async()=>({error:{code:190}})};return {ok:true,json:async()=>({access_token:tokens.a+'-long',...(overrides.missingExpiry?{}:{expires_in:5184000})})}}
+    if(endpoint.endsWith('/oauth/access_token')){assert.equal(options.method,'GET');if(overrides.exchangeFailure)return {ok:false,status:400,json:async()=>({error:{code:190}})};return {ok:true,json:async()=>({access_token:overrides.oauthConfig?tokens.a+'-long':new URL(url).searchParams.get('fb_exchange_token'),...(overrides.missingExpiry?{}:{expires_in:5184000})})}}
     const payload = overrides.accountDetail && /^\/v\d+\.\d+\/act_\d+$/.test(endpoint) ? overrides.accountDetail : overrides.pictureError && new URL(url).searchParams.get('fields')?.includes('profile_picture_uri') ? {error:{code:100,message:'Photo unavailable'}} : overrides.error ? {error: overrides.error}
       : endpoint.endsWith('/app') ? {id: overrides.app_id || '2093320124537661', name: 'Tryv CRM'}
       : endpoint.endsWith('/me/permissions') ? {data: (overrides.scopes || ['ads_read']).map(permission=>({permission,status:'granted'}))}
@@ -24,7 +24,7 @@ function fixture(t, runner, overrides = {}) {
         : {id: who, name: `Facebook ${who}`};
     return {ok: !payload.error, status:payload.error?400:200, json: async () => payload};
   };
-  const api = createPersonalMeta({directory, fetchImpl, oauthConfig:overrides.oauthConfig??null, billingBalanceReader: overrides.billingBalanceReader, runReport: runner || (async ({token}) => ({tokenUsed: token}))});
+  const api = createPersonalMeta({directory, fetchImpl, oauthConfig:overrides.disableOauth?null:(overrides.oauthConfig||{appId:'2093320124537661',secret:'fixture-secret'}), billingBalanceReader: overrides.billingBalanceReader, runReport: runner || (async ({token}) => ({tokenUsed: token}))});
   const sessionA = api.issueSession({id: 'user-a', email: 'a@example.test'}), sessionB = api.issueSession({id: 'user-b', email: 'b@example.test'});
   async function request(token, route, method = 'GET', payload) {
     const req = Readable.from(payload === undefined ? [] : [JSON.stringify(payload)]);
@@ -170,7 +170,7 @@ test('expired stored connection cannot run reports and profiles are private', as
   const f=fixture(t);await f.connect(f.sessionA,f.tokens.a);
   assert.equal((await f.request(f.sessionA,'/api/account-profiles','PUT',{items:[{id:'one',accountIds:['act_111']}],activeId:'one'})).status,200);
   assert.deepEqual((await f.request(f.sessionB,'/api/account-profiles')).body.items,[]);
-  f.api.write('connection','user-a',{...f.api.read('connection','user-a'),expiresAt:1});
+  f.api.write('connection','user-a',{...f.api.read('connection','user-a'),expiresAt:1,exchangeAttemptAt:Date.now()});
   assert.equal((await f.request(f.sessionA,'/api/meta/connection')).body.expired,true);
   assert.equal((await f.request(f.sessionA,'/api/meta-accounts')).status,409);
 });
@@ -264,4 +264,17 @@ test('verified zero expiry is not replaced with the SDK one-hour hint and surviv
  assert.equal((await f.request(f.sessionA,'/api/meta/connection')).body.connected,true);
  const restarted=createPersonalMeta({directory:f.directory,oauthConfig:null});assert.equal(restarted.connection(restarted.session(f.sessionA)).token,stored.token);
  restarted.write('connection','user-a',{...stored,dataExpiresAt:Date.now()-1});assert.throws(()=>restarted.connection(restarted.session(f.sessionA)),/expirou/);
+});
+
+
+test('missing server OAuth configuration cannot save a short-lived SDK connection or replace a saved one',async t=>{
+ const f=fixture(t,null,{disableOauth:true});
+ assert.equal((await f.connect(f.sessionA,f.tokens.a)).status,503);
+ assert.equal(f.api.read('connection','user-a'),null);
+ const saved={token:'previous-durable-token',facebookId:'a',revision:'saved',expiresAt:Date.now()+86400000*30,longLived:true};
+ f.api.write('connection','user-a',saved);
+ const nonce=(await f.request(f.sessionA,'/api/meta/challenge','POST')).body.nonce;
+ assert.equal((await f.request(f.sessionA,'/api/meta/connection','POST',{nonce,accessToken:f.tokens.a,expiresIn:3600})).status,503);
+ assert.deepEqual(f.api.read('connection','user-a'),saved);
+ assert.equal((await f.request(f.sessionA,'/api/meta/connection')).body.connected,true);
 });

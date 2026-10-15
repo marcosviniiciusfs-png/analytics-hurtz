@@ -323,18 +323,16 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const scopes=permissionRows.filter(item=>item.status==='granted').map(item=>item.permission);
       if(application.id!==APP_ID)throw fail(403,'Conecte o Facebook pelo aplicativo Tryv CRM.');
       if(!me.id||!scopes.some(scope=>['ads_read','ads_management'].includes(scope)))throw fail(403,'Autorize a leitura de anúncios pelo Tryv CRM em Editar configurações no Facebook.');
+      if(!(oauthConfig===undefined?tokenService.configuration():oauthConfig))throw fail(503,'A conexão duradoura com a Meta não está configurada no servidor. A conexão anterior foi mantida.');
       const upgraded=await exchangeToken(token,me.id);
-      if(!upgraded&&(oauthConfig===undefined?tokenService.configuration():oauthConfig))throw fail(502,'Não foi possível confirmar uma conexão duradoura com o Facebook. Tente novamente. A conexão anterior foi mantida.');
-      if(upgraded)token=upgraded.token;
+      if(!upgraded)throw fail(502,'Não foi possível confirmar uma conexão duradoura com o Facebook. Tente novamente. A conexão anterior foi mantida.');
+      token=upgraded.token;
       const [accounts,pageRows] = await Promise.all([
         rows(token, 'me/adaccounts', {fields: 'id,name'}),
         rows(token, 'me/accounts', {fields: 'id,name,access_token'}),
       ]);
-      // SDK expiry is only a conservative UI hint, never an authorization decision:
-      // every catalog/report is checked live against Meta with this user's token.
-      const seconds=Number(payload.expiresIn),shortExpiry=Number.isFinite(seconds)&&seconds>0?Date.now()+Math.min(seconds,60*86400)*1000:0;
       const pageTokens=Object.fromEntries(pageRows.filter(page=>page.id&&typeof page.access_token==='string').map(page=>[String(page.id),page.access_token]));
-      write('connection', user.id, {token, pageTokens, facebookId: me.id, name: me.name, scopes, revision: crypto.randomUUID(), expiresAt:upgraded?upgraded.expiresAt:shortExpiry, longLived:Boolean(upgraded), noFixedExpiry:Boolean(upgraded?.noFixedExpiry), dataExpiresAt:upgraded?.dataExpiresAt||0});
+      write('connection', user.id, {token, pageTokens, facebookId: me.id, name: me.name, scopes, revision: crypto.randomUUID(), expiresAt:upgraded.expiresAt, longLived:true, noFixedExpiry:Boolean(upgraded.noFixedExpiry), dataExpiresAt:upgraded.dataExpiresAt||0});
       return send(res, 200, {connected: true, name: me.name, accountCount: accounts.length});
     }
     if (route === '/api/meta/connection' && req.method === 'DELETE') {

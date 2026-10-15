@@ -99,6 +99,13 @@ jobs:
             sudo docker build -t traffic-pocket-api:production \
               -f \"/home/$VPS_USER/traffic-pocket/Dashboard Meta Ads/Dockerfile.api\" \
               \"/home/$VPS_USER/traffic-pocket\"
+            # Check the exact runtime OAuth configuration before replacing the running API.
+            sudo docker run --rm \
+              --env-file /opt/traffic-pocket-supabase/.env \
+              --env-file /opt/traffic-pocket-supabase/secrets/campaign-ai.env \
+              --env-file /opt/meta-ads-cli/secrets/.env \
+              -v /opt/meta-ads-cli/secrets:/opt/meta-ads-cli/secrets:ro \
+              traffic-pocket-api:production node -e 'if (!require(\"./facebook-token\").configuration()) { console.error(\"Meta OAuth configuration missing or invalid; keeping the running API\"); process.exit(1); }'
             sudo docker rm -f traffic-pocket-api 2>/dev/null || true
             sudo docker run -d --name traffic-pocket-api --restart unless-stopped \
               --network traffic-pocket-supabase_default \
