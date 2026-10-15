@@ -105,7 +105,7 @@ jobs:
               --env-file /opt/traffic-pocket-supabase/secrets/campaign-ai.env \
               --env-file /opt/meta-ads-cli/secrets/.env \
               -v /opt/meta-ads-cli/secrets:/opt/meta-ads-cli/secrets:ro \
-              traffic-pocket-api:production node -e 'if (!require(\"./facebook-token\").configuration()) { console.error(\"Meta OAuth configuration missing or invalid; keeping the running API\"); process.exit(1); }'
+              traffic-pocket-api:production node meta-oauth-preflight.js
             sudo docker rm -f traffic-pocket-api 2>/dev/null || true
             sudo docker run -d --name traffic-pocket-api --restart unless-stopped \
               --network traffic-pocket-supabase_default \
