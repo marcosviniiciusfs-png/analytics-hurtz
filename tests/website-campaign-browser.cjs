@@ -52,8 +52,10 @@ const watchdog=setTimeout(()=>{console.error('Website browser test exceeded 150 
   console.log('Website browser: automatic pixel identification');
   await page.waitForFunction(()=>document.querySelector('[data-review-field="pixelId"]')?.value==='456');
   assert.equal(await page.locator('[data-review-field="pixelId"] option').count(),4);
+  await page.waitForFunction(()=>!document.querySelector('[data-website-analysis] progress'));assert.match(await page.locator('[data-website-analysis]').innerText(),/encontrado no c\u00f3digo/);
   assert.equal(await page.locator('[data-review-field="pixelId"] option[value="999"]').evaluate(node=>node.disabled),true);
   assert.equal(await confirmed.isChecked(),false);
+  fs.mkdirSync(path.join(__dirname,'../.codex-tmp'),{recursive:true});await page.locator('#cmReviewControls').screenshot({path:path.join(__dirname,'../.codex-tmp/website-review-analysis-result.png')});
   await page.locator('[data-review-field="pixelId"]').selectOption('789');
   await page.locator('#cmBack').click();await form.locator('[name="url"]').fill('https://store.test/manual');
   await page.locator('[data-pixel-detection]').filter({hasText:'Sua escolha manual'}).waitFor();assert.equal(await pixel.inputValue(),'789');
@@ -61,7 +63,12 @@ const watchdog=setTimeout(()=>{console.error('Website browser test exceeded 150 
   await page.waitForFunction(()=>document.querySelector('[data-review-field="pixelId"]')?.value==='456');
   await page.locator('#cmBack').click();await page.evaluate(()=>window.scanMode='slow');
   await form.locator('[name="url"]').fill('https://store.test/old');await page.waitForFunction(()=>typeof window.releaseOldScan==='function');
-  await form.locator('[type="submit"]').click();await page.locator('#cmSend').click();assert.equal(await page.evaluate(()=>writes.length),0);await page.locator('#cmBack').click();
+  await form.locator('[type="submit"]').click();
+  const card=page.locator('[data-website-analysis]');await card.locator('progress').waitFor();
+  const urlBox=await page.locator('[data-review-field="url"]').boundingBox(),cardBox=await card.boundingBox();assert.ok(cardBox.x>urlBox.x,'analysis card should occupy the space beside the URL');
+  fs.mkdirSync(path.join(__dirname,'../.codex-tmp'),{recursive:true});
+  await page.locator('#cmReviewControls').screenshot({path:path.join(__dirname,'../.codex-tmp/website-review-analysis-progress.png')});
+  await page.locator('#cmSend').click();assert.equal(await page.evaluate(()=>writes.length),0);await page.locator('#cmBack').click();
   await page.evaluate(()=>window.scanMode='matched');await form.locator('[name="url"]').fill('https://store.test/new');
   await page.waitForFunction(()=>document.querySelector('[name="pixelId"]').value==='789');await page.evaluate(()=>releaseOldScan());
   await page.locator('[data-pixel-detection]').filter({hasText:'Pixel alternativo'}).waitFor();assert.equal(await pixel.inputValue(),'789');

@@ -639,3 +639,8 @@ dialog.cm-editor-dialog[open]:not(.cm-dialog-fallback){position:fixed!important;
 .cm-editor-dialog .cm-website-campaign button{justify-self:start;max-width:100%}
 .cm-editor-dialog .cm-website-campaign :is(p,summary){overflow-wrap:anywhere;line-height:inherit}
 .cm-editor-dialog .cm-website-campaign a{color:var(--tp-primary-strong);text-decoration:underline}
+.cm-review-controls-grid .cm-website-analysis{display:grid;gap:calc(var(--tp-form-gap)/2);align-self:start;min-width:0;padding:var(--tp-form-gap);border:thin solid var(--line);border-radius:var(--tp-form-gap);background:var(--comment-surface);color:var(--ink)}
+.cm-website-analysis>p{margin:0;overflow-wrap:anywhere}
+.cm-website-analysis progress{width:100%;accent-color:var(--tp-primary-strong)}
+.cm-editor-dialog .cm-website-analysis button{width:auto;min-height:var(--tp-choice-size);margin:0;padding:calc(var(--tp-form-gap)/2);font:inherit}
+.cm-website-destination{display:grid;gap:var(--tp-form-gap);align-self:start;min-width:0}

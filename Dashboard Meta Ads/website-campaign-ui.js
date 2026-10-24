@@ -15,18 +15,27 @@ export function setupWebsiteCampaign({form,api,existing,suggestion,esc,isCurrent
   form.querySelector('[data-dest="site"]').after(section);
   const goal=form.elements.siteGoal,pixel=form.elements.pixelId,event=form.elements.conversionEvent,confirmed=form.elements.eventSetupConfirmed,url=form.elements.url;
   const status=section.querySelector('[data-pixel-status]'),detection=section.querySelector('[data-pixel-detection]'),refresh=section.querySelector('[data-refresh-pixels]'),check=section.querySelector('[data-check-website]');
-  let loaded=false,loading=false,lastGoal='',pixelTurn=0,scanTurn=0,timer=null,observedURL='',completedURL='',manualSelection=false,automaticPixel='',scanning=false;
+  let loaded=false,loading=false,lastGoal='',pixelTurn=0,scanTurn=0,timer=null,observedURL='',completedURL='',manualSelection=false,automaticPixel='',scanning=false,reviewMessage='';
   goal.value=Object.hasOwn(goalLabels,suggestion?.siteGoal)?suggestion.siteGoal:'traffic';
   const resetConfirmation=()=>{confirmed.checked=false};
   const site=()=>form.elements.destination.value==='site';
   const validURL=()=>{try{const value=new URL(url.value.trim());return value.protocol==='https:'&&!value.username&&!value.password?value.href:''}catch{return ''}};
   const notify=()=>form.dispatchEvent(new CustomEvent('website-pixel-change'));
+  const notifyStatus=()=>form.dispatchEvent(new CustomEvent('website-pixel-status'));
+  function reviewCard(){
+    const working=loading||scanning||loaded&&!!observedURL&&completedURL!==observedURL;
+    const message=loading?'Carregando Pixels da conta…':!loaded?status.textContent||detection.textContent:reviewMessage||detection.textContent;
+    const options=[...pixel.options].map(option=>'<option value="'+esc(option.value)+'"'+(option.value===pixel.value?' selected':'')+(option.disabled?' disabled':'')+'>'+esc(option.textContent)+'</option>').join('');
+    return '<section class="cm-website-analysis" data-website-analysis aria-label="Análise do site e Pixel" aria-busy="'+working+'"><strong>Análise do site</strong>'+(working?'<progress aria-label="Análise do site em andamento"></progress>':'')+'<p role="status" aria-live="polite">'+esc(message)+'</p><label>Pixel da conta de anúncios<select data-review-field="pixelId">'+options+'</select></label><div class="cm-actions"><button type="button" data-review-check-site '+(!loaded||!validURL()||scanning?'disabled':'')+'>Rever site</button><button type="button" data-review-refresh-pixels '+(loading?'disabled':'')+'>Atualizar lista</button></div></section>';
+  }
   function changedURL(){
     const value=validURL();
     if(value===observedURL)return;
     observedURL=value;completedURL='';scanTurn++;scanning=false;check.disabled=!value||!loaded;clearTimeout(timer);resetConfirmation();
     detection.textContent=value?'Vamos verificar o Pixel deste site…':'Informe uma URL HTTPS para identificar o Pixel automaticamente.';
+    reviewMessage=detection.textContent;
     if(automaticPixel&&!manualSelection){pixel.value='';automaticPixel='';notify()}
+    notifyStatus();
   }
   function scheduleInspection(){
     changedURL();
@@ -39,6 +48,8 @@ export function setupWebsiteCampaign({form,api,existing,suggestion,esc,isCurrent
     if(!isCurrent()||!site()||!loaded||!address||scanning||!force&&completedURL===address)return;
     const request=++scanTurn,selected=pixel.value;scanning=true;completedURL='';check.disabled=true;
     detection.textContent='Lendo o site e comparando o Pixel com esta conta de anúncios…';
+    reviewMessage='Lendo o site e conferindo o Pixel…';
+    notifyStatus();
     try{
       const result=await api('website-pixel',{url:address});
       if(!isCurrent()||request!==scanTurn||validURL()!==address||!site())return;
@@ -49,20 +60,25 @@ export function setupWebsiteCampaign({form,api,existing,suggestion,esc,isCurrent
         const item=matches[0];
         if(!manualSelection&&pixel.value===selected){pixel.value=String(item.id);automaticPixel=String(item.id);resetConfirmation()}
         detection.textContent='Pixel '+item.name+' · '+item.id+' encontrado no código do site e disponível nesta conta. '+(pixel.value===String(item.id)?'Selecionado para esta campanha.':'Sua escolha manual foi mantida.')+' O evento de conversão ainda precisa ser testado.';
+        reviewMessage=pixel.value===String(item.id)?'Pixel encontrado no código e disponível nesta conta. Confira o evento na Meta.':'Pixel do site encontrado. Sua escolha manual foi mantida.';
       }else if(matches.length>1){
         detection.textContent='Encontramos mais de um Pixel do site nesta conta: '+matches.map(item=>item.name+' · '+item.id).join(', ')+'. Escolha na lista qual usar.';
+        reviewMessage='Mais de um Pixel compatível. Escolha na lista qual usar.';
       }else if(result.state==='not_in_account'){
         detection.textContent='O site contém Pixel, mas os IDs encontrados não estão disponíveis nesta conta de anúncios: '+(result.pixelIds||[]).join(', ')+'. Confira a conta ou conecte o Pixel na Meta. Você pode escolher outro Pixel da lista.';
+        reviewMessage='Pixel '+(result.pixelIds||[]).join(', ')+' encontrado, mas indisponível nesta conta. Escolha outro ou conecte-o na Meta.';
       }else if(result.state==='unavailable'){
         detection.textContent='Não foi possível ler este site agora. Escolha um Pixel da conta ou tente verificar novamente.';
+        reviewMessage=detection.textContent;
       }else{
         detection.textContent='Não identificamos um Pixel no código público deste site. Ele pode carregar por scripts ou após consentimento. Escolha um Pixel da conta e confira o rastreamento na Meta.';
+        reviewMessage='Não identificamos o Pixel no código público. Você pode selecionar um da conta.';
       }
       notify();
     }catch(error){
-      if(request===scanTurn&&isCurrent()){completedURL=address;detection.textContent='Não foi possível verificar o site. '+error.message+' A seleção manual continua disponível.'}
+      if(request===scanTurn&&isCurrent()){completedURL=address;detection.textContent='Não foi possível verificar o site. '+error.message+' A seleção manual continua disponível.';reviewMessage='Não foi possível verificar o site. Selecione um Pixel ou tente novamente.'}
     }finally{
-      if(request===scanTurn){scanning=false;check.disabled=!validURL()||!loaded}
+      if(request===scanTurn){scanning=false;check.disabled=!validURL()||!loaded;notifyStatus()}
     }
   }
   async function loadPixels(){
@@ -70,6 +86,7 @@ export function setupWebsiteCampaign({form,api,existing,suggestion,esc,isCurrent
     clearTimeout(timer);scanTurn++;scanning=false;completedURL='';
     const request=++pixelTurn,selected=pixel.value||suggestion?.pixelId||'';
     loading=true;refresh.disabled=true;check.disabled=true;pixel.innerHTML='<option value="">Buscando Pixels…</option>';section.setAttribute('aria-busy','true');status.textContent='Buscando todos os Pixels desta conta…';
+    notifyStatus();
     try{
       const result=await api('pixels');
       if(!isCurrent()||request!==pixelTurn)return;
@@ -78,7 +95,7 @@ export function setupWebsiteCampaign({form,api,existing,suggestion,esc,isCurrent
       loaded=true;
       status.textContent=result.items?.length?'Pixels da conta carregados. Você pode manter a sugestão automática ou escolher outro Pixel.':'Nenhum Pixel disponível. Adicione ou conecte um Pixel à conta na Meta e atualize a lista.';
     }catch(error){loaded=false;status.textContent='Não foi possível carregar os Pixels. '+error.message+' Tente atualizar a lista.'}
-    finally{loading=false;refresh.disabled=false;section.removeAttribute('aria-busy');sync()}
+    finally{loading=false;refresh.disabled=false;section.removeAttribute('aria-busy');sync();notifyStatus()}
   }
   function sync(){
     if(!isCurrent()){clearTimeout(timer);return}
@@ -105,5 +122,5 @@ export function setupWebsiteCampaign({form,api,existing,suggestion,esc,isCurrent
   refresh.onclick=()=>{resetConfirmation();completedURL='';void loadPixels()};
   sync();
   if(suggestion?.conversionEvent&&[...event.options].some(option=>option.value===suggestion.conversionEvent))event.value=suggestion.conversionEvent;
-  return {sync,ready(){return !loading&&(!loaded||manualSelection||!observedURL||completedURL===observedURL)},status(){return detection.textContent},review(){return goalLabels[goal.value]+(pixel.value?' · '+pixel.selectedOptions[0].textContent:goal.value==='traffic'?' · Sem Pixel':' · Pixel não selecionado')+(goal.value==='traffic'?'':' · '+eventLabels[event.value])}};
+  return {sync,reviewCard,check(){void inspect(true)},refresh(){resetConfirmation();void loadPixels()},ready(){return !loading&&(!loaded||manualSelection||!observedURL||completedURL===observedURL)},status(){return detection.textContent},review(){return goalLabels[goal.value]+(pixel.value?' · '+pixel.selectedOptions[0].textContent:goal.value==='traffic'?' · Sem Pixel':' · Pixel não selecionado')+(goal.value==='traffic'?'':' · '+eventLabels[event.value])}};
 }
