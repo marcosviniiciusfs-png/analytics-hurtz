@@ -36,8 +36,8 @@ function fixture(options={}){
   if(object==='777')return {status:{video_status:options.videoError?'error':options.processing?'processing':'ready'}};
   return nodes.get(object)||{id:object,account_id:object==='999'?'222':'111',campaign_id:'10',destination_type:options.existingDestination||'WEBSITE',promoted_object:{page_id:'1'},status:'PAUSED',effective_status:'PAUSED'};
  };
- const rows=async(token,edge,params={})=>edge.endsWith('/promote_pages')?(options.promotePages===undefined?[{id:'1',name:'Page',whatsapp_number:options.pageWhatsapp===undefined?'+55 94 99999-9999':options.pageWhatsapp}]:options.promotePages):edge==='me/accounts'?(options.userPages||[]):edge==='me/businesses'?(options.businesses||[]):edge==='901/owned_pages'||edge==='901/client_pages'?(options.businessPages||[]):edge==='act_111/ads'&&String(params.fields||'').includes('object_story_spec')?sourceAds:edge==='act_111/adsets'?(options.whatsappAdsets||[]):edge==='900/owned_whatsapp_business_accounts'||edge==='900/client_whatsapp_business_accounts'?(options.businessWabas===undefined?[{id:'111'}]:options.businessWabas):edge.endsWith('/whatsapp_business_accounts')?(options.accountWabas||[]):edge==='111/phone_numbers'?[{id:'987',display_phone_number:'+55 94 99999-9999',verified_name:'Atendimento'}]:edge.endsWith('/instagram_accounts')?[{id:'2',username:'ig'}]:edge.endsWith('/leadgen_forms')?[{id:'3',status:'ACTIVE'}]:edge.endsWith('/thumbnails')?[{uri:'https://example.test/thumb.jpg'}]:[...nodes.values()].filter(x=>edge.endsWith('/'+x.edge));
- const api=createCampaignManager({graph,rows,sleep:options.sleep,analyzeVideo:options.videoAnalysis,planCampaign:options.planner|| (async()=>({name:"AI draft",headline:"Title",message:"Copy",dailyBudget:30,category:"",rationale:"Suggestion",destination:"site",locationQuery:"Bel?m",ageMin:18,ageMax:65,interestQueries:[],placements:"automatic"})),authorizeAccounts:async(u,ids)=>{if(ids[0]!=='act_111')throw Object.assign(new Error('Account denied'),{status:403});return {conn,accounts:[{id:'act_111',currency:'BRL',business:{id:'900'}}]}},connection:()=>({...conn,revision}),read:(k,u)=>store.get(k+':'+u),write:(k,u,v)=>store.set(k+':'+u,v),fetchImpl:async(url,opts)=>{const endpoint=url.pathname.split('/').slice(2).join('/'),params=opts.body instanceof URLSearchParams?Object.fromEntries(opts.body):opts.body;calls.push({endpoint,params});assert.equal(opts.headers.Authorization,'Bearer private-test-token');if(endpoint.endsWith('/adsets')&&whatsappReadinessFailures-->0)return {ok:false,json:async()=>({error:{error_user_msg:options.whatsappReadinessMessage||'É necessário ter uma conta do WhatsApp Business para veicular anúncios que abrem conversas no WhatsApp.'}})};if(options.failure&&endpoint.endsWith(options.failure))return {ok:false,json:async()=>({error:{error_user_msg:'Invalid targeting'}})};let payload;if(endpoint.endsWith('/adimages'))payload={images:{file:{hash:'image-hash'}}};else if(endpoint.endsWith('/advideos'))payload={id:'777'};else if(!endpoint.includes('/')){const item=nodes.get(endpoint);if(item){item.status=params.status;item.effective_status=params.status}payload={success:true}}else{const id=String(++sequence);nodes.set(id,{id,account_id:'111',name:params.name,status:params.status,effective_status:params.status,edge:endpoint.split('/')[1]});payload={id}}if(options.changeConnection)revision='two';return {ok:true,json:async()=>payload}}});
+ const rows=async(token,edge,params={})=>edge.endsWith('/adspixels')?(options.pixels||[]):edge.endsWith('/promote_pages')?(options.promotePages===undefined?[{id:'1',name:'Page',whatsapp_number:options.pageWhatsapp===undefined?'+55 94 99999-9999':options.pageWhatsapp}]:options.promotePages):edge==='me/accounts'?(options.userPages||[]):edge==='me/businesses'?(options.businesses||[]):edge==='901/owned_pages'||edge==='901/client_pages'?(options.businessPages||[]):edge==='act_111/ads'&&String(params.fields||'').includes('object_story_spec')?sourceAds:edge==='act_111/adsets'?(options.whatsappAdsets||[]):edge==='900/owned_whatsapp_business_accounts'||edge==='900/client_whatsapp_business_accounts'?(options.businessWabas===undefined?[{id:'111'}]:options.businessWabas):edge.endsWith('/whatsapp_business_accounts')?(options.accountWabas||[]):edge==='111/phone_numbers'?[{id:'987',display_phone_number:'+55 94 99999-9999',verified_name:'Atendimento'}]:edge.endsWith('/instagram_accounts')?[{id:'2',username:'ig'}]:edge.endsWith('/leadgen_forms')?[{id:'3',status:'ACTIVE'}]:edge.endsWith('/thumbnails')?[{uri:'https://example.test/thumb.jpg'}]:[...nodes.values()].filter(x=>edge.endsWith('/'+x.edge));
+ const api=createCampaignManager({inspectWebsite:options.inspectWebsite,graph,rows,sleep:options.sleep,analyzeVideo:options.videoAnalysis,planCampaign:options.planner|| (async()=>({name:"AI draft",headline:"Title",message:"Copy",dailyBudget:30,category:"",rationale:"Suggestion",destination:"site",locationQuery:"Bel?m",ageMin:18,ageMax:65,interestQueries:[],placements:"automatic"})),authorizeAccounts:async(u,ids)=>{if(ids[0]!=='act_111')throw Object.assign(new Error('Account denied'),{status:403});return {conn,accounts:[{id:'act_111',currency:'BRL',business:{id:'900'}}]}},connection:()=>({...conn,revision}),read:(k,u)=>store.get(k+':'+u),write:(k,u,v)=>store.set(k+':'+u,v),fetchImpl:async(url,opts)=>{const endpoint=url.pathname.split('/').slice(2).join('/'),params=opts.body instanceof URLSearchParams?Object.fromEntries(opts.body):opts.body;calls.push({endpoint,params});assert.equal(opts.headers.Authorization,'Bearer private-test-token');if(endpoint.endsWith('/adsets')&&whatsappReadinessFailures-->0)return {ok:false,json:async()=>({error:{error_user_msg:options.whatsappReadinessMessage||'É necessário ter uma conta do WhatsApp Business para veicular anúncios que abrem conversas no WhatsApp.'}})};if(options.failure&&endpoint.endsWith(options.failure))return {ok:false,json:async()=>({error:{error_user_msg:'Invalid targeting'}})};let payload;if(endpoint.endsWith('/adimages'))payload={images:{file:{hash:'image-hash'}}};else if(endpoint.endsWith('/advideos'))payload={id:'777'};else if(!endpoint.includes('/')){const item=nodes.get(endpoint);if(item){item.status=params.status;item.effective_status=params.status}payload={success:true}}else{const id=String(++sequence);nodes.set(id,{id,account_id:'111',name:params.name,status:params.status,effective_status:params.status,edge:endpoint.split('/')[1]});payload={id}}if(options.changeConnection)revision='two';return {ok:true,json:async()=>payload}}});
  const run=(action,p,who=user,account='act_111')=>api.handle(Object.assign(Readable.from(p?[Buffer.from(JSON.stringify(p))]:[]),{method:p?'POST':'GET'}),who,new URL('https://test/api/ads-manager/'+action.replace('&','?')+(action.includes('&')?'&':'?')+'account='+account));
  const draft=(extra={})=>({key:crypto.randomUUID(),confirm:true,name:'Campaign',headline:'Headline',message:'Ad text',destination:'site',url:'https://example.test',page:'1',media:'image',dailyBudget:'35.50',countries:['BR'],ageMin:18,ageMax:65,...extra});
  store.set('ads-media:a',[{key:'image',account:'act_111',kind:'image',value:'image-hash'},{key:'video',account:'act_111',kind:'video',value:'777'}]);
@@ -110,3 +110,66 @@ test('oversized and mismatched files cannot reach Meta; failed video does not cr
 test('intelligent planning requires a meaningful description and does not create ads',async()=>{const f=fixture();await assert.rejects(f.run('plan',{description:'short'}),/12 a 1500/);assert.equal(f.calls.length,0)});
 test('intelligent plan validates chosen geography at creation',async()=>{const f=fixture();const result=await f.run('plan',{description:'Campanha em Belem para site, R$ 40 por dia, 25 a 45 anos, Facebook e Instagram.'});await assert.rejects(f.run('create',f.draft({location:{...result.draft.location,key:'unknown'},countries:['BR']})),/localiza/);assert.equal(f.calls.length,0)});
 test('special-category city targeting includes the minimum radius required by Meta',async()=>{const f=fixture();const result=await f.run('plan',{description:'Campanha em Belem para site, R$ 40 por dia, 25 a 45 anos, Facebook e Instagram.'});await f.run('create',f.draft({location:result.draft.location,category:'FINANCIAL_PRODUCTS_SERVICES'}));assert.deepEqual(JSON.parse(f.calls[1].params.targeting).geo_locations,{cities:[{key:'city1',radius:17,distance_unit:'kilometer'}]});});
+
+
+test('website leads and sales use conversion objectives and an account-authorized pixel',async()=>{
+ for(const [siteGoal,conversionEvent,objective,cta] of [['leads','LEAD','OUTCOME_LEADS','SIGN_UP'],['leads','COMPLETE_REGISTRATION','OUTCOME_LEADS','SIGN_UP'],['sales','PURCHASE','OUTCOME_SALES','SHOP_NOW']]){
+  const f=fixture({pixels:[{id:'456',name:'Store pixel'}]});
+  await f.run('create',f.draft({siteGoal,conversionEvent,pixelId:'456',eventSetupConfirmed:true}));
+  assert.equal(f.calls[0].params.objective,objective);
+  assert.equal(f.calls[1].params.destination_type,'WEBSITE');
+  assert.equal(f.calls[1].params.optimization_goal,'OFFSITE_CONVERSIONS');
+  assert.deepEqual(JSON.parse(f.calls[1].params.promoted_object),{pixel_id:'456',custom_event_type:conversionEvent});
+  assert.equal(JSON.parse(f.calls[2].params.object_story_spec).link_data.call_to_action.type,cta);
+ }
+});
+
+test('conversion preflight rejects missing, foreign, unavailable pixels and incompatible events before any write',async()=>{
+ const cases=[
+  {siteGoal:'invalid'},
+  {siteGoal:'sales'},
+  {siteGoal:'sales',pixelId:'456',conversionEvent:'LEAD',eventSetupConfirmed:true},
+  {siteGoal:'leads',pixelId:'456',conversionEvent:'PURCHASE',eventSetupConfirmed:true},
+  {siteGoal:'leads',pixelId:'456',conversionEvent:'LEAD'},
+  {siteGoal:'sales',pixelId:'999',conversionEvent:'PURCHASE',eventSetupConfirmed:true},
+  {siteGoal:'sales',pixelId:'789',conversionEvent:'PURCHASE',eventSetupConfirmed:true}
+ ];
+ for(const input of cases){
+  const f=fixture({pixels:[{id:'456',name:'Allowed'},{id:'789',name:'Unavailable',is_unavailable:true}]});
+  await assert.rejects(f.run('create',f.draft(input)));assert.equal(f.calls.length,0);
+ }
+});
+
+test('all account pixels are listed with availability and without private fields',async()=>{
+ const f=fixture({pixels:[{id:'456',name:'Store pixel',privateField:'secret'},{id:'789',is_unavailable:true}]});
+ assert.deepEqual(await f.run('pixels'),{items:[{id:'456',name:'Store pixel',available:true},{id:'789',name:'789',available:false}]});
+ await assert.rejects(f.run('pixels',null,{id:'a'},'act_222'),/denied/);
+});
+
+test('native destinations ignore stale website conversion values',async()=>{
+ for(const destination of ['form','whatsapp']){
+  const f=fixture();await f.run('create',f.draft({destination,siteGoal:'traffic',pixelId:'999',conversionEvent:'PURCHASE',phone:'5594999999999',form:'3'}));
+  assert.equal(f.calls[0].params.objective,{site:'OUTCOME_TRAFFIC',form:'OUTCOME_LEADS',whatsapp:'OUTCOME_ENGAGEMENT'}[destination]);
+  const promoted=f.calls[1].params.promoted_object;assert.equal(promoted?JSON.parse(promoted).pixel_id:undefined,undefined);
+ }
+});
+
+test('an existing website ad set cannot silently change its conversion settings',async()=>{
+ const f=fixture();await assert.rejects(f.run('create',f.draft({adset:'11',siteGoal:'sales',pixelId:'456',conversionEvent:'PURCHASE',eventSetupConfirmed:true})),/conjunto selecionado/);assert.equal(f.calls.length,0);
+});
+
+
+test('traffic can track an account pixel without changing its click optimization',async()=>{
+ const f=fixture({pixels:[{id:'456',name:'Store pixel'}]});
+ await f.run('create',f.draft({siteGoal:'traffic',pixelId:'456'}));
+ assert.equal(f.calls[0].params.objective,'OUTCOME_TRAFFIC');assert.equal(f.calls[1].params.optimization_goal,'LINK_CLICKS');
+ assert.deepEqual(JSON.parse(f.calls.at(-1).params.tracking_specs),[{'action.type':['offsite_conversion'],fb_pixel:['456']}]);
+ const foreign=fixture();await assert.rejects(foreign.run('create',foreign.draft({siteGoal:'traffic',pixelId:'456'})));assert.equal(foreign.calls.length,0);
+});
+
+test('website pixel detection compares only with the authorized account and never creates ad objects',async()=>{
+ const seen=[],f=fixture({pixels:[{id:'456',name:'Store pixel'}],inspectWebsite:async(url,pixels)=>{seen.push({url,pixels});return {state:'matched',matches:pixels,suggestedPixelId:'456'}}});
+ const result=await f.run('website-pixel',{url:'https://example.com'});
+ assert.equal(result.suggestedPixelId,'456');assert.deepEqual(seen,[{url:'https://example.com',pixels:[{id:'456',name:'Store pixel'}]}]);assert.equal(f.calls.length,0);
+ await assert.rejects(f.run('website-pixel',{url:'https://example.com'},{id:'a'},'act_222'),/denied/);assert.equal(seen.length,1);
+});

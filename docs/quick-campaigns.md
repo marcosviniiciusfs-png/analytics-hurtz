@@ -45,3 +45,27 @@ A conta abre na página dedicada `?view=account&account=act_ID`, mantendo as aba
 Criar anúncio abre a escolha Manual/Inteligente e depois um diálogo nativo independente. O formulário não ocupa o rodapé da página. Na criação em conjunto existente, a opção inteligente fica indisponível para não substituir silenciosamente o público e orçamento herdados.
 
 O modo manual agrupa identidade/destino, público/orçamento e criativo. A consulta de campanhas abre primeiro; a auditoria de desempenho só é disparada ao abrir as abas correspondentes.
+
+## Campanhas de site: visitas, leads e vendas
+
+O destino Site oferece três objetivos. Visitas mantém `OUTCOME_TRAFFIC` com `LINK_CLICKS`, sem exigir Pixel. Leads usa `OUTCOME_LEADS` com `OFFSITE_CONVERSIONS` e os eventos `LEAD` ou `COMPLETE_REGISTRATION`. Vendas usa `OUTCOME_SALES` com `OFFSITE_CONVERSIONS` e `PURCHASE`. Os CTAs são Saiba mais, Cadastre-se e Comprar agora, respectivamente.
+
+Para leads ou vendas, o usuário informa URL HTTPS, escolhe um Pixel disponível para a conta de anúncios e o evento, além dos dados habituais de público, orçamento, identidade, texto e criativo. O editor explica a instalação e oferece acesso ao Gerenciador de Eventos. É necessário confirmar que o evento foi testado no site. Alterar URL, Pixel ou evento remove essa confirmação. Essa confirmação é uma declaração do usuário, não uma verificação automática de instalação ou recebimento de eventos.
+
+`GET /api/ads-manager/pixels?account=act_ID` consulta os Pixels da conta autorizada. O servidor verifica novamente a disponibilidade do Pixel antes de criar qualquer objeto e rejeita objetivos e eventos incompatíveis. Não aceita Pixel digitado livremente de outra conta. Conjuntos existentes mantêm seu objetivo e rastreamento; criar um anúncio neles não altera a configuração do conjunto.
+
+Este fluxo utiliza Pixels existentes. Não cria nem instala Pixels em sites externos, não implementa API de Conversões e não verifica eventos automaticamente. A seleção da fonte de dados não substitui a instalação do Pixel ou a integração de eventos do site. A Meta continua responsável pela aceitação do anúncio e pelos requisitos específicos da conta, inclusive orçamento e elegibilidade.
+
+Validação local: `node --test tests/campaign-manager.test.cjs` e `node tests/website-campaign-browser.cjs` (Playwright e Edge). Os testes simulam a Meta; não criam campanhas reais. O teste de navegador cobre objetivos, eventos, revisão, confirmação de instalação, alteração de URL, estados vazio/erro/nova tentativa e layout móvel.
+
+Referências de implementação: [AdSet no SDK oficial da Meta](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adset.py) e [eventos e promoted_object](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adpromotedobject.py).
+
+### Seleção e identificação automática de Pixel
+
+A seleção de Pixel fica visível tanto no editor quanto na revisão para o destino Site, inclusive em Visitas. A lista consulta todas as páginas do catálogo da conta; Pixels indisponíveis aparecem desabilitados. Em tráfego, escolher um Pixel é opcional e adiciona `tracking_specs` ao anúncio, sem mudar a otimização para cliques. Em leads e vendas, o Pixel continua obrigatório no conjunto e é revalidado antes da criação.
+
+Após preencher uma URL HTTPS, o editor chama `POST /api/ads-manager/website-pixel` com `{url}` e a conta autorizada. A API lê a página e até três scripts da mesma origem, procurando inicializações literais `fbq('init', 'ID')` e URLs de rastreamento do Pixel. Cruza os IDs com o catálogo da conta. Um único resultado compatível é selecionado automaticamente; mais de um pede escolha manual. IDs sem acesso nessa conta não são selecionados. A sugestão nunca substitui uma escolha manual e respostas de URLs anteriores são descartadas.
+
+Essa análise não executa JavaScript, aceita consentimento nem confirma recebimento de eventos. Ausência de ID no código público é reportada como identificação inconclusiva, não como prova de que o site não tem Pixel. Falha de leitura também mantém a escolha manual. O usuário pode verificar novamente ou atualizar o catálogo. A confirmação de teste do evento não é marcada automaticamente.
+
+A leitura externa tem prazo total de 12 segundos, limite de bytes, HTTPS e validação de endereços em cada redirecionamento. Conecta apenas a IPv4 público resolvido e fixado na conexão, preservando validação TLS do hostname. Não transmite credenciais Meta, cookies ou código da página ao cliente. Sites privados ou apenas IPv6 não são inspecionados. Testes em `tests/website-pixel-inspector.test.cjs` cobrem correspondência com a conta, limites, DNS e redirecionamentos; o teste de navegador também cobre preservação da escolha manual e respostas atrasadas.

@@ -90,3 +90,17 @@ test('an explicit city/state is read before weaker speech hints and beyond previ
  const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({visibleText:['Atendimento em outras cidades. '+ 'Oferta '.repeat(50)+'ESCRITÓRIO: ITAJAÍ - SC'],audio:''}),fetchImpl:async()=>({ok:true,text:async()=>JSON.stringify({answers:{}})})});
  assert.equal(result.location,'ITAJAI - SC');
 });
+
+
+test('office city and housing interests survive long OCR blocks and later frames',async()=>{
+ for(const visibleText of [
+  ['Condi\u00e7\u00f5es especiais '.repeat(30)+'ESCRIT\u00d3RIO: ITAJA\u00cd - SC\nCR\u00c9DITO PARA IM\u00d3VEL'],
+  [...Array.from({length:20},()=> 'Texto sem oferta'), 'ESCRIT\u00d3RIO: ITAJA\u00cd - SC\nCR\u00c9DITO PARA IM\u00d3VEL']
+ ]){
+  const result=await analyzeCampaignVideo(file,{config:{key:'private',provider:'openrouter'},extract:async()=>({visibleText,audio:''}),fetchImpl:async()=>({ok:true,text:async()=>JSON.stringify({answers:{}})})});
+  assert.equal(result.location,'ITAJAI - SC');
+  assert.equal(result.offer,'Cr\u00e9dito para im\u00f3vel');
+  assert.equal(result.requiresInterests,true);
+  assert.ok(result.interestQueries.includes('Im\u00f3veis'));
+ }
+});

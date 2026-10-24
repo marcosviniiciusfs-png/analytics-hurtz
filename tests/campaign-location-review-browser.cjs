@@ -2,12 +2,12 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'../dev/node_modules/pla
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 
 (async()=>{
- const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
+ const browser=await chromium.launch({headless:true,args:['--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows'],executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
  try{
   const page=await browser.newPage({viewport:{width:1200,height:850}}),errors=[];
-  page.setDefaultTimeout(10000);page.on('pageerror',error=>errors.push(error.message));
+  page.setDefaultTimeout(20000);page.on('pageerror',error=>errors.push(error.message));await page.bringToFront();
   const root=path.join(__dirname,'../Dashboard Meta Ads');
-  await page.route('https://unpkg.com/**',route=>route.abort());
+  await page.route('**/*',route=>new URL(route.request().url()).hostname==='location-review.test'?route.fallback():route.abort());
   await page.route('https://location-review.test/**',route=>{
    const name=new URL(route.request().url()).pathname.slice(1);
    if(name)return route.fulfill({body:fs.readFileSync(path.join(root,name)),contentType:name.endsWith('.css')?'text/css':'text/javascript'});
@@ -33,8 +33,8 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
     manager.prepare({id:'act_111',name:'Conta',currency:'BRL'},'Anúncio para Itajaí').then(()=>window.ready=true).catch(error=>window.failure=error.message);
    </script>`});
   });
-  await page.goto('https://location-review.test/');
-  await page.waitForFunction(()=>window.ready||window.failure);assert.equal(await page.evaluate(()=>window.failure),undefined);
+  await page.goto('https://location-review.test/',{waitUntil:'domcontentloaded'});
+  try{await page.waitForFunction(()=>window.ready||window.failure,undefined,{timeout:30000,polling:100})}catch(error){console.error(await page.evaluate(()=>({ready:window.ready,failure:window.failure,body:document.body.innerText.slice(-1500),errors:window.errors})));throw error}assert.equal(await page.evaluate(()=>window.failure),undefined);
   await page.locator('#cmReview').waitFor({state:'visible'});
   assert.match(await page.locator('#cmReview .cm-location-warning').innerText(),/ITAJAI - SC/);
   await page.locator('#cmSend').click();assert.equal(await page.evaluate(()=>writes.length),0);

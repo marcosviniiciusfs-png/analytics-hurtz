@@ -1,4 +1,5 @@
 'use strict';
+const {websiteCampaign}=require('./website-campaign');
 
 const crypto=require('node:crypto');
 
@@ -52,7 +53,7 @@ function draftFromVideoAnalysis(analysis={}){
 const baseDraftFromVideoAnalysis=draftFromVideoAnalysis;
 draftFromVideoAnalysis=function(analysis={}){return {...baseDraftFromVideoAnalysis(analysis),requiresInterests:!!analysis.requiresInterests}};
 
-function createCampaignManager({graph,rows,authorizeAccounts,connection,read,write,fetchImpl,sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms)),planCampaign=require("./campaign-planner").plan,requiredDetails=require("./campaign-planner").missingRequiredDetails,analyzeVideo=require("./video-campaign-analysis").analyzeCampaignVideo,videoDescription=require("./video-campaign-analysis").analysisDescription,plannerConfiguration=require("./campaign-planner").configuration}){
+function createCampaignManager({inspectWebsite=require("./website-pixel-inspector").inspectWebsitePixels,graph,rows,authorizeAccounts,connection,read,write,fetchImpl,sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms)),planCampaign=require("./campaign-planner").plan,requiredDetails=require("./campaign-planner").missingRequiredDetails,analyzeVideo=require("./video-campaign-analysis").analyzeCampaignVideo,videoDescription=require("./video-campaign-analysis").analysisDescription,plannerConfiguration=require("./campaign-planner").configuration}){
 
   const locks=new Set(), planning=new Set(), uploads=createUploadStore();
 
@@ -342,6 +343,8 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
 
       if(action==='interests'){const q=String(url.searchParams.get('q')||'').trim();if(q.length<2||q.length>100)throw fail(400,'Digite pelo menos 2 caracteres para buscar interesses.');const items=await interestMatches(conn,q,10);current(user,conn);return {items}}
 
+      if(action==='pixels'){const items=await rows(conn.token,account+'/adspixels',{fields:'id,name,is_unavailable',limit:100});current(user,conn);return {items:items.map(item=>({id:String(item.id),name:String(item.name||item.id),available:!item.is_unavailable}))}}
+
       if(action==='assets'){const p=await pages(conn,account),instagram=await instagramProfiles(conn,account,p),whatsapps=p.flatMap(page=>{const phone=String(page.whatsapp_number||'').replace(/\D/g,'');return /^\d{10,15}$/.test(phone)?[{id:phone,phone,label:'WhatsApp vinculado à Página',pageId:String(page.id),pageName:String(page.name||page.id)}]:[]}),whatsapp={state:whatsapps.length?'ready':'empty',items:whatsapps,message:whatsapps.length?'Selecione um número vinculado à Página ou informe outro.':'Informe o número com DDI e DDD.',retryable:false};return {pages:p,instagram,whatsapps,whatsapp,warning:''}}
 
       if(action==='forms'){const page=url.searchParams.get('page'),pageId=id(page);await pageAccess(conn,account,pageId);const pageToken=conn.pageTokens?.[pageId]||conn.token;return {items:await rows(pageToken,pageId+'/leadgen_forms',{fields:'id,name,status'})}}
@@ -354,7 +357,9 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
 
     if(req.method!=='POST')throw fail(405,'Método não permitido.');
 
-    const p=await body(req,action==='upload-part'?2*1024*1024:140*1024*1024);
+    const p=await body(req,action==='website-pixel'?8192:action==='upload-part'?2*1024*1024:140*1024*1024);
+
+    if(action==='website-pixel'){const pixels=await rows(conn.token,account+'/adspixels',{fields:'id,name,is_unavailable',limit:100});current(user,conn);const result=await inspectWebsite(p.url,pixels);current(user,conn);return result;}
 
     if(action==='whatsapps'){
 
@@ -545,7 +550,9 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
 
       const media=(read('ads-media',user.id)||[]).find(x=>x.key===p.media&&x.account===account);if(!media)throw fail(400,'Envie o criativo nesta conta.');
 
-      let target,cta,form;if(destination==='site'){target=link(p.url);cta={type:'LEARN_MORE',value:{link:target}}}
+      const siteConfig=destination==='site'&&!p.adset?websiteCampaign(p):null;
+      if(siteConfig?.trackingPixelId){const pixels=await rows(conn.token,account+'/adspixels',{fields:'id,name,is_unavailable',limit:100});current(user,conn);if(!pixels.some(pixel=>String(pixel.id)===siteConfig.trackingPixelId&&!pixel.is_unavailable))throw fail(403,'O Pixel selecionado n\u00e3o est\u00e1 dispon\u00edvel nesta conta de an\u00fancios.');}
+      let target,cta,form;if(destination==='site'){target=link(p.url);cta={type:siteConfig?.cta||'LEARN_MORE',value:{link:target}}}
 
       // WhatsApp is a native messages destination. The phone belongs to the
 
@@ -565,7 +572,9 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
 
       if(!p.adset&&accountInfo.currency==='BRL'&&Number(p.dailyBudget)<6)throw fail(400,'O orçamento diário mínimo para campanhas em BRL é R$ 6,00.');
 
-      let existing;if(p.adset){existing=await owned(conn,account,p.adset,'id,account_id,campaign_id,destination_type,promoted_object');const expected={site:'WEBSITE',whatsapp:'WHATSAPP',form:'ON_AD'}[destination];if(existing.destination_type!==expected)throw fail(400,'O conjunto selecionado usa outro destino.');if(existing.promoted_object?.page_id&&existing.promoted_object.page_id!==page)throw fail(400,'O conjunto utiliza outra Página.');}
+      let existing;if(p.adset){existing=await owned(conn,account,p.adset,'id,account_id,campaign_id,destination_type,optimization_goal,promoted_object');const expected={site:'WEBSITE',whatsapp:'WHATSAPP',form:'ON_AD'}[destination];if(existing.destination_type!==expected)throw fail(400,'O conjunto selecionado usa outro destino.');if(existing.promoted_object?.page_id&&existing.promoted_object.page_id!==page)throw fail(400,'O conjunto utiliza outra Página.');}
+
+      if(existing&&destination==='site'&&p.siteGoal!==undefined){const requested=websiteCampaign(p);if(existing.optimization_goal!==requested.optimization||requested.promotedObject&&(String(existing.promoted_object?.pixel_id)!==requested.promotedObject.pixel_id||existing.promoted_object?.custom_event_type!==requested.promotedObject.custom_event_type))throw fail(400,'O objetivo, o Pixel e o evento devem seguir o conjunto selecionado.');}
 
       let budget,targeting,categories;if(!existing){if(!['BRL','USD','EUR','GBP'].includes(accountInfo.currency))throw fail(400,'Criação de conjuntos disponível para contas em BRL, USD, EUR e GBP.');if(p.requiresInterests&&!(Array.isArray(p.interests)&&p.interests.length))throw fail(400,'Selecione pelo menos um interesse da Meta para este produto antes de publicar.');budget=Number(p.dailyBudget);if(!Number.isFinite(budget)||budget<=0||budget>100000)throw fail(400,'Informe um orçamento diário válido, até 100.000 na moeda da conta.');const category=p.category||'';if(!['','HOUSING','EMPLOYMENT','FINANCIAL_PRODUCTS_SERVICES','ISSUES_ELECTIONS_POLITICS'].includes(category))throw fail(400,'Categoria especial inválida.');categories=category?[category]:[];const countries=Array.isArray(p.countries)?p.countries:[];if(!countries.length||countries.length>10||countries.some(x=>!/^[A-Z]{2}$/.test(x)))throw fail(400,'Informe os países do público com códigos de duas letras.');const min=Number(p.ageMin),max=Number(p.ageMax);if(!Number.isInteger(min)||!Number.isInteger(max)||min<18||max>65||min>max)throw fail(400,'Confira a faixa etária.');const interests=Array.isArray(p.interests)?p.interests:[];if(interests.length>5||interests.some(x=>!x||!/^\d+$/.test(String(x.id||''))||typeof x.name!=='string'||x.name.length>120))throw fail(400,'Os interesses precisam ser confirmados pela Meta. Gere o plano novamente.');const automatic=p.placements==='automatic';if(!automatic&&p.placements!=='feeds'&&p.placements!==undefined)throw fail(400,'Posicionamento inválido.');targeting={geo_locations:{countries},age_min:categories.length?18:min,age_max:categories.length?65:max,...(interests.length?{flexible_spec:[{interests:interests.map(x=>({id:String(x.id),name:x.name}))}]}:{}),...(automatic?{}:{publisher_platforms:instagram?['facebook','instagram']:['facebook'],facebook_positions:['feed'],...(instagram?{instagram_positions:['stream']}:{})})};}
 
@@ -598,9 +607,9 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
 
       if(!existing){
 
-        campaign=await create('campaign',account+'/campaigns',{name,objective:{site:'OUTCOME_TRAFFIC',whatsapp:'OUTCOME_ENGAGEMENT',form:'OUTCOME_LEADS'}[destination],buying_type:'AUCTION',special_ad_categories:categories,...(categories.length?{special_ad_category_country:p.countries}:{}),status:'ACTIVE',is_adset_budget_sharing_enabled:false});
+        campaign=await create('campaign',account+'/campaigns',{name,objective:siteConfig?.objective||{whatsapp:'OUTCOME_ENGAGEMENT',form:'OUTCOME_LEADS'}[destination],buying_type:'AUCTION',special_ad_categories:categories,...(categories.length?{special_ad_category_country:p.countries}:{}),status:'ACTIVE',is_adset_budget_sharing_enabled:false});
 
-        const adsetData={name:name+' — Público',campaign_id:campaign,daily_budget:Math.round(budget*100),billing_event:'IMPRESSIONS',optimization_goal:{site:'LINK_CLICKS',whatsapp:'CONVERSATIONS',form:'LEAD_GENERATION'}[destination],destination_type:{site:'WEBSITE',whatsapp:'WHATSAPP',form:'ON_AD'}[destination],bid_strategy:'LOWEST_COST_WITHOUT_CAP',targeting,...(destination==='whatsapp'?{promoted_object:whatsappPromotedObject}:destination==='form'?{promoted_object:{page_id:page}}:{}),status:'ACTIVE'};
+        const adsetData={name:name+' — Público',campaign_id:campaign,daily_budget:Math.round(budget*100),billing_event:'IMPRESSIONS',optimization_goal:siteConfig?.optimization||{whatsapp:'CONVERSATIONS',form:'LEAD_GENERATION'}[destination],destination_type:{site:'WEBSITE',whatsapp:'WHATSAPP',form:'ON_AD'}[destination],bid_strategy:'LOWEST_COST_WITHOUT_CAP',targeting,...(destination==='whatsapp'?{promoted_object:whatsappPromotedObject}:destination==='form'?{promoted_object:{page_id:page}}:siteConfig?.promotedObject?{promoted_object:siteConfig.promotedObject}:{}),status:'ACTIVE'};
 
         adset=await create('adset',account+'/adsets',adsetData)
 
@@ -608,7 +617,7 @@ function createCampaignManager({graph,rows,authorizeAccounts,connection,read,wri
 
       const story={page_id:page,...(instagram?{instagram_user_id:instagram}:{})};if(media.kind==='image')story.link_data={image_hash:media.value,link:target,message,name:headline,call_to_action:cta};else story.video_data={video_id:media.value,image_url:videoImage,message,title:headline,call_to_action:cta};
 
-      const creative=await create('creative',account+'/adcreatives',{name,object_story_spec:story});await create('ad',account+'/ads',{name,adset_id:adset,creative:{creative_id:creative},status:'ACTIVE'});operation.state='complete';operation.campaign=campaign;operation.adset=adset;save();return operation;
+      const creative=await create('creative',account+'/adcreatives',{name,object_story_spec:story});await create('ad',account+'/ads',{name,adset_id:adset,creative:{creative_id:creative},...(siteConfig?.trackingPixelId?{tracking_specs:[{'action.type':['offsite_conversion'],fb_pixel:[siteConfig.trackingPixelId]}]}:{}),status:'ACTIVE'});operation.state='complete';operation.campaign=campaign;operation.adset=adset;save();return operation;
 
     }catch(e){if(operation){operation.state='needs_review';operation.error=e.message;save();throw fail(e.status||502,e.message+' Alguns itens já podem estar ativos. Consulte Operações antes de repetir.')}throw e}finally{locks.delete(opKey)}
 
