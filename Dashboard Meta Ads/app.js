@@ -211,6 +211,12 @@ function metaAccountStatus(account){
   if(account.activeCampaignCount===0)return {css:'inactive',label:'Sem campanhas ativas'};
   return account.status==='active'?{css:'active',label:'Conta ativa na Meta'}:{css:'inactive',label:'Conta inativa na Meta'};
 }
+// Conta de cartão não tem saldo pré-pago: a coluna mostra o estado dela na Meta (1 = ativa; demais, como cobrança pendente ou período de carência, = pausada).
+function cardAccountCell(account){
+  const active=account.metaStatusCode===1;
+  const reason=active?'Conta de cartão ativa na Meta.':'Conta de cartão pausada na Meta, normalmente por cobrança pendente no cartão.';
+  return heatCell(`<span class="card-account-badge ${active?'card-active':'card-paused'}">CONTA CARTÃO</span><small class="table-sub">${active?'Ativa':'Pausada por cobrança'}</small>`,active?'good':'danger',reason,'number');
+}
 const summaryCards=document.querySelector('#summaryCards'),accountsBody=document.querySelector('#accountsBody'),accountsFoot=document.querySelector('#accountsFoot');
 const metricLabel=(label,help)=>`<span class="metric-label">${label}<button class="info-tooltip" type="button" aria-label="Sobre ${label}">i<span role="tooltip">${help}</span></button></span>`;
 const floatingTooltip=document.createElement('div');
@@ -317,7 +323,7 @@ async function findMetaAccounts(showProgress=true){
         return;
       }
       const cleanName=item.name||item.id,initials=cleanName.split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]).join('').toUpperCase();
-      accounts.push({id:item.id,name:cleanName,initials:initials||'MA',color:`hsl(${(accounts.length+index)*47%360} 55% 45%)`,status:item.account_status===1?'active':'inactive',businessName:item.business_name||item.business?.name||'Sem BM informada',businessId:item.business_id||item.business?.id||'',currency:item.currency||'',businessPicture:item.business_profile_picture_uri||null,objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:iso(NOW),depositTime:'00:00',plannedDays:1,dailyLimit:0}});
+      accounts.push({id:item.id,name:cleanName,initials:initials||'MA',color:`hsl(${(accounts.length+index)*47%360} 55% 45%)`,status:item.account_status===1?'active':'inactive',metaStatusCode:Number(item.account_status),businessName:item.business_name||item.business?.name||'Sem BM informada',businessId:item.business_id||item.business?.id||'',currency:item.currency||'',businessPicture:item.business_profile_picture_uri||null,objectives:[],spend:0,leads:0,cycleSpend:0,plan:{deposit:0,depositDate:iso(NOW),depositTime:'00:00',plannedDays:1,dailyLimit:0}});
     });
     accountCatalogReady=true;overviewComposer?.refresh();saveAccountCatalog();applyActiveAccountProfile(false);renderAccountFilterOptions();renderSummary();renderAccounts(document.querySelector('#searchInput').value);document.querySelector('#tableDateFilter').textContent=`Filtros (${selectedAccountIds.size})`;syncReportAccountsWithDashboard();monitoredAnalysisAccounts=[];if(!document.querySelector('#analysis').hidden)initializeDetailedAnalysis();status.textContent=`${payload.account_count||accounts.length} contas encontradas em ${payload.business_count||0} BMs`;
     void loadBillingBalances([...allowedIds]);
@@ -608,7 +614,7 @@ function renderAccounts(filter=''){
     ${heatCell(`<span class="status ${status.css}">${status.label}</span>`,a.activeCampaignCount==null?'warning':a.activeCampaignCount>0?'good':'danger',a.activeCampaignCount==null?'Amarelo: aguardando a consulta de campanhas na Meta.':a.activeCampaignCount>0?`Verde: ${a.activeCampaignCount} campanhas estão ativas na Meta.`:'Vermelho: nenhuma campanha ativa foi encontrada.')}
     ${heatCell(`<div class="objective">${a.objectives.map(o=>`<span class="tag">${o}</span>`).join('')}</div>`,'neutral','Neutro: objetivo da campanha é informativo e não representa desempenho.')}
     ${m.credit?heatCell(`<strong>Cartão de crédito</strong><small class="table-sub">Sem depósito ou saldo pré-pago</small>`,'neutral','Conta configurada para acompanhar somente os gastos auditados.','number'):heatCell(`<strong>${brl(a.plan.deposit)}</strong><small class="table-sub">${fmtDateTime(m.start)} • ${a.plan.plannedDays} dias</small>`,a.plan.deposit<=0?'danger':planExpired?'warning':'good',a.plan.deposit<=0?'Vermelho: nenhum depósito foi configurado.':planExpired?`Laranja: o prazo de ${a.plan.plannedDays} dias deste depósito terminou em ${fmtDateTime(m.plannedEnd)}.`:`Verde: depósito vigente até ${fmtDateTime(m.plannedEnd)}.`,'number')}
-    ${heatCell(billing?.audited?`<strong>${brl(billing.balance)}</strong><small class="table-sub">Cobranças e pagamentos</small>`:`<strong>—</strong><small class="table-sub">Auditoria de cobrança pendente</small>`,billing?.audited?'good':'warning',billingReason,'number')}
+    ${m.credit?cardAccountCell(a):heatCell(billing?.audited?`<strong>${brl(billing.balance)}</strong><small class="table-sub">Cobranças e pagamentos</small>`:`<strong>—</strong><small class="table-sub">Auditoria de cobrança pendente</small>`,billing?.audited?'good':'warning',billingReason,'number')}
     ${heatCell(used!=null?`<strong>${brl(used)}</strong><small class="table-sub">${iso(globalPeriod.from)===iso(globalPeriod.to)?'Usado no dia filtrado':'Usado no período filtrado'}</small>`:`<strong>—</strong><small class="table-sub">Auditoria Meta pendente</small>`,p.complete?'good':'warning',usedReason,'number')}
     <td><button class="plan-button" data-plan="${a.id}" title="Configurar pagamento e limites">⚙</button><button class="arrow-button" data-open="${a.id}">›</button></td></tr>`}).join('');
   const performances=list.map(a=>performanceForPeriod(a)),balances=list.map(a=>BILLING_BALANCES[a.id]),allAudited=performances.every(item=>item.complete)&&balances.every(item=>item?.audited),prepaid=list.filter(a=>!isCreditAccount(a)),deposit=prepaid.reduce((s,a)=>s+a.plan.deposit,0),availableTotal=balances.every(item=>item?.audited)?balances.reduce((sum,item)=>sum+Number(item.balance),0):null;

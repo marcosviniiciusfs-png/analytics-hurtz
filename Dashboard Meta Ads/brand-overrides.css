@@ -644,3 +644,8 @@ dialog.cm-editor-dialog[open]:not(.cm-dialog-fallback){position:fixed!important;
 .cm-website-analysis progress{width:100%;accent-color:var(--tp-primary-strong)}
 .cm-editor-dialog .cm-website-analysis button{width:auto;min-height:var(--tp-choice-size);margin:0;padding:calc(var(--tp-form-gap)/2);font:inherit}
 .cm-website-destination{display:grid;gap:var(--tp-form-gap);align-self:start;min-width:0}
+
+/* Conta de cartão: azul marinho quando ativa, vermelho quando pausada por cobrança. */
+.card-account-badge{display:inline-block;padding:4px 10px;border-radius:6px;font-weight:700;font-size:12px;letter-spacing:.04em;color:#fff}
+.card-account-badge.card-active{background:#1b2a5e}
+.card-account-badge.card-paused{background:#c62828}
