@@ -118,6 +118,11 @@ function renderAlertStatus() {
     ? (config?.groupJid ? 'Grupo salvo. Carregue a lista para trocar.' : 'Escolha o grupo que vai receber os alertas.')
     : 'Conecte o WhatsApp para escolher o grupo.';
 
+  const groupSelect = document.querySelector('#apGroupSelect');
+  if (config?.groupJid && ![...groupSelect.options].some(option => option.value === config.groupJid)) {
+    groupSelect.append(new Option(config.groupName || config.groupJid, config.groupJid));
+  }
+  if (config?.groupJid) groupSelect.value = config.groupJid;
   document.querySelector('#apEnabled').checked = enabled;
   document.querySelector('#apDryRun').checked = dry;
   if (config?.thresholds) document.querySelector('#apThresholds').value = config.thresholds.join(', ');
@@ -192,12 +197,19 @@ async function loadWhatsappGroups() {
     select.append(new Option('Selecione um grupo', ''));
     groups.sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR')).forEach(group => select.append(new Option(group.name, group.id)));
     if (apState.config?.groupJid) select.value = apState.config.groupJid;
+    if (apState.config?.groupJid && !select.value) select.append(new Option(apState.config.groupName || apState.config.groupJid, apState.config.groupJid));
+    if (apState.config?.groupJid) select.value = apState.config.groupJid;
     document.querySelector('#apGroupText').textContent = `${groups.length} grupos disponíveis.`;
   } catch (error) {
     document.querySelector('#apGroupText').textContent = error.message;
   } finally {
     button.disabled = !apState.connected;
   }
+}
+
+function groupNameFor(groupJid) {
+  const option = [...document.querySelector('#apGroupSelect').options].find(item => item.value === groupJid);
+  return option && option.value ? option.text : (apState.config?.groupName || '');
 }
 
 async function saveAlertRules() {
@@ -212,7 +224,7 @@ async function saveAlertRules() {
     await apJson('/api/alert-config', {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({enabled, dryRun: document.querySelector('#apDryRun').checked, instance: apState.instance, groupJid, thresholds}),
+      body: JSON.stringify({enabled, dryRun: document.querySelector('#apDryRun').checked, instance: apState.instance, groupJid, groupName: groupNameFor(groupJid), thresholds}),
     });
     status.textContent = 'Regras salvas.';
     await refreshAlertStatus();

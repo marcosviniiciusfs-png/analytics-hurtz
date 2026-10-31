@@ -589,7 +589,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (enabled && (!instance || !groupJid)) throw fail(400, 'Conecte o WhatsApp e escolha o grupo antes de ativar os alertas.');
       if (instance && settings.flow_whatsapp_instance !== instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar os alertas.');
       const thresholds = (Array.isArray(payload.thresholds) ? payload.thresholds : [75, 90, 100, 120]).map(Number).filter(Number.isFinite);
-      const config = {enabled, dryRun: payload.dryRun !== false, instance, groupJid: groupJid.slice(0, 200), thresholds, balanceThresholds: [50, 75, 90, 100]};
+      const groupName = String(payload.groupName || '').trim().slice(0, 200);
+      const config = {enabled, dryRun: payload.dryRun !== false, instance, groupJid: groupJid.slice(0, 200), groupName, thresholds, balanceThresholds: [50, 75, 90, 100]};
       write('alert-config', user.id, config);
       const ids = new Set(alertIndex());
       if (enabled) ids.add(user.id); else ids.delete(user.id);
