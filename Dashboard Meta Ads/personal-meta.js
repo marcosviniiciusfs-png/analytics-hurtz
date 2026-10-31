@@ -5,6 +5,9 @@ const crypto = require('node:crypto');
 const {execFile} = require('node:child_process');
 const {runPersonalAlerts} = require('./personal-alerts');
 const {evaluateAccountAlerts} = require('./alert-evaluator');
+const {evaluateReport} = require('./report-rules');
+const {INSIGHT_FIELDS, parseInsightRow} = require('./report-metrics');
+const {formatReportMessage} = require('./report-message');
 
 const fail = (status, message) => Object.assign(new Error(message), {status});
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -579,6 +582,11 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     }
     // Prévia somente leitura: mostra as mensagens que os alertas enviariam agora, sem enviar nem registrar.
     if (route === '/api/alert-preview' && req.method === 'GET') return send(res, 200, await alertPreview(user.id));
+    if (route === '/api/account-report' && req.method === 'GET') {
+      const account = String(url.searchParams.get('account') || '');
+      if (!/^act_\d+$/.test(account)) throw fail(400, 'Conta inválida.');
+      return send(res, 200, await accountReport(user, account));
+    }
     if (route === '/api/alert-config' && req.method === 'GET') {
       return send(res, 200, {config: alertConfig(user.id) || {enabled: false, dryRun: true, instance: '', groupJid: '', thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100]}});
     }
@@ -658,7 +666,42 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     return {dryRun: config.dryRun !== false, enabled: Boolean(config.enabled), messages};
   }
 
+  // Métricas de hoje de uma conta, com o token do usuário, e os achados das regras.
+  async function accountReport(user, accountId) {
+    const {conn} = await authorizeAccounts(user, [accountId]);
+    const data = await graph(conn.token, `${accountId}/insights`, {fields: INSIGHT_FIELDS, date_preset: 'today'});
+    const metrics = parseInsightRow(data?.data?.[0]) || {};
+    const plan = read('settings', user.id)?.plans?.[accountId] || {};
+    const findings = evaluateReport(metrics, {maxCostPerLead: Number(plan.maxCostPerLead) || 0});
+    return {accountId, name: plan.name || accountId, metrics, findings};
+  }
+
+  // Envia o relatório de cada conta que tem frequência definida, respeitando o intervalo em horas.
+  async function runAccountReports(userId, now) {
+    const config = alertConfig(userId) || {};
+    const plans = read('settings', userId)?.plans || {};
+    const state = read('report-state', userId) || {};
+    for (const accountId of Object.keys(plans)) {
+      const hours = Number(plans[accountId]?.reportEveryHours) || 0;
+      if (!hours || !config.enabled) continue;
+      if (now - (state[accountId] || 0) < hours * 3600000) continue;
+      try {
+        const report = await accountReport({id: userId}, accountId);
+        const text = formatReportMessage({name: report.name, period: 'Período: hoje', findings: report.findings});
+        if (!config.dryRun) await sendAlert(config, text);
+        state[accountId] = now;
+      } catch { /* tenta de novo no próximo ciclo */ }
+    }
+    write('report-state', userId, state);
+  }
+
   async function runAlertCycle(now = Date.now()) {
+    const results = await runAlertsOnly(now);
+    for (const userId of alertIndex()) await runAccountReports(userId, now);
+    return results;
+  }
+
+  async function runAlertsOnly(now = Date.now()) {
     const dateKey = dayKey(now);
     const users = alertIndex().map(id => ({id}));
     return runPersonalAlerts({users, dateKey, now, deps: {

@@ -86,3 +86,15 @@ test('preview shows the messages the alerts would send, without sending or recor
   assert.equal(sent.length, 0, 'nothing is sent');
   assert.equal(api.read('alert-sent', 'user-a'), null, 'nothing is recorded');
 });
+
+test('account report route returns the parsed metrics and findings of the connected account only', async t => {
+  const {api, token} = setup(t);
+  const connected = await request(api, token, '/api/meta/challenge', 'POST');
+  assert.equal((await request(api, token, '/api/meta/connection', 'POST', {nonce: connected.body.nonce, accessToken: facebookToken})).status, 200);
+  const report = await request(api, token, '/api/account-report?account=act_111');
+  assert.equal(report.status, 200);
+  assert.equal(report.body.metrics.spend, 80);
+  assert.ok(Array.isArray(report.body.findings));
+  assert.equal((await request(api, token, '/api/account-report?account=act_999')).status, 403);
+  assert.equal((await request(api, token, '/api/account-report?account=abc')).status, 400);
+});
