@@ -310,50 +310,6 @@
 
       <section class="alerts-view" id="alerts" hidden>
         <div id="alertsPanel" class="ap-panel"></div>
-        <div class="legacy-alerts" hidden>
-        <div class="alerts-heading"><div><p class="eyebrow">AUTOMAÇÕES NO WHATSAPP</p><h2>Central de alertas</h2><p>Configure avisos operacionais e recomendações auditadas para o grupo responsável.</p></div><div class="alert-session-actions"><span class="alert-connection" id="alertConnection">Verificando Evolution API...</span><button type="button" id="alertLogout">Desconectar</button></div></div>
-        <div class="alert-stats" id="alertStats"></div>
-        <div class="alerts-layout">
-          <form class="alert-settings" id="alertSettings">
-            <div class="alert-settings-head"><div><h3>Regras de notificação</h3><p>O gasto do dia é provisório; recomendações usam somente períodos auditados.</p></div><label class="switch-field"><input type="checkbox" id="alertsEnabled"><span></span>Ativar alertas</label></div>
-            <section class="whatsapp-setup">
-              <div><h4>WhatsApp para os disparos</h4><p>Conecte um WhatsApp lendo o QR Code gerado pela Evolution API.</p></div>
-              <div class="whatsapp-phone-row"><label>Nome da conexão<input id="alertWhatsAppLabel" value="Alertas Hurtz" maxlength="60" placeholder="Alertas Hurtz"></label><button type="button" id="connectWhatsAppQr">Gerar QR Code</button></div>
-              <input id="alertWhatsAppPhone" type="hidden">
-              <div class="whatsapp-qr-panel" id="whatsappQrPanel" hidden><div class="whatsapp-qr-frame"><img id="whatsappQrImage" alt="QR Code para conectar o WhatsApp"></div><div><strong>Leia o QR Code no WhatsApp</strong><span>Abra Aparelhos conectados → Conectar um aparelho.</span><b id="whatsappQrStatus">Aguardando leitura...</b><button type="button" id="refreshWhatsAppQr">Gerar outro QR Code</button></div></div>
-              <div class="whatsapp-connection-result" id="whatsappConnectionResult">Nenhum WhatsApp conectado.</div>
-              <div class="whatsapp-destination" id="whatsappDestination" hidden><label>Instância conectada<select id="alertEvolutionInstance"></select></label><label>Grupo para receber alertas<select id="alertEvolutionGroup"><option value="">Selecione um grupo</option></select></label></div>
-            </section>
-            <div class="alert-rule-grid">
-              <label>Estágios do limite diário<input id="alertThresholds" value="75, 90, 100, 120" placeholder="75, 90, 100, 120"><small>Percentuais separados por vírgula.</small></label>
-              <label>Janela da velocidade<select id="alertVelocityWindow"><option value="30">30 minutos</option><option value="60" selected>1 hora</option><option value="120">2 horas</option><option value="180">3 horas</option></select><small>Tempo usado para medir o ritmo real.</small></label>
-              <label>Consumo na janela<input type="number" id="alertVelocityPercent" min="1" max="300" value="100"><small>% do limite diário que dispara o alerta.</small></label>
-              <label>Horário do relatório geral<input type="time" id="alertSummaryTime" value="19:30"><small>Saldo e gasto de todas as contas monitoradas.</small></label>
-              <label>Horário do resumo de 3 dias<input type="time" id="alertPerformanceTime" value="08:30"><small>Resultados, CPL e sugestões por conta.</small></label>
-              <label>Início do horário silencioso<input type="time" id="alertQuietStart" value="21:00"><small>Alertas não críticos aguardam até o fim desse intervalo.</small></label>
-              <label>Fim do horário silencioso<input type="time" id="alertQuietEnd" value="07:00"><small>Críticos continuam sendo enviados imediatamente.</small></label>
-            </div>
-            <div class="alert-checks">
-              <label><input type="checkbox" id="alertVelocity" checked><span><b>Ritmo elevado de gasto</b><small>Projeta o consumo pelo horário e avisa antes de ultrapassar o limite.</small></span></label>
-              <label><input type="checkbox" id="alertRecommendations" checked><span><b>Recomendações de 90 dias</b><small>Oportunidades somente com campanhas comparáveis e auditadas.</small></span></label>
-              <label><input type="checkbox" id="alertBalanceReport" checked><span><b>Relatório geral de contas</b><small>Envia o panorama de saldo e gasto no horário programado.</small></span></label>
-              <label><input type="checkbox" id="alertPerformanceReport" checked><span><b>Resumo auditado de 3 dias</b><small>Volume de resultados, CPL e sugestões por conta.</small></span></label>
-              <label><input type="checkbox" id="alertDryRun" checked><span><b>Modo de validação</b><small>Registra os alertas sem enviar mensagens ao WhatsApp.</small></span></label>
-            </div>
-            <div class="alert-actions"><button type="submit">Salvar configurações</button><button type="button" id="sendAlertTest">Enviar mensagem de teste</button></div>
-            <p class="alert-form-status" id="alertFormStatus"></p>
-          </form>
-          <aside class="alert-catalog"><h3>Monitoramentos ativos</h3><div class="alert-catalog-list">
-            <article><span class="alert-dot warning"></span><div><b>Limite diário</b><small>75%, 90%, 100% e 120%, sem mensagens repetidas.</small></div></article>
-            <article><span class="alert-dot warning"></span><div><b>Velocidade de gasto</b><small>Detecta consumo acelerado antes do fim do dia.</small></div></article>
-            <article><span class="alert-dot critical"></span><div><b>Saldo e previsão</b><small>Consumo do depósito e término antecipado do planejamento.</small></div></article>
-            <article><span class="alert-dot recommendation"></span><div><b>Desempenho e oportunidades</b><small>CPL, campanhas sem resultado e histórico de até 90 dias.</small></div></article>
-            <article><span class="alert-dot recommendation"></span><div><b>Relatórios programados</b><small>Panorama geral das contas e resumo auditado dos últimos 3 dias.</small></div></article>
-            <article><span class="alert-dot technical"></span><div><b>Saúde do monitor</b><small>Coleta atrasada, divergência, token, serviço e WhatsApp.</small></div></article>
-          </div></aside>
-        </div>
-        <section class="alert-history"><div class="alert-history-head"><div><h3>Histórico de notificações</h3><p>Contas aparecem somente dentro do evento correspondente, não como uma lista de alertas.</p></div><button type="button" id="refreshAlerts">Atualizar histórico</button></div><div id="alertHistory"></div></section>
-        </div>
       </section>
     </main>
   </div>
@@ -399,15 +355,6 @@
       <span id="alertLoginStatus" role="status" aria-live="polite"></span>
     </section>
   </div>
-  <div class="alert-test-backdrop" id="alertTestModal" hidden>
-    <section class="alert-test-card" role="dialog" aria-modal="true" aria-labelledby="alertTestTitle">
-      <div class="alert-test-head"><div><p class="eyebrow">PRÉ-VISUALIZAÇÃO</p><h2 id="alertTestTitle">Mensagem de teste</h2></div><button type="button" id="closeAlertTest">×</button></div>
-      <div class="alert-test-destination"><div><span>Número remetente</span><strong id="alertTestPhone"></strong></div><div><span>Instância</span><strong id="alertTestInstance"></strong></div><div><span>Grupo de destino</span><strong id="alertTestGroup"></strong></div></div>
-      <label class="alert-test-message">Mensagem<textarea id="alertTestMessage" maxlength="2000" rows="7"></textarea></label>
-      <p class="alert-test-warning">Esta confirmação envia uma mensagem real. Os alertas automáticos continuam em modo de validação.</p>
-      <div class="alert-test-actions"><button type="button" id="cancelAlertTest">Cancelar</button><button type="button" id="confirmAlertTest">Confirmar e enviar</button></div><span id="alertTestStatus"></span>
-    </section>
-  </div>
   <div class="modal-backdrop" id="accountModal" aria-hidden="true">
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal-head"><div><span class="modal-kicker">DETALHES DA CONTA</span><h2 id="modalTitle"></h2><p id="modalSubtitle"></p></div><div class="modal-head-actions"><button class="plan-toggle" id="planToggle">Configurar pagamento</button><button class="close-button" id="closeModal" aria-label="Fechar">×</button></div></div>
@@ -430,7 +377,7 @@
       <div class="campaign-section"><div class="campaign-title"><div><h3>Campanhas com veiculação</h3><p id="campaignPeriod"></p></div><span id="campaignCount"></span></div><form class="campaign-goal-panel" id="campaignGoalPanel" hidden><div><strong id="campaignGoalTitle">Configurar coluna</strong><small>Metas diárias desta conta para definir as cores.</small></div><div class="campaign-goal-fields" id="campaignGoalFields"></div><button type="submit">Salvar metas</button><button type="button" class="clear-goal-button" id="clearCampaignGoal">Limpar</button><button type="button" class="close-goal-button" id="closeCampaignGoal">×</button></form><div class="campaign-table-wrap"><table class="campaign-table"><thead><tr><th>Campanha</th><th>Objetivo</th><th>Status</th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="investment">Investimento <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="results">Resultados <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="cost">Custo/resultado <span>⚙</span></button></th></tr></thead><tbody id="campaignBody"></tbody><tfoot id="campaignFoot"></tfoot></table></div></div>
     </section>
   </div>
-  <script src="app.js?v=20261031-card-account-status"></script>
+  <script src="app.js?v=20261031-alerts-cleanup"></script>
   <script src="alerts-panel.js?v=20261031-alerts-panel-5"></script>
   <script src="flow-builder.js?v=20261015-flow-compact-layout"></script>
 </body>
