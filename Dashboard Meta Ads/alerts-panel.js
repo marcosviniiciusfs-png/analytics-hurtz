@@ -41,9 +41,9 @@ function buildAlertsPanel() {
         </div>
       </section>
       <section class="ap-tile ap-accent">
-        <h3>Modo de envio</h3>
-        <p class="ap-accent-value" id="apModeBig">—</p>
-        <p class="ap-accent-text" id="apModeText">Verificando a configuração.</p>
+        <h3>Verificação automática</h3>
+        <p class="ap-accent-value">15 min</p>
+        <p class="ap-accent-text">Os alertas são checados a cada 15 minutos nas contas com limite configurado.</p>
       </section>
       <section class="ap-tile ap-conn">
         <h3>Conexão do WhatsApp</h3>
@@ -79,9 +79,13 @@ function buildAlertsPanel() {
           <label class="ap-toggle"><input type="checkbox" id="apDryRun"><span>Modo de validação (não envia)</span></label>
         </div>
         <div class="ap-field">
-          <label for="apThresholds">Faixas do limite diário (%)</label>
-          <input id="apThresholds" value="75, 90, 100, 120" placeholder="75, 90, 100, 120">
-          <small class="ap-muted">Você recebe um aviso ao atingir cada faixa, uma vez por dia.</small>
+          <span class="ap-label">Faixas do limite diário</span>
+          <div class="ap-thresholds" id="apThresholds" role="group" aria-label="Faixas do limite diário">
+            <button type="button" class="ap-threshold" data-value="50" aria-pressed="false">50%</button>
+            <button type="button" class="ap-threshold" data-value="75" aria-pressed="false">75%</button>
+            <button type="button" class="ap-threshold" data-value="100" aria-pressed="false">100%</button>
+          </div>
+          <small class="ap-muted">Você recebe um aviso ao atingir cada faixa escolhida, uma vez por dia.</small>
         </div>
         <div class="ap-actions ap-foot">
           <button type="button" class="ap-btn ap-btn-primary" id="apSave">Salvar regras</button>
@@ -117,6 +121,9 @@ function buildAlertsPanel() {
   document.querySelector('#apLoadGroups').onclick = loadWhatsappGroups;
   document.querySelector('#apSave').onclick = saveAlertRules;
   document.querySelector('#apPreview').onclick = showAlertPreview;
+  document.querySelectorAll('#apThresholds .ap-threshold').forEach(button => {
+    button.onclick = () => button.setAttribute('aria-pressed', String(button.getAttribute('aria-pressed') !== 'true'));
+  });
 }
 
 function setChip(id, tone, label, value) {
@@ -161,7 +168,10 @@ function renderAlertStatus() {
   if (config?.groupJid) groupSelect.value = config.groupJid;
   document.querySelector('#apEnabled').checked = enabled;
   document.querySelector('#apDryRun').checked = dry;
-  if (config?.thresholds) document.querySelector('#apThresholds').value = config.thresholds.join(', ');
+  const selectedThresholds = config?.thresholds || [50, 75, 100];
+  document.querySelectorAll('#apThresholds .ap-threshold').forEach(button => {
+    button.setAttribute('aria-pressed', String(selectedThresholds.includes(Number(button.dataset.value))));
+  });
 
   document.querySelector('#apStatInstance').textContent = instance || '—';
   document.querySelector('#apStatState').textContent = connected ? 'Conectado' : configured ? 'Desconectado' : 'Sem instância';
@@ -177,8 +187,6 @@ function renderAlertStatus() {
   document.querySelector('#apHeroNumber').textContent = total ? `${ready}/${total}` : '0';
   document.querySelector('#apHeroText').textContent = total ? `contas prontas para alertar, com limite diário e depósito.` : 'Nenhuma conta tem limite diário e depósito. Configure em Contas.';
   document.querySelector('#apMeterFill').style.width = total ? `${Math.round((ready / total) * 100)}%` : '0%';
-  document.querySelector('#apModeBig').textContent = !enabled ? 'Desligado' : dry ? 'Validação' : 'Envio real';
-  document.querySelector('#apModeText').textContent = !enabled ? 'Os alertas estão desligados.' : dry ? 'Registra os alertas sem enviar mensagens.' : 'As mensagens vão para o grupo escolhido.';
 }
 
 async function refreshAlertStatus() {
@@ -271,7 +279,7 @@ async function saveAlertRules() {
   const status = document.querySelector('#apSaveStatus');
   const groupJid = document.querySelector('#apGroupSelect').value || apState.config?.groupJid || '';
   const enabled = document.querySelector('#apEnabled').checked;
-  const thresholds = document.querySelector('#apThresholds').value.split(',').map(value => Number(value.trim())).filter(value => Number.isFinite(value) && value > 0);
+  const thresholds = [...document.querySelectorAll('#apThresholds .ap-threshold[aria-pressed="true"]')].map(button => Number(button.dataset.value));
   if (enabled && !groupJid) { status.textContent = 'Escolha um grupo antes de ativar.'; return; }
   if (!thresholds.length) { status.textContent = 'Informe pelo menos uma faixa de percentual.'; return; }
   status.textContent = 'Salvando...';

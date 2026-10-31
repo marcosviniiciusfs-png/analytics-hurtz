@@ -740,3 +740,7 @@ dialog.cm-editor-dialog[open]:not(.cm-dialog-fallback){position:fixed!important;
   .ap-hero,.ap-accent,.ap-conn,.ap-group,.ap-rules,.ap-summary,.ap-preview-tile{grid-column:span 12}
   .ap-hero-number{font-size:52px}
 }
+.ap-label{font-size:13px;font-weight:600;color:#33402f}
+.ap-thresholds{display:flex;gap:10px;flex-wrap:wrap}
+.ap-threshold{padding:10px 20px;border-radius:999px;border:1px solid #cfd9d1;background:#fff;font:inherit;font-weight:600;cursor:pointer;color:#1c2a20}
+.ap-threshold[aria-pressed="true"]{background:#2e7d32;border-color:#2e7d32;color:#fff}
