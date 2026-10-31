@@ -37,9 +37,20 @@ async function runPersonalAlerts({users, dateKey, now, deps}) {
       });
       for (const alert of alerts) {
         if (await deps.alreadySent(user.id, alert.key)) continue;
-        if (!config.dryRun) await deps.send(config, alert.text);
-        await deps.markSent(user.id, alert.key, now, {delivered: !config.dryRun});
-        results.push({userId: user.id, key: alert.key, delivered: !config.dryRun});
+        if (config.dryRun) {
+          await deps.markSent(user.id, alert.key, now, {delivered: false});
+          results.push({userId: user.id, key: alert.key, delivered: false});
+          continue;
+        }
+        // Uma falha de envio não é registrada como enviada, para tentar de novo no próximo ciclo.
+        try {
+          await deps.send(config, alert.text);
+        } catch {
+          results.push({userId: user.id, key: alert.key, delivered: false, error: 'envio falhou'});
+          continue;
+        }
+        await deps.markSent(user.id, alert.key, now, {delivered: true});
+        results.push({userId: user.id, key: alert.key, delivered: true});
       }
     }
   }

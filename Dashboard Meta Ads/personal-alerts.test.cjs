@@ -38,6 +38,13 @@ test('an alert already sent on the same day is not sent again', async () => {
   assert.equal(sent.length, first);
 });
 
+test('a failed WhatsApp send is retried in the next cycle, not recorded as sent', async () => {
+  const {deps: d, marked} = deps({send: async () => { throw new Error('offline'); }});
+  const results = await runPersonalAlerts({users, dateKey, now: new Date(), deps: d});
+  assert.ok(results.some(item => item.error === 'envio falhou'));
+  assert.equal(marked.filter(item => item.meta.delivered === true).length, 0);
+});
+
 test('dry run records alerts as not delivered and never calls WhatsApp', async () => {
   const {deps: d, sent, marked} = deps({loadConfig: async () => ({enabled: true, dryRun: true, instance: 'i', groupJid: 'g@g.us'})});
   await runPersonalAlerts({users, dateKey, now: new Date(), deps: d});

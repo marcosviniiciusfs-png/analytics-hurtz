@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const {execFile} = require('node:child_process');
+const {runPersonalAlerts} = require('./personal-alerts');
 
 const fail = (status, message) => Object.assign(new Error(message), {status});
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -574,9 +575,90 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       write('settings', user.id, {...(read('settings', user.id) || {}), [key]: payload});
       return send(res, 200, {ok: true});
     }
+    if (route === '/api/alert-config' && req.method === 'GET') {
+      return send(res, 200, {config: alertConfig(user.id) || {enabled: false, dryRun: true, instance: '', groupJid: '', thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100]}});
+    }
+    if (route === '/api/alert-config' && req.method === 'PUT') {
+      const payload = await body(req), settings = read('settings', user.id) || {};
+      const instance = String(payload.instance || ''), groupJid = String(payload.groupJid || '');
+      const enabled = Boolean(payload.enabled);
+      if (enabled && (!instance || !groupJid)) throw fail(400, 'Conecte o WhatsApp e escolha o grupo antes de ativar os alertas.');
+      if (instance && settings.flow_whatsapp_instance !== instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar os alertas.');
+      const thresholds = (Array.isArray(payload.thresholds) ? payload.thresholds : [75, 90, 100, 120]).map(Number).filter(Number.isFinite);
+      const config = {enabled, dryRun: payload.dryRun !== false, instance, groupJid: groupJid.slice(0, 200), thresholds, balanceThresholds: [50, 75, 90, 100]};
+      write('alert-config', user.id, config);
+      const ids = new Set(alertIndex());
+      if (enabled) ids.add(user.id); else ids.delete(user.id);
+      saveAlertIndex([...ids]);
+      return send(res, 200, {ok: true, config});
+    }
     // Existing administrative routes use shared resources and are never delegated to personal sessions.
     throw fail(403, 'Esta função está disponível apenas no acesso administrativo.');
   }
-  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow, httpFlow, saveHttpSample, appendGoogleLead, beginGoogleAuth, completeGoogleAuth};
+
+  // Alertas por conexão: o índice guarda só os usuários com alertas ativos, porque
+  // os arquivos são identificados pelo hash do usuário e não podem ser listados.
+  const alertConfig = userId => read('alert-config', userId);
+  const alertIndex = () => read('alert-index', 'global')?.userIds || [];
+  const saveAlertIndex = userIds => write('alert-index', 'global', {userIds});
+  const dayKey = now => new Date(now).toLocaleDateString('sv-SE', {timeZone: 'America/Sao_Paulo'});
+
+  async function prepayBalances(user, ids) {
+    const {conn} = await authorizeAccounts(user, ids);
+    return Object.fromEntries(await Promise.all(ids.map(async id => {
+      try {
+        const row = await graph(conn.token, id, {fields: 'id,currency,is_prepay_account,funding_source_details'});
+        const balance = row.is_prepay_account ? parsePrepayBalance(row.funding_source_details?.display_string) : null;
+        return [id, balance == null ? {audited: false} : {audited: true, balance}];
+      } catch { return [id, {audited: false}]; }
+    })));
+  }
+
+  async function todaySpend(user, ids) {
+    const {conn} = await authorizeAccounts(user, ids);
+    return Object.fromEntries(await Promise.all(ids.map(async id => {
+      try {
+        const data = await graph(conn.token, `${id}/insights`, {fields: 'spend', date_preset: 'today'});
+        return [id, Number(data?.data?.[0]?.spend ?? 0)];
+      } catch { return [id, null]; }
+    })));
+  }
+
+  async function sendAlert(config, text) {
+    const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
+    if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
+    const response = await fetchImpl(`${base}/message/sendText/${encodeURIComponent(config.instance)}`, {
+      method: 'POST', headers: {apikey: key, 'Content-Type': 'application/json'},
+      body: JSON.stringify({number: config.groupJid, text, delay: 1200, linkPreview: false}), signal: AbortSignal.timeout(20000),
+    });
+    if (!response.ok) throw fail(502, 'O WhatsApp recusou o envio do alerta.');
+  }
+
+  async function runAlertCycle(now = Date.now()) {
+    const dateKey = dayKey(now);
+    const users = alertIndex().map(id => ({id}));
+    return runPersonalAlerts({users, dateKey, now, deps: {
+      loadConfig: async id => alertConfig(id),
+      loadPlans: async id => read('settings', id)?.plans || {},
+      fetchBalances: (id, ids) => prepayBalances({id}, ids),
+      fetchSpend: (id, ids) => todaySpend({id}, ids),
+      send: sendAlert,
+      alreadySent: async (id, key) => Boolean((read('alert-sent', id) || {})[key]),
+      markSent: async (id, key, at, meta) => {
+        const previous = read('alert-sent', id) || {}, day = dayKey(at);
+        const kept = Object.fromEntries(Object.entries(previous).filter(([k]) => k.startsWith(day)));
+        kept[key] = {delivered: meta.delivered, at: new Date(at).toISOString()};
+        write('alert-sent', id, kept);
+      },
+    }});
+  }
+
+  // Agendador dentro da API: a cada 15 minutos percorre só as conexões com alertas ativos.
+  if (process.env.PERSONAL_ALERTS_DISABLED !== '1') {
+    const timer = setInterval(() => runAlertCycle().catch(() => {}), 15 * 60 * 1000);
+    timer.unref();
+  }
+
+  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow, httpFlow, saveHttpSample, appendGoogleLead, beginGoogleAuth, completeGoogleAuth, runAlertCycle};
 }
 module.exports = {createPersonalMeta, parsePrepayBalance};
