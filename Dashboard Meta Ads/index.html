@@ -366,6 +366,8 @@
         <label data-prepaid-field>Horário do depósito<input type="time" id="depositTime" required /></label>
         <label data-prepaid-field>Duração planejada<input type="number" id="plannedDays" min="1" step="1" required /><small>dias</small></label>
         <label>Máximo por dia<input type="number" id="dailyLimit" min="0" step="0.01" required /></label>
+        <label>Custo por lead máximo<input type="number" id="maxCostPerLead" min="0" step="0.01" /><small>Usado no relatório de métricas.</small></label>
+        <label>Relatório de métricas<select id="reportEveryHours"><option value="0">Desligado</option><option value="1">A cada 1 hora</option><option value="3">A cada 3 horas</option><option value="6">A cada 6 horas</option><option value="12">A cada 12 horas</option><option value="24">A cada 24 horas</option></select></label>
         <label data-credit-field hidden>Valor disponível na semana<input type="number" id="weeklyLimit" min="0" step="0.01" /></label>
         <label data-credit-field hidden>Reset do ciclo semanal<select id="weekStartDay"><option value="1">Segunda às 00:05</option><option value="0">Domingo às 23:55</option></select></label>
         <button type="submit" id="savePaymentPlan">Salvar planejamento</button>
@@ -377,7 +379,7 @@
       <div class="campaign-section"><div class="campaign-title"><div><h3>Campanhas com veiculação</h3><p id="campaignPeriod"></p></div><span id="campaignCount"></span></div><form class="campaign-goal-panel" id="campaignGoalPanel" hidden><div><strong id="campaignGoalTitle">Configurar coluna</strong><small>Metas diárias desta conta para definir as cores.</small></div><div class="campaign-goal-fields" id="campaignGoalFields"></div><button type="submit">Salvar metas</button><button type="button" class="clear-goal-button" id="clearCampaignGoal">Limpar</button><button type="button" class="close-goal-button" id="closeCampaignGoal">×</button></form><div class="campaign-table-wrap"><table class="campaign-table"><thead><tr><th>Campanha</th><th>Objetivo</th><th>Status</th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="investment">Investimento <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="results">Resultados <span>⚙</span></button></th><th class="number"><button type="button" class="campaign-config-trigger" data-campaign-goal="cost">Custo/resultado <span>⚙</span></button></th></tr></thead><tbody id="campaignBody"></tbody><tfoot id="campaignFoot"></tfoot></table></div></div>
     </section>
   </div>
-  <script src="app.js?v=20261031-alerts-cleanup"></script>
+  <script src="app.js?v=20261031-plan-report-fields"></script>
   <script src="alerts-panel.js?v=20261031-ui-thresholds"></script>
   <script src="flow-builder.js?v=20261015-flow-compact-layout"></script>
 </body>
