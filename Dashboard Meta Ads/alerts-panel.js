@@ -41,9 +41,9 @@ function buildAlertsPanel() {
         </div>
       </section>
       <section class="ap-tile ap-accent">
-        <h3>Verificação automática</h3>
-        <p class="ap-accent-value">15 min</p>
-        <p class="ap-accent-text">Os alertas são checados a cada 15 minutos nas contas com limite configurado.</p>
+        <h3>Métricas da conta</h3>
+        <p class="ap-accent-text" id="apMetricsHint">Escolha uma conta no card de relatório e clique em "Ver relatório agora".</p>
+        <dl class="ap-stats ap-accent-stats" id="apMetrics"></dl>
       </section>
       <section class="ap-tile ap-conn">
         <h3>Conexão do WhatsApp</h3>
@@ -149,7 +149,7 @@ function setChip(id, tone, label, value) {
 
 // Contas que de fato geram alerta: pré-pagas, com limite diário e depósito.
 function configuredAccounts(plans) {
-  const entries = Object.values(plans || {}).filter(plan => plan && typeof plan === 'object');
+  const entries = Object.entries(plans || {}).filter(([id, plan]) => /^act_\d+$/.test(id) && plan && typeof plan === 'object').map(([, plan]) => plan);
   // Cartão precisa só de limite diário; pré-pago também precisa de depósito.
   const ready = entries.filter(plan => Number(plan.dailyLimit) > 0 && (plan.paymentType === 'credit' || Number(plan.deposit) > 0));
   return {ready: ready.length, configured: entries.length};
@@ -357,7 +357,7 @@ function renderReportCard() {
   const list = document.querySelector('#apReportList');
   const select = document.querySelector('#apReportAccount');
   if (!list || !select) return;
-  const entries = Object.entries(apState.plans || {}).filter(([, plan]) => plan && typeof plan === 'object');
+  const entries = Object.entries(apState.plans || {}).filter(([id, plan]) => /^act_\d+$/.test(id) && plan && typeof plan === 'object');
   const scheduled = entries.filter(([, plan]) => Number(plan.reportEveryHours) > 0);
   list.innerHTML = '';
   if (!scheduled.length) {
@@ -385,7 +385,9 @@ async function runReportNow() {
     const report = await apJson(`/api/account-report?account=${encodeURIComponent(accountId)}`);
     const m = report.metrics;
     out.innerHTML = '';
-    const stats = apEl('dl', 'ap-stats');
+    const stats = document.querySelector('#apMetrics');
+    stats.innerHTML = '';
+    document.querySelector('#apMetricsHint').textContent = `Métricas de hoje: ${report.name}.`;
     const rows = [
       ['Gasto', m.spend != null ? apMoney(m.spend) : '—'],
       ['CPM', m.cpm != null ? apMoney(m.cpm) : '—'],
@@ -400,7 +402,6 @@ async function runReportNow() {
       row.append(apEl('dt', null, label), apEl('dd', null, value));
       stats.append(row);
     });
-    out.append(stats);
     if (!report.findings.length) out.append(apEl('p', 'ap-muted', 'Nenhuma métrica fora do padrão agora.'));
     report.findings.forEach(finding => {
       const card = apEl('div', 'ap-finding');
