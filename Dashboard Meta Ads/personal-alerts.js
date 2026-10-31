@@ -13,7 +13,8 @@ async function runPersonalAlerts({users, dateKey, now, deps}) {
       continue;
     }
     const plans = (await deps.loadPlans(user.id)) || {};
-    const accountIds = Object.keys(plans).filter(id => plans[id]?.paymentType !== 'credit');
+    // Contas de cartão também geram alerta de limite diário; o saldo pré-pago só entra quando existe.
+    const accountIds = Object.keys(plans);
     if (!accountIds.length) {
       results.push({userId: user.id, skipped: 'sem contas'});
       continue;

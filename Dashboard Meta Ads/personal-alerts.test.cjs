@@ -66,3 +66,10 @@ test('a balance failure does not stop the spend alerts', async () => {
   assert.ok(results.some(item => item.error === 'saldo pré-pago indisponível'));
   assert.ok(sent.some(item => /limite diário/.test(item.text)));
 });
+
+test('card accounts get daily limit alerts too, without a balance alert', async () => {
+  const {deps: d, sent} = deps({fetchSpend: async () => ({'act_1': 80, 'act_2': 60})});
+  await runPersonalAlerts({users, dateKey, now: new Date(), deps: d});
+  assert.ok(sent.some(item => /CA - Cartão/.test(item.text) && /limite diário/.test(item.text)), 'card account gets a limit alert');
+  assert.ok(!sent.some(item => /CA - Cartão/.test(item.text) && /Saldo/.test(item.text)), 'card account gets no balance alert');
+});

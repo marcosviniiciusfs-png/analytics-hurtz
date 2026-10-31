@@ -642,7 +642,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   async function alertPreview(userId, now = Date.now()) {
     const config = alertConfig(userId) || {};
     const plans = read('settings', userId)?.plans || {};
-    const ids = Object.keys(plans).filter(id => plans[id]?.paymentType !== 'credit');
+    const ids = Object.keys(plans);
     const dateKey = dayKey(now);
     const [balances, spends] = await Promise.all([
       ids.length ? prepayBalances({id: userId}, ids).catch(() => ({})) : {},

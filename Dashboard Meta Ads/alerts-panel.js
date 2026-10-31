@@ -129,8 +129,9 @@ function setChip(id, tone, label, value) {
 // Contas que de fato geram alerta: pré-pagas, com limite diário e depósito.
 function configuredAccounts(plans) {
   const entries = Object.values(plans || {}).filter(plan => plan && typeof plan === 'object');
-  const ready = entries.filter(plan => plan.paymentType !== 'credit' && Number(plan.dailyLimit) > 0 && Number(plan.deposit) > 0);
-  return {ready: ready.length, total: entries.length};
+  // Cartão precisa só de limite diário; pré-pago também precisa de depósito.
+  const ready = entries.filter(plan => Number(plan.dailyLimit) > 0 && (plan.paymentType === 'credit' || Number(plan.deposit) > 0));
+  return {ready: ready.length, configured: entries.length};
 }
 
 function renderAlertStatus() {
@@ -167,11 +168,12 @@ function renderAlertStatus() {
   document.querySelector('#apStatGroupName').textContent = config?.groupName || (config?.groupJid ? 'Sem nome salvo' : 'Não escolhido');
   document.querySelector('#apStatGroupId').textContent = config?.groupJid ? config.groupJid.replace(/@g\.us$/, '') : '—';
   const accounts = configuredAccounts(apState.plans);
-  document.querySelector('#apStatAccounts').textContent = accounts.total ? `${accounts.ready} de ${accounts.total}` : 'Nenhuma conta';
+  const accountTotal = apState.accountTotal || accounts.configured;
+  document.querySelector('#apStatAccounts').textContent = accountTotal ? `${accounts.ready} de ${accountTotal}` : 'Nenhuma conta';
   document.querySelector('#apStatThresholds').textContent = (config?.thresholds || [75, 90, 100, 120]).map(value => `${value}%`).join(' · ');
   document.querySelector('#apStatGroup').textContent = config?.groupName || (config?.groupJid ? 'Grupo salvo' : 'Não escolhido');
   document.querySelector('#apStatMode').textContent = !enabled ? 'Desligado' : dry ? 'Validação' : 'Envio real';
-  const ready = accounts.ready, total = accounts.total;
+  const ready = accounts.ready, total = accountTotal;
   document.querySelector('#apHeroNumber').textContent = total ? `${ready}/${total}` : '0';
   document.querySelector('#apHeroText').textContent = total ? `contas prontas para alertar, com limite diário e depósito.` : 'Nenhuma conta tem limite diário e depósito. Configure em Contas.';
   document.querySelector('#apMeterFill').style.width = total ? `${Math.round((ready / total) * 100)}%` : '0%';
@@ -186,6 +188,7 @@ async function refreshAlertStatus() {
   apState.connected = Boolean(status.connected);
   apState.config = (await apJson('/api/alert-config')).config;
   apState.plans = await apJson('/api/alert-plans').catch(() => ({}));
+  apState.accountTotal = (await apJson('/api/meta-accounts').catch(() => ({}))).account_count ?? null;
   renderAlertStatus();
 }
 
