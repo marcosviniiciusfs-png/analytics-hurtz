@@ -72,3 +72,17 @@ test('a full cycle sends balance and spend alerts for the connected account and 
   await api.runAlertCycle(Date.UTC(2026, 9, 31, 15, 30));
   assert.equal(sent.length, before, 'same-day alerts are not sent again');
 });
+
+test('preview shows the messages the alerts would send, without sending or recording anything', async t => {
+  const {api, token, sent} = setup(t);
+  const connected = await request(api, token, '/api/meta/challenge', 'POST');
+  assert.equal((await request(api, token, '/api/meta/connection', 'POST', {nonce: connected.body.nonce, accessToken: facebookToken})).status, 200);
+  api.write('settings', 'user-a', {flow_whatsapp_instance: 'inst', plans: {act_111: {name: 'CA - Um', dailyLimit: 100, deposit: 1000}}});
+  api.write('alert-config', 'user-a', {enabled: true, dryRun: true, instance: 'inst', groupJid: 'grupo@g.us', thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100]});
+  const preview = await request(api, token, '/api/alert-preview');
+  assert.equal(preview.status, 200);
+  assert.equal(preview.body.dryRun, true);
+  assert.ok(preview.body.messages.some(item => /R\$ 480,00/.test(item.text)), 'the real balance appears in the preview');
+  assert.equal(sent.length, 0, 'nothing is sent');
+  assert.equal(api.read('alert-sent', 'user-a'), null, 'nothing is recorded');
+});

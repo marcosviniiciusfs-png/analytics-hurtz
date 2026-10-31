@@ -4,6 +4,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {execFile} = require('node:child_process');
 const {runPersonalAlerts} = require('./personal-alerts');
+const {evaluateAccountAlerts} = require('./alert-evaluator');
 
 const fail = (status, message) => Object.assign(new Error(message), {status});
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -576,6 +577,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       write('settings', user.id, {...(read('settings', user.id) || {}), [key]: payload});
       return send(res, 200, {ok: true});
     }
+    // Prévia somente leitura: mostra as mensagens que os alertas enviariam agora, sem enviar nem registrar.
+    if (route === '/api/alert-preview' && req.method === 'GET') return send(res, 200, await alertPreview(user.id));
     if (route === '/api/alert-config' && req.method === 'GET') {
       return send(res, 200, {config: alertConfig(user.id) || {enabled: false, dryRun: true, instance: '', groupJid: '', thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100]}});
     }
@@ -633,6 +636,25 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       body: JSON.stringify({number: config.groupJid, text, delay: 1200, linkPreview: false}), signal: AbortSignal.timeout(20000),
     });
     if (!response.ok) throw fail(502, 'O WhatsApp recusou o envio do alerta.');
+  }
+
+  async function alertPreview(userId, now = Date.now()) {
+    const config = alertConfig(userId) || {};
+    const plans = read('settings', userId)?.plans || {};
+    const ids = Object.keys(plans).filter(id => plans[id]?.paymentType !== 'credit');
+    const dateKey = dayKey(now);
+    const [balances, spends] = await Promise.all([
+      ids.length ? prepayBalances({id: userId}, ids).catch(() => ({})) : {},
+      ids.length ? todaySpend({id: userId}, ids).catch(() => ({})) : {},
+    ]);
+    const messages = [];
+    for (const id of ids) {
+      const balance = balances[id]?.audited ? balances[id].balance : null;
+      for (const alert of evaluateAccountAlerts({name: plans[id].name || id, dateKey, plan: plans[id], spend: spends[id] ?? null, balance, config})) {
+        messages.push({key: alert.key, text: alert.text});
+      }
+    }
+    return {dryRun: config.dryRun !== false, enabled: Boolean(config.enabled), messages};
   }
 
   async function runAlertCycle(now = Date.now()) {
