@@ -250,3 +250,9 @@ async function loadAlerts() {
 function initializeAlerts() {
   loadAlerts();
 }
+
+// O clique no menu não passa por initializeAlerts em todos os caminhos: monta o painel também aqui.
+document.addEventListener('click', event => {
+  if (event.target.closest('#alertsNav')) setTimeout(loadAlerts, 0);
+});
+if (new URLSearchParams(location.search).get('view') === 'alerts') setTimeout(loadAlerts, 0);
