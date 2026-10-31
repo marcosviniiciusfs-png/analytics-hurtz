@@ -417,7 +417,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (settings.flow_whatsapp_instance !== instance) throw fail(403, 'Essa instância WhatsApp não pertence ao seu fluxo.');
       const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
       if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
-      const response = await fetchImpl(`${base}/group/fetchAllGroups/${encodeURIComponent(instance)}?getParticipants=false`, {headers: {apikey: key}, signal: AbortSignal.timeout(12000)});
+      // A Evolution leva dezenas de segundos para listar contas com muitos grupos (medido: ~37 s com 241 grupos).
+      const response = await fetchImpl(`${base}/group/fetchAllGroups/${encodeURIComponent(instance)}?getParticipants=false`, {headers: {apikey: key}, signal: AbortSignal.timeout(90000)});
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw fail(502, 'Não foi possível listar os grupos deste WhatsApp.');
       const rows = Array.isArray(payload) ? payload : payload.data || payload.groups || [];
