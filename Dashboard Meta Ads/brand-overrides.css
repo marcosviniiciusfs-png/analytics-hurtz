@@ -705,3 +705,7 @@ dialog.cm-editor-dialog[open]:not(.cm-dialog-fallback){position:fixed!important;
   .ap-conn,.ap-group,.ap-summary,.ap-rules,.ap-preview-tile{grid-column:span 12}
   .ap-panel .ap-chips{grid-template-columns:1fr}
 }
+/* Preenchimento dos blocos do bento: a prévia ocupa a altura disponível. */
+.ap-preview{border:1px dashed #cfd9d1;border-radius:14px;padding:14px;align-content:center;justify-items:stretch}
+.ap-message{text-align:left;width:100%;box-sizing:border-box}
+.ap-stats{margin-top:4px}

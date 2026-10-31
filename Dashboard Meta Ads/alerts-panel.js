@@ -39,6 +39,10 @@ function buildAlertsPanel() {
       <section class="ap-tile ap-conn">
         <h3>Conexão do WhatsApp</h3>
         <p class="ap-muted" id="apConnText">Verificando...</p>
+        <dl class="ap-stats">
+          <div><dt>Instância</dt><dd id="apStatInstance">—</dd></div>
+          <div><dt>Estado</dt><dd id="apStatState">—</dd></div>
+        </dl>
         <div class="ap-qr" id="apQr" hidden></div>
         <div class="ap-actions ap-foot">
           <button type="button" class="ap-btn ap-btn-primary" id="apConnect" hidden>Conectar WhatsApp</button>
@@ -48,6 +52,10 @@ function buildAlertsPanel() {
       <section class="ap-tile ap-group">
         <h3>Grupo de destino</h3>
         <p class="ap-muted" id="apGroupText">Conecte o WhatsApp para escolher o grupo.</p>
+        <dl class="ap-stats">
+          <div><dt>Grupo salvo</dt><dd id="apStatGroupName">—</dd></div>
+          <div><dt>Identificador</dt><dd id="apStatGroupId">—</dd></div>
+        </dl>
         <div class="ap-field">
           <select id="apGroupSelect" disabled><option value="">Selecione um grupo</option></select>
         </div>
@@ -144,6 +152,10 @@ function renderAlertStatus() {
   document.querySelector('#apDryRun').checked = dry;
   if (config?.thresholds) document.querySelector('#apThresholds').value = config.thresholds.join(', ');
 
+  document.querySelector('#apStatInstance').textContent = instance || '—';
+  document.querySelector('#apStatState').textContent = connected ? 'Conectado' : configured ? 'Desconectado' : 'Sem instância';
+  document.querySelector('#apStatGroupName').textContent = config?.groupName || (config?.groupJid ? 'Sem nome salvo' : 'Não escolhido');
+  document.querySelector('#apStatGroupId').textContent = config?.groupJid ? config.groupJid.replace(/@g\.us$/, '') : '—';
   const accounts = configuredAccounts(apState.plans);
   document.querySelector('#apStatAccounts').textContent = accounts.total ? `${accounts.ready} de ${accounts.total}` : 'Nenhuma conta';
   document.querySelector('#apStatThresholds').textContent = (config?.thresholds || [75, 90, 100, 120]).map(value => `${value}%`).join(' · ');
