@@ -41,9 +41,16 @@ function buildAlertsPanel() {
         </div>
       </section>
       <section class="ap-tile ap-accent">
-        <h3>Métricas da conta</h3>
-        <p class="ap-accent-text" id="apMetricsHint">Escolha uma conta no card de relatório e clique em "Ver relatório agora".</p>
-        <dl class="ap-stats ap-accent-stats" id="apMetrics"></dl>
+        <h3>Disparo de métricas</h3>
+        <div class="ap-dispatch">
+          <label class="ap-field"><span class="ap-label">Conta</span><select id="apDispatchAccount" disabled></select></label>
+          <label class="ap-field"><span class="ap-label">Enviar a cada</span><select id="apDispatchFrequency"><option value="0">Desligado</option><option value="1">1 hora</option><option value="3">3 horas</option><option value="6">6 horas</option><option value="12">12 horas</option><option value="24">24 horas</option></select></label>
+          <label class="ap-field"><span class="ap-label">Custo por lead máximo (R$)</span><input id="apDispatchCpl" type="number" min="0" step="0.01" placeholder="0,00"></label>
+        </div>
+        <div class="ap-actions ap-foot">
+          <button type="button" class="ap-btn ap-btn-primary" id="apDispatchSave" disabled>Salvar disparo</button>
+          <span class="ap-status-text" id="apDispatchStatus"></span>
+        </div>
       </section>
       <section class="ap-tile ap-conn">
         <h3>Conexão do WhatsApp</h3>
@@ -135,6 +142,8 @@ function buildAlertsPanel() {
   document.querySelector('#apSave').onclick = saveAlertRules;
   document.querySelector('#apPreview').onclick = showAlertPreview;
   document.querySelector('#apReportRun').onclick = runReportNow;
+  document.querySelector('#apDispatchSave').onclick = saveDispatch;
+  document.querySelector('#apDispatchAccount').onchange = fillDispatch;
   document.querySelectorAll('#apThresholds .ap-threshold').forEach(button => {
     button.onclick = () => button.setAttribute('aria-pressed', String(button.getAttribute('aria-pressed') !== 'true'));
   });
@@ -375,6 +384,7 @@ function renderReportCard() {
   if (current) select.value = current;
   select.disabled = !entries.length;
   document.querySelector('#apReportRun').disabled = !entries.length;
+  fillDispatchOptions(entries);
 }
 
 async function runReportNow() {
@@ -385,9 +395,7 @@ async function runReportNow() {
     const report = await apJson(`/api/account-report?account=${encodeURIComponent(accountId)}`);
     const m = report.metrics;
     out.innerHTML = '';
-    const stats = document.querySelector('#apMetrics');
-    stats.innerHTML = '';
-    document.querySelector('#apMetricsHint').textContent = `Métricas de hoje: ${report.name}.`;
+    const stats = apEl('dl', 'ap-stats');
     const rows = [
       ['Gasto', m.spend != null ? apMoney(m.spend) : '—'],
       ['CPM', m.cpm != null ? apMoney(m.cpm) : '—'],
@@ -402,6 +410,7 @@ async function runReportNow() {
       row.append(apEl('dt', null, label), apEl('dd', null, value));
       stats.append(row);
     });
+    out.append(stats);
     if (!report.findings.length) out.append(apEl('p', 'ap-muted', 'Nenhuma métrica fora do padrão agora.'));
     report.findings.forEach(finding => {
       const card = apEl('div', 'ap-finding');
@@ -411,5 +420,44 @@ async function runReportNow() {
     });
   } catch (error) {
     out.textContent = error.message;
+  }
+}
+
+// Disparo de métricas: frequência e custo por lead máximo de cada conta, salvos no plano da conta.
+function fillDispatchOptions(entries) {
+  const select = document.querySelector('#apDispatchAccount');
+  const current = select.value;
+  select.innerHTML = '';
+  entries.forEach(([id, plan]) => select.append(new Option(plan.name || id, id)));
+  if (current && entries.some(([id]) => id === current)) select.value = current;
+  select.disabled = !entries.length;
+  document.querySelector('#apDispatchSave').disabled = !entries.length;
+  fillDispatch();
+}
+
+function fillDispatch() {
+  const id = document.querySelector('#apDispatchAccount').value;
+  const plan = (apState.plans || {})[id] || {};
+  document.querySelector('#apDispatchFrequency').value = String(Number(plan.reportEveryHours) || 0);
+  document.querySelector('#apDispatchCpl').value = Number(plan.maxCostPerLead) > 0 ? plan.maxCostPerLead : '';
+}
+
+async function saveDispatch() {
+  const status = document.querySelector('#apDispatchStatus');
+  const id = document.querySelector('#apDispatchAccount').value;
+  const plans = Object.fromEntries(Object.entries(apState.plans || {}).filter(([key, plan]) => /^act_\d+$/.test(key) && plan && typeof plan === 'object'));
+  plans[id] = {
+    ...(plans[id] || {}),
+    reportEveryHours: Number(document.querySelector('#apDispatchFrequency').value) || 0,
+    maxCostPerLead: Number(document.querySelector('#apDispatchCpl').value) || 0,
+  };
+  status.textContent = 'Salvando...';
+  try {
+    await apJson('/api/alert-plans', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({plans})});
+    apState.plans = plans;
+    renderReportCard();
+    status.textContent = 'Disparo salvo.';
+  } catch (error) {
+    status.textContent = error.message;
   }
 }

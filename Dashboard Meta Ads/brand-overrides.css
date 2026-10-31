@@ -758,3 +758,6 @@ dialog.cm-editor-dialog[open]:not(.cm-dialog-fallback){position:fixed!important;
 .ap-accent-stats div{border-color:rgba(20,48,26,.18)}
 .ap-accent-stats dt{color:#2d4a22}
 .ap-accent-stats dd{color:#14301a}
+.ap-dispatch{display:grid;gap:12px}
+.ap-dispatch select,.ap-dispatch input{padding:10px 12px;border:1px solid #b4e35f;border-radius:10px;font:inherit;background:#fbfef6;color:#14301a}
+.ap-dispatch .ap-label{color:#2d4a22}
