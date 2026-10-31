@@ -684,3 +684,24 @@ dialog.cm-editor-dialog[open]:not(.cm-dialog-fallback){position:fixed!important;
 .ap-preview{display:grid;gap:10px}
 .ap-message{white-space:pre-wrap;margin:0;padding:14px 16px;background:#f5f8f6;border:1px solid #e3ebe5;border-radius:12px;font:inherit;font-size:14px;line-height:1.5;color:#1c2a20}
 .legacy-alerts{display:none!important}
+
+/* Central de alertas em bento grid: blocos preenchem a linha, sem espaços vazios. */
+.ap-panel .ap-chips{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.ap-bento{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;align-items:stretch}
+.ap-tile{display:flex;flex-direction:column;gap:14px;min-width:0;background:#fff;border:1px solid #e3ebe5;border-radius:18px;padding:20px}
+.ap-tile h3{margin:0;font-size:17px;font-weight:700;color:#1c2a20}
+.ap-foot{margin-top:auto}
+.ap-conn,.ap-group,.ap-summary{grid-column:span 4}
+.ap-rules,.ap-preview-tile{grid-column:span 6}
+.ap-preview{flex:1;display:grid;align-content:start;gap:10px;min-height:180px}
+.ap-stats{display:grid;gap:0;margin:0}
+.ap-stats div{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #eef3ef}
+.ap-stats div:first-child{padding-top:0}
+.ap-stats dt{font-size:13px;color:#5f6b63}
+.ap-stats dd{margin:0;font-size:14px;font-weight:600;color:#1c2a20;text-align:right}
+.ap-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.ap-field{display:grid;gap:6px}
+@media (max-width:1000px){
+  .ap-conn,.ap-group,.ap-summary,.ap-rules,.ap-preview-tile{grid-column:span 12}
+  .ap-panel .ap-chips{grid-template-columns:1fr}
+}

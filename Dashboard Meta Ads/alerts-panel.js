@@ -1,8 +1,8 @@
 'use strict';
 // Central de alertas: usa somente as rotas pessoais da conta logada.
-// Carregado depois do app.js, por isso redefine initializeAlerts e loadAlerts.
+// Layout em bento grid: cada bloco ocupa a altura da linha, sem espaços vazios.
 
-const apState = {instance: '', connected: false, configured: false, config: null, pollTimer: null};
+const apState = {instance: '', connected: false, configured: false, config: null, plans: {}, pollTimer: null};
 
 async function apJson(url, options = {}) {
   const response = await fetch(url, options);
@@ -26,38 +26,46 @@ function buildAlertsPanel() {
   panel.dataset.ready = '1';
   panel.innerHTML = `
     <header class="ap-head">
-      <div>
-        <p class="ap-eyebrow">Automações</p>
-        <h2>Alertas no WhatsApp</h2>
-        <p class="ap-sub">Avisos de gasto e saldo enviados ao grupo que você escolher.</p>
-      </div>
+      <p class="ap-eyebrow">Automações</p>
+      <h2>Alertas no WhatsApp</h2>
+      <p class="ap-sub">Avisos de gasto e saldo enviados ao grupo que você escolher.</p>
     </header>
     <div class="ap-chips">
       <div class="ap-chip" id="apChipWhats"><span class="ap-dot"></span><div><small>WhatsApp</small><strong>—</strong></div></div>
       <div class="ap-chip" id="apChipAlerts"><span class="ap-dot"></span><div><small>Alertas</small><strong>—</strong></div></div>
       <div class="ap-chip" id="apChipMode"><span class="ap-dot"></span><div><small>Modo</small><strong>—</strong></div></div>
     </div>
-    <div class="ap-grid">
-      <section class="ap-card">
+    <div class="ap-bento">
+      <section class="ap-tile ap-conn">
         <h3>Conexão do WhatsApp</h3>
         <p class="ap-muted" id="apConnText">Verificando...</p>
         <div class="ap-qr" id="apQr" hidden></div>
-        <div class="ap-actions">
+        <div class="ap-actions ap-foot">
           <button type="button" class="ap-btn ap-btn-primary" id="apConnect" hidden>Conectar WhatsApp</button>
           <button type="button" class="ap-btn" id="apDisconnect" hidden>Desconectar</button>
         </div>
       </section>
-      <section class="ap-card">
+      <section class="ap-tile ap-group">
         <h3>Grupo de destino</h3>
         <p class="ap-muted" id="apGroupText">Conecte o WhatsApp para escolher o grupo.</p>
         <div class="ap-field">
           <select id="apGroupSelect" disabled><option value="">Selecione um grupo</option></select>
         </div>
-        <div class="ap-actions">
+        <div class="ap-actions ap-foot">
           <button type="button" class="ap-btn" id="apLoadGroups" disabled>Carregar grupos</button>
         </div>
       </section>
-      <section class="ap-card ap-wide">
+      <section class="ap-tile ap-summary">
+        <h3>Resumo</h3>
+        <dl class="ap-stats">
+          <div><dt>Contas com limite</dt><dd id="apStatAccounts">—</dd></div>
+          <div><dt>Faixas do limite</dt><dd id="apStatThresholds">—</dd></div>
+          <div><dt>Grupo</dt><dd id="apStatGroup">—</dd></div>
+          <div><dt>Modo</dt><dd id="apStatMode">—</dd></div>
+        </dl>
+        <p class="ap-muted ap-foot">Só entram alertas de contas com limite diário e depósito configurados.</p>
+      </section>
+      <section class="ap-tile ap-rules">
         <h3>Regras</h3>
         <div class="ap-toggles">
           <label class="ap-toggle"><input type="checkbox" id="apEnabled"><span>Ativar alertas</span></label>
@@ -68,12 +76,12 @@ function buildAlertsPanel() {
           <input id="apThresholds" value="75, 90, 100, 120" placeholder="75, 90, 100, 120">
           <small class="ap-muted">Você recebe um aviso ao atingir cada faixa, uma vez por dia.</small>
         </div>
-        <div class="ap-actions">
+        <div class="ap-actions ap-foot">
           <button type="button" class="ap-btn ap-btn-primary" id="apSave">Salvar regras</button>
           <span class="ap-status-text" id="apSaveStatus"></span>
         </div>
       </section>
-      <section class="ap-card ap-wide">
+      <section class="ap-tile ap-preview-tile">
         <div class="ap-row">
           <div>
             <h3>Prévia de hoje</h3>
@@ -81,7 +89,9 @@ function buildAlertsPanel() {
           </div>
           <button type="button" class="ap-btn" id="apPreview">Ver prévia</button>
         </div>
-        <div class="ap-preview" id="apPreviewList"></div>
+        <div class="ap-preview" id="apPreviewList">
+          <p class="ap-muted">Clique em "Ver prévia" para conferir as mensagens de agora.</p>
+        </div>
       </section>
     </div>`;
   document.querySelector('#apConnect').onclick = startWhatsappConnect;
@@ -96,6 +106,13 @@ function setChip(id, tone, label, value) {
   chip.dataset.tone = tone;
   chip.querySelector('strong').textContent = value;
   chip.querySelector('small').textContent = label;
+}
+
+// Contas que de fato geram alerta: pré-pagas, com limite diário e depósito.
+function configuredAccounts(plans) {
+  const entries = Object.values(plans || {}).filter(plan => plan && typeof plan === 'object');
+  const ready = entries.filter(plan => plan.paymentType !== 'credit' && Number(plan.dailyLimit) > 0 && Number(plan.deposit) > 0);
+  return {ready: ready.length, total: entries.length};
 }
 
 function renderAlertStatus() {
@@ -126,6 +143,12 @@ function renderAlertStatus() {
   document.querySelector('#apEnabled').checked = enabled;
   document.querySelector('#apDryRun').checked = dry;
   if (config?.thresholds) document.querySelector('#apThresholds').value = config.thresholds.join(', ');
+
+  const accounts = configuredAccounts(apState.plans);
+  document.querySelector('#apStatAccounts').textContent = accounts.total ? `${accounts.ready} de ${accounts.total}` : 'Nenhuma conta';
+  document.querySelector('#apStatThresholds').textContent = (config?.thresholds || [75, 90, 100, 120]).map(value => `${value}%`).join(' · ');
+  document.querySelector('#apStatGroup').textContent = config?.groupName || (config?.groupJid ? 'Grupo salvo' : 'Não escolhido');
+  document.querySelector('#apStatMode').textContent = !enabled ? 'Desligado' : dry ? 'Validação' : 'Envio real';
 }
 
 async function refreshAlertStatus() {
@@ -134,6 +157,7 @@ async function refreshAlertStatus() {
   apState.instance = status.instance || '';
   apState.connected = Boolean(status.connected);
   apState.config = (await apJson('/api/alert-config')).config;
+  apState.plans = await apJson('/api/alert-plans').catch(() => ({}));
   renderAlertStatus();
 }
 
@@ -249,7 +273,7 @@ async function showAlertPreview() {
   }
 }
 
-// O app.js chama loadAlerts ao abrir a aba; initializeAlerts é chamado em outros pontos. Os dois montam e atualizam o painel.
+// O app.js chama loadAlerts ao abrir a aba; initializeAlerts também monta o painel.
 async function loadAlerts(retry = true) {
   buildAlertsPanel();
   try {
