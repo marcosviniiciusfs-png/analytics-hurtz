@@ -309,6 +309,8 @@
       </div>
 
       <section class="alerts-view" id="alerts" hidden>
+        <div id="alertsPanel" class="ap-panel"></div>
+        <div class="legacy-alerts" hidden>
         <div class="alerts-heading"><div><p class="eyebrow">AUTOMAÇÕES NO WHATSAPP</p><h2>Central de alertas</h2><p>Configure avisos operacionais e recomendações auditadas para o grupo responsável.</p></div><div class="alert-session-actions"><span class="alert-connection" id="alertConnection">Verificando Evolution API...</span><button type="button" id="alertLogout">Desconectar</button></div></div>
         <div class="alert-stats" id="alertStats"></div>
         <div class="alerts-layout">
@@ -351,6 +353,7 @@
           </div></aside>
         </div>
         <section class="alert-history"><div class="alert-history-head"><div><h3>Histórico de notificações</h3><p>Contas aparecem somente dentro do evento correspondente, não como uma lista de alertas.</p></div><button type="button" id="refreshAlerts">Atualizar histórico</button></div><div id="alertHistory"></div></section>
+        </div>
       </section>
     </main>
   </div>
@@ -428,6 +431,7 @@
     </section>
   </div>
   <script src="app.js?v=20261031-card-account-status"></script>
+  <script src="alerts-panel.js?v=20261031-alerts-panel"></script>
   <script src="flow-builder.js?v=20261015-flow-compact-layout"></script>
 </body>
 </html>

@@ -649,3 +649,38 @@ dialog.cm-editor-dialog[open]:not(.cm-dialog-fallback){position:fixed!important;
 .card-account-badge{display:inline-block;padding:4px 10px;border-radius:6px;font-weight:700;font-size:12px;letter-spacing:.04em;color:#fff}
 .card-account-badge.card-active{background:#1b2a5e}
 .card-account-badge.card-paused{background:#c62828}
+
+/* Central de alertas (nova): cards limpos, estado do WhatsApp sempre visível. */
+.ap-panel{display:grid;gap:18px;padding:4px 0 24px}
+.ap-head h2{margin:2px 0 4px;font-size:26px;font-weight:700}
+.ap-eyebrow{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#3f7d3a;font-weight:700}
+.ap-sub,.ap-muted{margin:0;color:#5f6b63;font-size:14px;line-height:1.5}
+.ap-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.ap-chip{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;background:#fff;border:1px solid #e3ebe5}
+.ap-chip small{display:block;color:#5f6b63;font-size:12px}
+.ap-chip strong{font-size:15px;color:#1c2a20}
+.ap-dot{width:10px;height:10px;border-radius:50%;background:#b8c2bb;flex:none}
+.ap-chip[data-tone="ok"] .ap-dot{background:#2e9d4a;box-shadow:0 0 0 4px #dff3e4}
+.ap-chip[data-tone="warn"] .ap-dot{background:#d99a1e;box-shadow:0 0 0 4px #fbefd6}
+.ap-chip[data-tone="off"] .ap-dot{background:#c94a4a;box-shadow:0 0 0 4px #f8e0e0}
+.ap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.ap-card{background:#fff;border:1px solid #e3ebe5;border-radius:16px;padding:20px;display:grid;gap:14px;align-content:start}
+.ap-wide{grid-column:1/-1}
+.ap-card h3{margin:0;font-size:17px;font-weight:700;color:#1c2a20}
+.ap-field{display:grid;gap:6px}
+.ap-field label{font-size:13px;font-weight:600;color:#33402f}
+.ap-field input,.ap-field select{padding:10px 12px;border:1px solid #cfd9d1;border-radius:10px;font:inherit;background:#fbfdfb}
+.ap-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ap-btn{padding:10px 16px;border-radius:10px;border:1px solid #cfd9d1;background:#fff;font:inherit;font-weight:600;cursor:pointer;color:#1c2a20}
+.ap-btn:disabled{opacity:.5;cursor:not-allowed}
+.ap-btn-primary{background:#2e7d32;border-color:#2e7d32;color:#fff}
+.ap-toggles{display:flex;flex-wrap:wrap;gap:16px}
+.ap-toggle{display:flex;align-items:center;gap:8px;font-size:14px;color:#1c2a20}
+.ap-toggle input{width:18px;height:18px;accent-color:#2e7d32}
+.ap-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.ap-qr{display:grid;gap:10px;justify-items:start}
+.ap-qr img{width:240px;height:240px;background:#fff;padding:12px;border:1px solid #e3ebe5;border-radius:12px}
+.ap-status-text{font-size:14px;color:#33402f}
+.ap-preview{display:grid;gap:10px}
+.ap-message{white-space:pre-wrap;margin:0;padding:14px 16px;background:#f5f8f6;border:1px solid #e3ebe5;border-radius:12px;font:inherit;font-size:14px;line-height:1.5;color:#1c2a20}
+.legacy-alerts{display:none!important}
