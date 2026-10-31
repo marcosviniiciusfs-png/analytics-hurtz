@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {Readable} = require('node:stream');
-const {createPersonalMeta} = require('./personal-meta');
+const {createPersonalMeta, parsePrepayBalance} = require('./personal-meta');
 
 function fixture(t, runner, overrides = {}) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'personal-meta-'));
@@ -95,14 +95,22 @@ test('report account authorization precedes execution; caller identity cannot be
 });
 
 test('prepaid balances are read through the verified app token for authorized accounts only', async t => {
-  const f=fixture(t,undefined,{accountDetail:{id:'act_111',currency:'BRL',is_prepay_account:true,total_prepay_balance:{amount:'12345',offset:2,currency:'BRL'}}});
+  const f=fixture(t,undefined,{accountDetail:{id:'act_111',currency:'BRL',is_prepay_account:true,funding_source_details:{display_string:'Saldo disponível (R$224,04 BRL)'}}});
   await f.connect(f.sessionA,f.tokens.a);
   const result=await f.request(f.sessionA,'/api/meta-billing-balances?accounts=act_111');
   assert.equal(result.status,200);
   assert.equal(result.body.accounts.act_111.audited,true);
-  assert.equal(result.body.accounts.act_111.balance,123.45);
-  assert.equal(result.body.accounts.act_111.source,'Meta Marketing API • total_prepay_balance');
+  assert.equal(result.body.accounts.act_111.balance,224.04);
+  assert.equal(result.body.accounts.act_111.source,'Meta • saldo pré-pago (Cobrança e pagamentos)');
   assert.equal((await f.request(f.sessionA,'/api/meta-billing-balances?accounts=act_222')).status,403);
+});
+
+test('available pre-paid balance is parsed from the Meta funding text in pt-BR format', () => {
+  assert.equal(parsePrepayBalance('Saldo disponível (R$224,04 BRL)'), 224.04);
+  assert.equal(parsePrepayBalance('Saldo disponível (R$1.234,56 BRL)'), 1234.56);
+  assert.equal(parsePrepayBalance('Saldo disponível (R$0,00 BRL)'), 0);
+  assert.equal(parsePrepayBalance('Cartão final 1234'), null);
+  assert.equal(parsePrepayBalance(undefined), null);
 });
 
 test('amount due is never substituted for a missing prepaid balance', async t => {

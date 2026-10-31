@@ -284,6 +284,10 @@ http.createServer((req,res)=>{
     const personalToolRoute=['/api/meta-accounts','/api/meta-billing-balances','/api/meta-spend','/api/meta-analysis','/api/meta-monitor-config','/api/meta-monitor-config/sync','/api/report-product-rules'].includes(requestUrl.pathname)||requestUrl.pathname==='/api/flows'||requestUrl.pathname.startsWith('/api/flows/')||requestUrl.pathname.startsWith('/api/flow/');
     if(req.headers['x-require-personal-meta']==='1'&&personalToolRoute)return jsonResponse(res,401,{error:'Entre novamente para acessar as ferramentas da sua conta.'});
     if(bearer.startsWith('pa_'))return jsonResponse(res,401,{error:'Sua sessão expirou. Entre novamente.'});
+    // As rotas da Meta e dos alertas usam o token compartilhado do servidor: só sessão pessoal ou administrativa pode acessá-las.
+    const sharedMetaRoute=/^\/api\/(meta-|alerts)/.test(requestUrl.pathname);
+    const adminAuthorized=process.env.API_AUTH_REQUIRED==='1'&&(()=>{const token=authConfig().API_SESSION_TOKEN;return Boolean(token)&&safeEqual(bearer,token)})();
+    if(sharedMetaRoute&&!personalSession&&!adminAuthorized)return jsonResponse(res,401,{error:'Entre com sua conta para acessar os dados da Meta.'});
   }
   if(!isCreativeAgentRoute&&process.env.API_AUTH_REQUIRED==='1'&&requestUrl.pathname.startsWith('/api/')){
     if(requestUrl.pathname==='/api/session'&&req.method==='POST')return readBody(req,(error,payload)=>{

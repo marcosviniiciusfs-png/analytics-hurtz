@@ -9,6 +9,13 @@ const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const VERSION = 'v25.0';
 const APP_ID = '2093320124537661';
 
+// Reads "Saldo disponível (R$224,04 BRL)" and returns 224.04. The text is only
+// accepted in pt-BR number format, so an unexpected layout yields null.
+function parsePrepayBalance(text) {
+  const match = /Saldo dispon[ií]vel\s*\(R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:BRL)?\)/i.exec(String(text || ''));
+  return match ? Number(match[1].replace(/\./g, '').replace(',', '.')) : null;
+}
+
 function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '/opt/meta-ads-cli/secrets/personal', fetchImpl = fetch, runReport, oauthConfig, billingBalanceReader} = {}) {
   fs.mkdirSync(directory, {recursive: true, mode: 0o700});
   const keyPath = path.join(directory, 'encryption.key');
@@ -350,17 +357,16 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (route === '/api/meta-billing-balances' && req.method === 'GET') {
       const ids = [...new Set((url.searchParams.get('accounts') || '').split(',').filter(Boolean))];
       const {conn} = await authorizeAccounts(user, ids);
-      // These are the pre-paid balance fields returned for the connected user
-      // by the verified Meta app. `balance` is intentionally absent: it is the
-      // amount due, not the amount available in Billing & payments.
+      // `balance` is intentionally not used: it is the amount due, not the
+      // amount available in Billing & payments. The available pre-paid balance
+      // is shown by the Meta account in funding_source_details.display_string.
       const readBalance=async id=>{
         try{
-          const row=await graph(conn.token,id,{fields:'id,currency,is_prepay_account,stored_balance_status,total_prepay_balance,prepay_account_balance,prepay_details,funding_source_details'});
-          const value=row.total_prepay_balance??row.prepay_account_balance;
-          const amount=value&&typeof value==='object'?(value.amount_with_offset??value.amount):null;
-          const offset=value&&typeof value==='object'?(value.offset??value.currency_offset??(value.amount_with_offset!=null?2:null)):null;
-          if(!row.is_prepay_account||amount==null||offset==null||!Number.isFinite(Number(amount))||!Number.isFinite(Number(offset)))return [id,{id,audited:false,error:'A Meta não retornou um saldo pré-pago auditável para esta conta.'}];
-          return [id,{id,audited:true,balance:Number(amount)/10**Number(offset),currency:value.currency||row.currency||null,collected_at:new Date().toISOString(),source:'Meta Marketing API • total_prepay_balance'}];
+          const row=await graph(conn.token,id,{fields:'id,currency,is_prepay_account,funding_source_details'});
+          if(!row.is_prepay_account)return [id,{id,audited:false,error:'Esta conta não é pré-paga, então não tem saldo disponível.'}];
+          const amount=parsePrepayBalance(row.funding_source_details?.display_string);
+          if(amount==null)return [id,{id,audited:false,error:'A Meta não retornou um saldo pré-pago auditável para esta conta.'}];
+          return [id,{id,audited:true,balance:amount,currency:row.currency||'BRL',collected_at:new Date().toISOString(),source:'Meta • saldo pré-pago (Cobrança e pagamentos)'}];
         }catch{return [id,{id,audited:false,error:'A Meta não liberou o saldo pré-pago desta conta para o app conectado.'}]}
       };
       const accounts=Object.fromEntries(await Promise.all(ids.map(readBalance)));
@@ -573,4 +579,4 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   }
   return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow, httpFlow, saveHttpSample, appendGoogleLead, beginGoogleAuth, completeGoogleAuth};
 }
-module.exports = {createPersonalMeta};
+module.exports = {createPersonalMeta, parsePrepayBalance};
