@@ -237,13 +237,16 @@ async function showAlertPreview() {
   }
 }
 
+// O app.js chama loadAlerts ao abrir a aba; initializeAlerts é chamado em outros pontos. Os dois montam e atualizam o painel.
 async function loadAlerts() {
-  await refreshAlertStatus();
+  buildAlertsPanel();
+  try {
+    await refreshAlertStatus();
+  } catch (error) {
+    document.querySelector('#apConnText').textContent = error.message;
+  }
 }
 
 function initializeAlerts() {
-  buildAlertsPanel();
-  refreshAlertStatus().catch(error => {
-    document.querySelector('#apConnText').textContent = error.message;
-  });
+  loadAlerts();
 }
