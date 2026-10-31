@@ -7,7 +7,7 @@ const {runPersonalAlerts} = require('./personal-alerts');
 const {evaluateAccountAlerts} = require('./alert-evaluator');
 const {evaluateReport} = require('./report-rules');
 const {INSIGHT_FIELDS, parseInsightRow} = require('./report-metrics');
-const {formatReportMessage} = require('./report-message');
+const {formatReportMessage, frequencyAlertText} = require('./report-message');
 
 const fail = (status, message) => Object.assign(new Error(message), {status});
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -598,7 +598,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (instance && settings.flow_whatsapp_instance !== instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar os alertas.');
       const thresholds = (Array.isArray(payload.thresholds) ? payload.thresholds : [75, 90, 100, 120]).map(Number).filter(Number.isFinite);
       const groupName = String(payload.groupName || '').trim().slice(0, 200);
-      const config = {enabled, dryRun: payload.dryRun !== false, instance, groupJid: groupJid.slice(0, 200), groupName, thresholds, balanceThresholds: [50, 75, 90, 100]};
+      const config = {enabled, dryRun: payload.dryRun !== false, instance, groupJid: groupJid.slice(0, 200), groupName, thresholds, balanceThresholds: [50, 75, 90, 100], frequencyAlertEnabled: Boolean(payload.frequencyAlertEnabled), maxFrequency: Number(payload.maxFrequency) > 0 ? Number(payload.maxFrequency) : 0};
       write('alert-config', user.id, config);
       const ids = new Set(alertIndex());
       if (enabled) ids.add(user.id); else ids.delete(user.id);
@@ -676,28 +676,32 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     return {accountId, name: plan.name || accountId, metrics, findings};
   }
 
-  // Envia o relatório de cada conta que tem frequência definida, respeitando o intervalo em horas.
-  async function runAccountReports(userId, now) {
+  // Alerta quando a frequência de uma conta passa do máximo definido no card de alerta de frequência.
+  async function runFrequencyAlerts(userId, now) {
     const config = alertConfig(userId) || {};
-    const plans = read('settings', userId)?.plans || {};
-    const state = read('report-state', userId) || {};
-    for (const accountId of Object.keys(plans)) {
-      const hours = Number(plans[accountId]?.reportEveryHours) || 0;
-      if (!hours || !config.enabled) continue;
-      if (now - (state[accountId] || 0) < hours * 3600000) continue;
+    if (!config.enabled || !config.frequencyAlertEnabled || !(config.maxFrequency > 0)) return;
+    const day = dayKey(now);
+    const previous = read('frequency-sent', userId) || {};
+    const sent = {...previous};
+    let accounts = [];
+    try { accounts = (await catalog({id: userId}, false)).accounts || []; } catch { return; }
+    for (const account of accounts) {
+      const key = `${day}:${account.id}`;
+      if (sent[key]) continue;
       try {
-        const report = await accountReport({id: userId}, accountId);
-        const text = formatReportMessage({name: report.name, period: 'Período: hoje', findings: report.findings});
+        const report = await accountReport({id: userId}, account.id);
+        const frequency = report.metrics.frequency;
+        if (frequency == null || frequency <= config.maxFrequency) continue;
+        const text = frequencyAlertText({name: report.name, metrics: report.metrics, maxFrequency: config.maxFrequency});
         if (!config.dryRun) await sendAlert(config, text);
-        state[accountId] = now;
+        sent[key] = {delivered: !config.dryRun, at: new Date(now).toISOString()};
       } catch { /* tenta de novo no próximo ciclo */ }
     }
-    write('report-state', userId, state);
+    write('frequency-sent', userId, Object.fromEntries(Object.entries(sent).filter(([key]) => key.startsWith(day))));
   }
-
   async function runAlertCycle(now = Date.now()) {
     const results = await runAlertsOnly(now);
-    for (const userId of alertIndex()) await runAccountReports(userId, now);
+    for (const userId of alertIndex()) await runFrequencyAlerts(userId, now);
     return results;
   }
 

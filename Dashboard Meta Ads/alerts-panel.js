@@ -41,15 +41,16 @@ function buildAlertsPanel() {
         </div>
       </section>
       <section class="ap-tile ap-accent">
-        <h3>Disparo de métricas</h3>
-        <div class="ap-dispatch">
-          <label class="ap-field"><span class="ap-label">Conta</span><select id="apDispatchAccount" disabled></select></label>
-          <label class="ap-field"><span class="ap-label">Enviar a cada</span><select id="apDispatchFrequency"><option value="0">Desligado</option><option value="1">1 hora</option><option value="3">3 horas</option><option value="6">6 horas</option><option value="12">12 horas</option><option value="24">24 horas</option></select></label>
-          <label class="ap-field"><span class="ap-label">Custo por lead máximo (R$)</span><input id="apDispatchCpl" type="number" min="0" step="0.01" placeholder="0,00"></label>
+        <h3>Alerta de frequência</h3>
+        <label class="ap-toggle"><input type="checkbox" id="apFreqEnabled"><span>Ligar alerta de frequência</span></label>
+        <div class="ap-field">
+          <span class="ap-label">Frequência máxima</span>
+          <input id="apFreqMax" type="number" min="0" step="0.1" placeholder="3,0">
         </div>
+        <p class="ap-muted">Quando a frequência de uma conta passar desse valor, você recebe um relatório com o que isso pode influenciar nas campanhas.</p>
         <div class="ap-actions ap-foot">
-          <button type="button" class="ap-btn ap-btn-primary" id="apDispatchSave" disabled>Salvar disparo</button>
-          <span class="ap-status-text" id="apDispatchStatus"></span>
+          <button type="button" class="ap-btn ap-btn-primary" id="apFreqSave">Salvar alerta</button>
+          <span class="ap-status-text" id="apFreqStatus"></span>
         </div>
       </section>
       <section class="ap-tile ap-conn">
@@ -142,8 +143,7 @@ function buildAlertsPanel() {
   document.querySelector('#apSave').onclick = saveAlertRules;
   document.querySelector('#apPreview').onclick = showAlertPreview;
   document.querySelector('#apReportRun').onclick = runReportNow;
-  document.querySelector('#apDispatchSave').onclick = saveDispatch;
-  document.querySelector('#apDispatchAccount').onchange = fillDispatch;
+  document.querySelector('#apFreqSave').onclick = saveFrequencyAlert;
   document.querySelectorAll('#apThresholds .ap-threshold').forEach(button => {
     button.onclick = () => button.setAttribute('aria-pressed', String(button.getAttribute('aria-pressed') !== 'true'));
   });
@@ -201,6 +201,7 @@ function renderAlertStatus() {
   document.querySelector('#apStatGroupName').textContent = config?.groupName || (config?.groupJid ? 'Sem nome salvo' : 'Não escolhido');
   document.querySelector('#apStatGroupId').textContent = config?.groupJid ? config.groupJid.replace(/@g\.us$/, '') : '—';
   renderReportCard();
+  renderFrequencyAlert();
   const accounts = configuredAccounts(apState.plans);
   const accountTotal = apState.accountTotal || accounts.configured;
   document.querySelector('#apStatAccounts').textContent = accountTotal ? `${accounts.ready} de ${accountTotal}` : 'Nenhuma conta';
@@ -384,7 +385,6 @@ function renderReportCard() {
   if (current) select.value = current;
   select.disabled = !entries.length;
   document.querySelector('#apReportRun').disabled = !entries.length;
-  fillDispatchOptions(entries);
 }
 
 async function runReportNow() {
@@ -423,40 +423,29 @@ async function runReportNow() {
   }
 }
 
-// Disparo de métricas: frequência e custo por lead máximo de cada conta, salvos no plano da conta.
-function fillDispatchOptions(entries) {
-  const select = document.querySelector('#apDispatchAccount');
-  const current = select.value;
-  select.innerHTML = '';
-  entries.forEach(([id, plan]) => select.append(new Option(plan.name || id, id)));
-  if (current && entries.some(([id]) => id === current)) select.value = current;
-  select.disabled = !entries.length;
-  document.querySelector('#apDispatchSave').disabled = !entries.length;
-  fillDispatch();
+// Alerta de frequência: liga/desliga e frequência máxima, salvos na configuração geral de alertas.
+function renderFrequencyAlert() {
+  const config = apState.config || {};
+  document.querySelector('#apFreqEnabled').checked = Boolean(config.frequencyAlertEnabled);
+  document.querySelector('#apFreqMax').value = config.maxFrequency > 0 ? config.maxFrequency : '';
 }
 
-function fillDispatch() {
-  const id = document.querySelector('#apDispatchAccount').value;
-  const plan = (apState.plans || {})[id] || {};
-  document.querySelector('#apDispatchFrequency').value = String(Number(plan.reportEveryHours) || 0);
-  document.querySelector('#apDispatchCpl').value = Number(plan.maxCostPerLead) > 0 ? plan.maxCostPerLead : '';
-}
-
-async function saveDispatch() {
-  const status = document.querySelector('#apDispatchStatus');
-  const id = document.querySelector('#apDispatchAccount').value;
-  const plans = Object.fromEntries(Object.entries(apState.plans || {}).filter(([key, plan]) => /^act_\d+$/.test(key) && plan && typeof plan === 'object'));
-  plans[id] = {
-    ...(plans[id] || {}),
-    reportEveryHours: Number(document.querySelector('#apDispatchFrequency').value) || 0,
-    maxCostPerLead: Number(document.querySelector('#apDispatchCpl').value) || 0,
-  };
+async function saveFrequencyAlert() {
+  const status = document.querySelector('#apFreqStatus');
+  const frequencyAlertEnabled = document.querySelector('#apFreqEnabled').checked;
+  const maxFrequency = Number(document.querySelector('#apFreqMax').value) || 0;
+  if (frequencyAlertEnabled && !(maxFrequency > 0)) { status.textContent = 'Informe a frequência máxima.'; return; }
   status.textContent = 'Salvando...';
   try {
-    await apJson('/api/alert-plans', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({plans})});
-    apState.plans = plans;
-    renderReportCard();
-    status.textContent = 'Disparo salvo.';
+    const current = apState.config || {};
+    const saved = await apJson('/api/alert-config', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({...current, enabled: current.enabled, frequencyAlertEnabled, maxFrequency, dryRun: current.dryRun !== false}),
+    });
+    apState.config = saved.config;
+    renderFrequencyAlert();
+    status.textContent = 'Alerta salvo.';
   } catch (error) {
     status.textContent = error.message;
   }
