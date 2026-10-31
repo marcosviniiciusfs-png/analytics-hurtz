@@ -709,3 +709,34 @@ dialog.cm-editor-dialog[open]:not(.cm-dialog-fallback){position:fixed!important;
 .ap-preview{border:1px dashed #cfd9d1;border-radius:14px;padding:14px;align-content:center;justify-items:stretch}
 .ap-message{text-align:left;width:100%;box-sizing:border-box}
 .ap-stats{margin-top:4px}
+
+/* Bento em tema claro: blocos grandes, números em destaque, tile de cor e barra de resumo. */
+.ap-panel{padding:4px 0 24px}
+.ap-bento{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;align-items:stretch}
+.ap-tile{border-radius:26px;padding:24px;gap:16px;border:1px solid #e3ebe5;box-shadow:0 1px 2px rgba(20,40,25,.04)}
+.ap-hero{grid-column:span 6;background:linear-gradient(160deg,#ffffff 0%,#f3faf4 100%);justify-content:space-between}
+.ap-hero h2{font-size:30px;line-height:1.1;margin:6px 0 0;letter-spacing:-.02em}
+.ap-hero-main{display:grid;gap:6px}
+.ap-hero-number{margin:0;font-size:64px;font-weight:700;line-height:1;letter-spacing:-.04em;color:#1c2a20;font-variant-numeric:tabular-nums}
+.ap-hero .ap-chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.ap-accent{grid-column:span 3;background:#c9f27a;border-color:#b4e35f;justify-content:space-between}
+.ap-accent h3{color:#1f3a14}
+.ap-accent-value{margin:0;font-size:34px;font-weight:700;letter-spacing:-.02em;color:#14301a}
+.ap-accent-text{margin:0;font-size:14px;line-height:1.5;color:#2d4a22}
+.ap-conn{grid-column:span 3}
+.ap-group{grid-column:span 4}
+.ap-rules{grid-column:span 4}
+.ap-summary{grid-column:span 4;background:#fbfdfb}
+.ap-preview-tile{grid-column:span 12}
+.ap-tile h3{font-size:15px}
+.ap-meter{height:12px;border-radius:999px;background:#e9f1ea;overflow:hidden}
+.ap-meter span{display:block;height:100%;width:0;border-radius:999px;background:#2e7d32;transition:width 700ms cubic-bezier(.22,1,.36,1)}
+.ap-stats div{padding:10px 0}
+.ap-chip{border-radius:18px;padding:14px 16px}
+.ap-chip strong{font-size:16px}
+.ap-preview{min-height:200px;border-radius:20px}
+.ap-message{border-radius:16px;background:#fff}
+@media (max-width:1000px){
+  .ap-hero,.ap-accent,.ap-conn,.ap-group,.ap-rules,.ap-summary,.ap-preview-tile{grid-column:span 12}
+  .ap-hero-number{font-size:52px}
+}

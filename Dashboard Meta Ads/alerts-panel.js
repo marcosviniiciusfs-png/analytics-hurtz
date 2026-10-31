@@ -25,17 +25,26 @@ function buildAlertsPanel() {
   if (!panel || panel.dataset.ready) return;
   panel.dataset.ready = '1';
   panel.innerHTML = `
-    <header class="ap-head">
-      <p class="ap-eyebrow">Automações</p>
-      <h2>Alertas no WhatsApp</h2>
-      <p class="ap-sub">Avisos de gasto e saldo enviados ao grupo que você escolher.</p>
-    </header>
-    <div class="ap-chips">
-      <div class="ap-chip" id="apChipWhats"><span class="ap-dot"></span><div><small>WhatsApp</small><strong>—</strong></div></div>
-      <div class="ap-chip" id="apChipAlerts"><span class="ap-dot"></span><div><small>Alertas</small><strong>—</strong></div></div>
-      <div class="ap-chip" id="apChipMode"><span class="ap-dot"></span><div><small>Modo</small><strong>—</strong></div></div>
-    </div>
     <div class="ap-bento">
+      <section class="ap-tile ap-hero">
+        <div>
+          <p class="ap-eyebrow">Automações no WhatsApp</p>
+          <h2>Alertas de gasto e saldo</h2>
+        </div>
+        <div class="ap-hero-main">
+          <p class="ap-hero-number" id="apHeroNumber">—</p>
+          <p class="ap-muted" id="apHeroText">Carregando...</p>
+        </div>
+        <div class="ap-chips">
+          <div class="ap-chip" id="apChipWhats"><span class="ap-dot"></span><div><small>WhatsApp</small><strong>—</strong></div></div>
+          <div class="ap-chip" id="apChipAlerts"><span class="ap-dot"></span><div><small>Alertas</small><strong>—</strong></div></div>
+        </div>
+      </section>
+      <section class="ap-tile ap-accent">
+        <h3>Modo de envio</h3>
+        <p class="ap-accent-value" id="apModeBig">—</p>
+        <p class="ap-accent-text" id="apModeText">Verificando a configuração.</p>
+      </section>
       <section class="ap-tile ap-conn">
         <h3>Conexão do WhatsApp</h3>
         <p class="ap-muted" id="apConnText">Verificando...</p>
@@ -63,16 +72,6 @@ function buildAlertsPanel() {
           <button type="button" class="ap-btn" id="apLoadGroups" disabled>Carregar grupos</button>
         </div>
       </section>
-      <section class="ap-tile ap-summary">
-        <h3>Resumo</h3>
-        <dl class="ap-stats">
-          <div><dt>Contas com limite</dt><dd id="apStatAccounts">—</dd></div>
-          <div><dt>Faixas do limite</dt><dd id="apStatThresholds">—</dd></div>
-          <div><dt>Grupo</dt><dd id="apStatGroup">—</dd></div>
-          <div><dt>Modo</dt><dd id="apStatMode">—</dd></div>
-        </dl>
-        <p class="ap-muted ap-foot">Só entram alertas de contas com limite diário e depósito configurados.</p>
-      </section>
       <section class="ap-tile ap-rules">
         <h3>Regras</h3>
         <div class="ap-toggles">
@@ -88,6 +87,17 @@ function buildAlertsPanel() {
           <button type="button" class="ap-btn ap-btn-primary" id="apSave">Salvar regras</button>
           <span class="ap-status-text" id="apSaveStatus"></span>
         </div>
+      </section>
+      <section class="ap-tile ap-summary">
+        <h3>Resumo</h3>
+        <div class="ap-meter"><span id="apMeterFill"></span></div>
+        <dl class="ap-stats">
+          <div><dt>Contas com limite</dt><dd id="apStatAccounts">—</dd></div>
+          <div><dt>Faixas do limite</dt><dd id="apStatThresholds">—</dd></div>
+          <div><dt>Grupo</dt><dd id="apStatGroup">—</dd></div>
+          <div><dt>Modo</dt><dd id="apStatMode">—</dd></div>
+        </dl>
+        <p class="ap-muted ap-foot">Só entram alertas de contas com limite diário e depósito configurados.</p>
       </section>
       <section class="ap-tile ap-preview-tile">
         <div class="ap-row">
@@ -130,7 +140,7 @@ function renderAlertStatus() {
   const enabled = Boolean(config?.enabled);
   setChip('#apChipAlerts', enabled ? 'ok' : 'off', 'Alertas', enabled ? 'Ligados' : 'Desligados');
   const dry = config?.dryRun !== false;
-  setChip('#apChipMode', dry ? 'warn' : 'ok', 'Modo', dry ? 'Validação (não envia)' : 'Envio real');
+
 
   document.querySelector('#apConnText').textContent = connected
     ? `Conectado. Instância ${instance}.`
@@ -161,6 +171,12 @@ function renderAlertStatus() {
   document.querySelector('#apStatThresholds').textContent = (config?.thresholds || [75, 90, 100, 120]).map(value => `${value}%`).join(' · ');
   document.querySelector('#apStatGroup').textContent = config?.groupName || (config?.groupJid ? 'Grupo salvo' : 'Não escolhido');
   document.querySelector('#apStatMode').textContent = !enabled ? 'Desligado' : dry ? 'Validação' : 'Envio real';
+  const ready = accounts.ready, total = accounts.total;
+  document.querySelector('#apHeroNumber').textContent = total ? `${ready}/${total}` : '0';
+  document.querySelector('#apHeroText').textContent = total ? `contas prontas para alertar, com limite diário e depósito.` : 'Nenhuma conta tem limite diário e depósito. Configure em Contas.';
+  document.querySelector('#apMeterFill').style.width = total ? `${Math.round((ready / total) * 100)}%` : '0%';
+  document.querySelector('#apModeBig').textContent = !enabled ? 'Desligado' : dry ? 'Validação' : 'Envio real';
+  document.querySelector('#apModeText').textContent = !enabled ? 'Os alertas estão desligados.' : dry ? 'Registra os alertas sem enviar mensagens.' : 'As mensagens vão para o grupo escolhido.';
 }
 
 async function refreshAlertStatus() {
