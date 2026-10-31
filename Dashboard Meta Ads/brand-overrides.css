@@ -744,3 +744,14 @@ dialog.cm-editor-dialog[open]:not(.cm-dialog-fallback){position:fixed!important;
 .ap-thresholds{display:flex;gap:10px;flex-wrap:wrap}
 .ap-threshold{padding:10px 20px;border-radius:999px;border:1px solid #cfd9d1;background:#fff;font:inherit;font-weight:600;cursor:pointer;color:#1c2a20}
 .ap-threshold[aria-pressed="true"]{background:#2e7d32;border-color:#2e7d32;color:#fff}
+/* Card do relatório de desempenho na Central de alertas. */
+.ap-report{grid-column:span 12}
+.ap-thresholds-note{margin:0;padding:10px 14px;border-radius:12px;background:#f3faf4;font-size:13px}
+.ap-report-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #eef3ef}
+.ap-report-run{display:flex;gap:10px;align-items:center}
+.ap-report-run select{flex:1;padding:10px 12px;border:1px solid #cfd9d1;border-radius:10px;font:inherit;background:#fbfdfb}
+.ap-finding{border-left:4px solid #cfd9d1;padding:10px 14px;background:#f8fbf9;border-radius:12px;margin-top:8px;display:grid;gap:4px}
+.ap-finding[data-status="crítico"]{border-color:#c62828}
+.ap-finding[data-status="alto"]{border-color:#d99a1e}
+.ap-finding[data-status="médio"]{border-color:#e08a2e}
+.ap-finding[data-status="bom"]{border-color:#2e7d32}

@@ -103,6 +103,19 @@ function buildAlertsPanel() {
         </dl>
         <p class="ap-muted ap-foot">Só entram alertas de contas com limite diário e depósito configurados.</p>
       </section>
+      <section class="ap-tile ap-report">
+        <div>
+          <h3>Relatório de desempenho</h3>
+          <p class="ap-muted">Métricas de cada conta enviadas ao grupo na frequência definida em Contas (⚙).</p>
+        </div>
+        <p class="ap-muted ap-thresholds-note">CPM acima de R$ 25 é alto · CTR abaixo de 1% é crítico · CTR acima de 1,50% é bom</p>
+        <div class="ap-report-list" id="apReportList"></div>
+        <div class="ap-report-run">
+          <select id="apReportAccount" disabled></select>
+          <button type="button" class="ap-btn" id="apReportRun" disabled>Ver relatório agora</button>
+        </div>
+        <div class="ap-report-result" id="apReportResult"></div>
+      </section>
       <section class="ap-tile ap-preview-tile">
         <div class="ap-row">
           <div>
@@ -121,6 +134,7 @@ function buildAlertsPanel() {
   document.querySelector('#apLoadGroups').onclick = loadWhatsappGroups;
   document.querySelector('#apSave').onclick = saveAlertRules;
   document.querySelector('#apPreview').onclick = showAlertPreview;
+  document.querySelector('#apReportRun').onclick = runReportNow;
   document.querySelectorAll('#apThresholds .ap-threshold').forEach(button => {
     button.onclick = () => button.setAttribute('aria-pressed', String(button.getAttribute('aria-pressed') !== 'true'));
   });
@@ -177,6 +191,7 @@ function renderAlertStatus() {
   document.querySelector('#apStatState').textContent = connected ? 'Conectado' : configured ? 'Desconectado' : 'Sem instância';
   document.querySelector('#apStatGroupName').textContent = config?.groupName || (config?.groupJid ? 'Sem nome salvo' : 'Não escolhido');
   document.querySelector('#apStatGroupId').textContent = config?.groupJid ? config.groupJid.replace(/@g\.us$/, '') : '—';
+  renderReportCard();
   const accounts = configuredAccounts(apState.plans);
   const accountTotal = apState.accountTotal || accounts.configured;
   document.querySelector('#apStatAccounts').textContent = accountTotal ? `${accounts.ready} de ${accountTotal}` : 'Nenhuma conta';
@@ -333,3 +348,67 @@ document.addEventListener('click', event => {
   if (event.target.closest('#alertsNav')) setTimeout(loadAlerts, 0);
 });
 if (new URLSearchParams(location.search).get('view') === 'alerts') setTimeout(loadAlerts, 0);
+
+// Card do relatório de desempenho: lista as contas com relatório ativo e mostra as métricas de uma conta.
+const apMoney = value => `R$ ${Number(value).toFixed(2).replace('.', ',')}`;
+const apNumber = (value, digits = 2) => Number(value).toFixed(digits).replace('.', ',');
+
+function renderReportCard() {
+  const list = document.querySelector('#apReportList');
+  const select = document.querySelector('#apReportAccount');
+  if (!list || !select) return;
+  const entries = Object.entries(apState.plans || {}).filter(([, plan]) => plan && typeof plan === 'object');
+  const scheduled = entries.filter(([, plan]) => Number(plan.reportEveryHours) > 0);
+  list.innerHTML = '';
+  if (!scheduled.length) {
+    list.append(apEl('p', 'ap-muted', 'Nenhuma conta com relatório ativo. Defina a frequência em Contas, no ⚙ de cada conta.'));
+  }
+  scheduled.forEach(([id, plan]) => {
+    const row = apEl('div', 'ap-report-row');
+    const cpl = Number(plan.maxCostPerLead) > 0 ? apMoney(plan.maxCostPerLead) : 'não definido';
+    row.append(apEl('strong', null, plan.name || id), apEl('span', 'ap-muted', `a cada ${plan.reportEveryHours} h · custo por lead máximo ${cpl}`));
+    list.append(row);
+  });
+  const current = select.value;
+  select.innerHTML = '';
+  entries.forEach(([id, plan]) => select.append(new Option(plan.name || id, id)));
+  if (current) select.value = current;
+  select.disabled = !entries.length;
+  document.querySelector('#apReportRun').disabled = !entries.length;
+}
+
+async function runReportNow() {
+  const accountId = document.querySelector('#apReportAccount').value;
+  const out = document.querySelector('#apReportResult');
+  out.textContent = 'Buscando as métricas de hoje na Meta...';
+  try {
+    const report = await apJson(`/api/account-report?account=${encodeURIComponent(accountId)}`);
+    const m = report.metrics;
+    out.innerHTML = '';
+    const stats = apEl('dl', 'ap-stats');
+    const rows = [
+      ['Gasto', m.spend != null ? apMoney(m.spend) : '—'],
+      ['CPM', m.cpm != null ? apMoney(m.cpm) : '—'],
+      ['CTR', m.ctr != null ? `${apNumber(m.ctr)}%` : '—'],
+      ['Cliques no link', m.linkClicks != null ? String(m.linkClicks) : '—'],
+      ['Custo por lead', m.costPerLead != null ? apMoney(m.costPerLead) : '—'],
+      ['Frequência', m.frequency != null ? apNumber(m.frequency, 1) : '—'],
+      ['Hook rate (3s)', m.hookRate != null ? `${apNumber(m.hookRate)}%` : '—'],
+    ];
+    rows.forEach(([label, value]) => {
+      const row = apEl('div');
+      row.append(apEl('dt', null, label), apEl('dd', null, value));
+      stats.append(row);
+    });
+    out.append(stats);
+    if (!report.findings.length) out.append(apEl('p', 'ap-muted', 'Nenhuma métrica fora do padrão agora.'));
+    report.findings.forEach(finding => {
+      const card = apEl('div', 'ap-finding');
+      card.dataset.status = finding.status;
+      card.append(apEl('strong', null, `${finding.metric} · ${finding.value}`), apEl('p', null, finding.message), apEl('p', 'ap-muted', `👉 ${finding.suggestion}`));
+      out.append(card);
+    });
+  } catch (error) {
+    out.textContent = error.message;
+  }
+}
