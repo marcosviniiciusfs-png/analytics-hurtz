@@ -4,6 +4,8 @@ const DEFAULT_THRESHOLDS = [75, 90, 100, 120];
 const DEFAULT_BALANCE_THRESHOLDS = [50, 75, 90, 100];
 
 const money = value => `R$ ${Number(value).toFixed(2).replace('.', ',')}`;
+// 🔴 para faixa crítica (100% ou mais) e 🟡 para atenção.
+const severityIcon = critical => (critical ? '🔴' : '🟡');
 const sortedThresholds = values => [...values].map(Number).filter(Number.isFinite).sort((a, b) => a - b);
 
 // Gera os alertas de uma conta a partir do gasto do dia e do saldo pré-pago real
@@ -21,7 +23,7 @@ function evaluateAccountAlerts({name, dateKey, plan = {}, spend = null, balance 
       alerts.push({
         key: `${dateKey}:${label}:limit:${threshold}`,
         severity: threshold >= 100 ? 'critical' : 'warning',
-        text: `*Alerta de gasto — ${label}*\nA conta atingiu ${ratio.toFixed(0)}% do limite diário.\nGasto de hoje: ${money(spend)} de ${money(dailyLimit)}.`,
+        text: `${severityIcon(threshold >= 100)} 📈 *Alerta de gasto — ${label}*\nA conta atingiu ${ratio.toFixed(0)}% do limite diário.\n📊 Gasto de hoje: ${money(spend)} de ${money(dailyLimit)}.`,
       });
     }
   }
@@ -34,7 +36,7 @@ function evaluateAccountAlerts({name, dateKey, plan = {}, spend = null, balance 
       alerts.push({
         key: `${dateKey}:${label}:balance:${threshold}`,
         severity: threshold >= 100 ? 'critical' : 'warning',
-        text: `*Saldo — ${label}*\nSaldo pré-pago disponível na Meta: ${money(balance)}.\nJá foram consumidos ${consumed.toFixed(0)}% do depósito de ${money(deposit)}.`,
+        text: `${severityIcon(threshold >= 100)} 💰 *Saldo — ${label}*\n🏦 Saldo pré-pago disponível na Meta: ${money(balance)}.\n📊 Já foram consumidos ${consumed.toFixed(0)}% do depósito de ${money(deposit)}.`,
       });
     }
   }
