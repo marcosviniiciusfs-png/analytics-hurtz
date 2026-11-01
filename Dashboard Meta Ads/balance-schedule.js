@@ -67,6 +67,7 @@ function accountBlock(account, labels) {
     `⚖️ ${dayChange(account.spendYesterday, account.spendBefore, labels.before)}`,
     limitLine('🎯', 'Limite diário', account.spendYesterday, account.dailyLimit),
     limitLine('🗓️', 'Média diária do semanal', account.spendYesterday, account.weeklyLimit / 7),
+    limitLine('📅', 'Média diária do mensal', account.spendYesterday, account.monthlyLimit / labels.daysInMonth),
   ];
   return lines.filter(Boolean).join('\n');
 }

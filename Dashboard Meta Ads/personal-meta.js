@@ -728,7 +728,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     const accounts = (await catalog({id: userId}, false)).accounts || [];
     const ids = accounts.map(account => account.id);
     const yesterday = dayKey(now - 24 * 60 * 60 * 1000), before = dayKey(now - 2 * 24 * 60 * 60 * 1000);
-    const labels = {yesterday: dayLabel(yesterday), before: dayLabel(before)};
+    const [year, month] = yesterday.split('-').map(Number);
+    const labels = {yesterday: dayLabel(yesterday), before: dayLabel(before), daysInMonth: new Date(year, month, 0).getDate()};
     if (!ids.length) return {rows: [], labels};
     const plans = read('settings', userId)?.plans || {};
     const [balances, spendYesterday, spendBefore] = await Promise.all([
@@ -745,6 +746,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
         spendBefore: spendBefore[account.id] ?? null,
         dailyLimit: Number(plan.dailyLimit) || 0,
         weeklyLimit: Number(plan.weeklyLimit) || 0,
+        monthlyLimit: Number(plan.monthlyLimit) || 0,
       };
     });
     return {rows, labels};

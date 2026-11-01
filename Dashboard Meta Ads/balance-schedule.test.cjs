@@ -17,7 +17,17 @@ test('a slot is due during the 30 minutes after its time in São Paulo', () => {
   assert.deepEqual(dueSlots([], Date.UTC(2026, 10, 1, 12, 0)), []);
 });
 
-const labels = {yesterday: '31/10', before: '30/10'};
+const labels = {yesterday: '31/10', before: '30/10', daysInMonth: 31};
+
+test('monthly limit is compared as a daily share of the month', () => {
+  const text = balanceTimeText({time: '09:00', labels, accounts: [
+    {name: 'CA - Um', balance: 500, spendYesterday: 90, spendBefore: 90, dailyLimit: 0, weeklyLimit: 0, monthlyLimit: 3100},
+    {name: 'CA - Dois', balance: 500, spendYesterday: 90, spendBefore: 90, dailyLimit: 0, weeklyLimit: 0, monthlyLimit: 0},
+  ]});
+  const [first, second] = text.split('\n\n').slice(1);
+  assert.match(first, /📅 Média diária do mensal \(R\$\s?100,00\): 🟢 10,0% abaixo/);
+  assert.doesNotMatch(second, /Média diária do mensal/, 'no monthly line without a monthly limit');
+});
 
 test('balance message shows balance, yesterday spend and change against the day before, one block per account', () => {
   const text = balanceTimeText({time: '09:00', labels, accounts: [
