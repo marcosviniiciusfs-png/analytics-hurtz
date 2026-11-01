@@ -38,10 +38,44 @@ function formatBrl(value) {
   return new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(value);
 }
 
-// Mensagem com o saldo pré-pago de cada conta; conta sem leitura aparece como indisponível.
-function balanceTimeText({time, accounts}) {
-  const lines = accounts.map(account => `• *${account.name}*: ${account.balance == null ? 'saldo indisponível' : formatBrl(account.balance)}`);
-  return [`🏦 Saldo das contas às ${time}`, ...lines].join('\n');
+const percent = value => `${Math.abs(value).toFixed(1).replace('.', ',')}%`;
+
+// Variação do gasto de ontem em relação ao dia anterior a ele.
+function dayChange(spend, before, beforeLabel) {
+  if (spend == null || before == null) return '⚪ sem comparação com ' + beforeLabel;
+  if (before === 0) return spend > 0 ? `🆕 sem gasto em ${beforeLabel}` : `⚪ sem gasto em ${beforeLabel}`;
+  const change = (spend - before) / before * 100;
+  if (Math.abs(change) < 0.05) return `🟰 igual a ${beforeLabel}`;
+  return change > 0 ? `📈 ${percent(change)} acima de ${beforeLabel}` : `📉 ${percent(change)} abaixo de ${beforeLabel}`;
+}
+
+// Quanto o gasto de ontem ficou acima ou abaixo de um limite configurado. Sem limite, não aparece.
+function limitLine(icon, label, spend, limit) {
+  if (!(limit > 0)) return null;
+  const prefix = `${icon} ${label} (${formatBrl(limit)})`;
+  if (spend == null) return `${prefix}: ⚪ sem dado`;
+  const change = (spend - limit) / limit * 100;
+  if (Math.abs(change) < 0.05) return `${prefix}: 🟡 no limite`;
+  return change > 0 ? `${prefix}: 🔴 ${percent(change)} acima` : `${prefix}: 🟢 ${percent(change)} abaixo`;
+}
+
+function accountBlock(account, labels) {
+  const lines = [
+    `📣 *${account.name}*`,
+    `💰 Saldo agora: ${account.balance == null ? 'saldo indisponível' : formatBrl(account.balance)}`,
+    `🧾 Gasto de ${labels.yesterday}: ${account.spendYesterday == null ? 'sem dado' : formatBrl(account.spendYesterday)}`,
+    `⚖️ ${dayChange(account.spendYesterday, account.spendBefore, labels.before)}`,
+    limitLine('🎯', 'Limite diário', account.spendYesterday, account.dailyLimit),
+    limitLine('🗓️', 'Média diária do semanal', account.spendYesterday, account.weeklyLimit / 7),
+  ];
+  return lines.filter(Boolean).join('\n');
+}
+
+// Mensagem de saldo: uma linha por informação e uma linha em branco entre as contas.
+// Cada conta traz spendYesterday e spendBefore (o dia anterior a ele) e os limites configurados.
+function balanceTimeText({time, accounts, labels}) {
+  const blocks = accounts.map(account => accountBlock(account, labels));
+  return [`🏦 *Saldo das contas às ${time}*`, ...blocks].join('\n\n');
 }
 
 module.exports = {normalizeTimes, dueSlots, balanceTimeText, TIMEZONE, WINDOW_MINUTES};

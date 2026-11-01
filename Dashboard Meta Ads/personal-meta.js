@@ -595,10 +595,10 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (route === '/api/alert-balance-now' && req.method === 'POST') {
       const config = alertConfig(user.id) || {};
       if (!config.instance || !config.groupJid) throw fail(400, 'Conecte o WhatsApp e escolha o grupo antes de enviar o saldo.');
-      const rows = await balanceRows(user.id);
+      const {rows, labels} = await balanceRows(user.id);
       if (!rows.length) throw fail(400, 'Nenhuma conta disponível para consultar o saldo.');
       const time = new Date(Date.now()).toLocaleTimeString('pt-BR', {timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'});
-      const text = balanceTimeText({time, accounts: rows});
+      const text = balanceTimeText({time, accounts: rows, labels});
       if (!config.dryRun) await sendAlert(config, text);
       return send(res, 200, {ok: true, sent: !config.dryRun, accounts: rows.length, text});
     }
@@ -627,6 +627,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   const alertIndex = () => read('alert-index', 'global')?.userIds || [];
   const saveAlertIndex = userIds => write('alert-index', 'global', {userIds});
   const dayKey = now => new Date(now).toLocaleDateString('sv-SE', {timeZone: 'America/Sao_Paulo'});
+  const dayLabel = key => key.split('-').reverse().slice(0, 2).join('/');
 
   async function prepayBalances(user, ids) {
     const {conn} = await authorizeAccounts(user, ids);
@@ -711,13 +712,42 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     }
     write('frequency-sent', userId, Object.fromEntries(Object.entries(sent).filter(([key]) => key.startsWith(day))));
   }
-  // Saldo pré-pago de cada conta do catálogo do usuário, com nome para a mensagem.
-  async function balanceRows(userId) {
+  // Gasto de cada conta em um dia (AAAA-MM-DD, fuso de São Paulo); null quando a Meta não informa.
+  async function spendOnDay(user, ids, day) {
+    const {conn} = await authorizeAccounts(user, ids);
+    return Object.fromEntries(await Promise.all(ids.map(async id => {
+      try {
+        const data = await graph(conn.token, `${id}/insights`, {fields: 'spend', time_range: JSON.stringify({since: day, until: day})});
+        return [id, Number(data?.data?.[0]?.spend ?? 0)];
+      } catch { return [id, null]; }
+    })));
+  }
+
+  // Saldo pré-pago, gasto de ontem, gasto do dia anterior a ele e limites configurados de cada conta.
+  async function balanceRows(userId, now = Date.now()) {
     const accounts = (await catalog({id: userId}, false)).accounts || [];
     const ids = accounts.map(account => account.id);
-    if (!ids.length) return [];
-    const balances = await prepayBalances({id: userId}, ids).catch(() => ({}));
-    return accounts.map(account => ({name: account.name || account.id, balance: balances[account.id]?.audited ? balances[account.id].balance : null}));
+    const yesterday = dayKey(now - 24 * 60 * 60 * 1000), before = dayKey(now - 2 * 24 * 60 * 60 * 1000);
+    const labels = {yesterday: dayLabel(yesterday), before: dayLabel(before)};
+    if (!ids.length) return {rows: [], labels};
+    const plans = read('settings', userId)?.plans || {};
+    const [balances, spendYesterday, spendBefore] = await Promise.all([
+      prepayBalances({id: userId}, ids).catch(() => ({})),
+      spendOnDay({id: userId}, ids, yesterday).catch(() => ({})),
+      spendOnDay({id: userId}, ids, before).catch(() => ({})),
+    ]);
+    const rows = accounts.map(account => {
+      const plan = plans[account.id] || {};
+      return {
+        name: account.name || account.id,
+        balance: balances[account.id]?.audited ? balances[account.id].balance : null,
+        spendYesterday: spendYesterday[account.id] ?? null,
+        spendBefore: spendBefore[account.id] ?? null,
+        dailyLimit: Number(plan.dailyLimit) || 0,
+        weeklyLimit: Number(plan.weeklyLimit) || 0,
+      };
+    });
+    return {rows, labels};
   }
 
   // Saldo das contas nos horários escolhidos (1 ou 2 por dia), independente de limite ou depósito.
@@ -728,8 +758,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (!slots.length) return;
     const day = dayKey(now);
     const sent = {...(read('balance-sent', userId) || {})};
-    let rows = [];
-    try { rows = await balanceRows(userId); } catch { return; }
+    let rows = [], labels = null;
+    try { ({rows, labels} = await balanceRows(userId, now)); } catch { return; }
     if (!rows.length) return;
     // Sem nenhum saldo lido não há o que enviar; o horário fica pendente para o próximo ciclo.
     if (rows.every(row => row.balance == null)) return;
@@ -737,7 +767,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const key = `${day}:${time}`;
       if (sent[key]) continue;
       try {
-        if (!config.dryRun) await sendAlert(config, balanceTimeText({time, accounts: rows}));
+        if (!config.dryRun) await sendAlert(config, balanceTimeText({time, accounts: rows, labels}));
         sent[key] = {delivered: !config.dryRun, at: new Date(now).toISOString()};
       } catch { /* tenta de novo no próximo ciclo */ }
     }
