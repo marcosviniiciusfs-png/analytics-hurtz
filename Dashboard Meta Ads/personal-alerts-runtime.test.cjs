@@ -147,3 +147,23 @@ test('balance alerts go out at the chosen time, regardless of limit or deposit, 
   await api.runAlertCycle(Date.UTC(2026, 9, 31, 12, 25));
   assert.equal(sent.filter(item => /Saldo das contas às 09:00/.test(item.text)).length, 1, 'the same slot is not repeated the same day');
 });
+
+test('alerts cover only the accounts of the active profile in Contas', async t => {
+  const {api, token, sent} = setup(t);
+  const connected = await request(api, token, '/api/meta/challenge', 'POST');
+  assert.equal((await request(api, token, '/api/meta/connection', 'POST', {nonce: connected.body.nonce, accessToken: facebookToken})).status, 200);
+  api.write('alert-config', 'user-a', {enabled: true, dryRun: false, instance: 'inst', groupJid: 'grupo@g.us', balanceTimes: ['09:00'], thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100]});
+  api.write('alert-index', 'global', {userIds: ['user-a']});
+  const outside = {id: 'p1', name: 'Outro', accountIds: ['act_999']};
+  const inside = {id: 'p2', name: 'Principal', accountIds: ['act_111']};
+  const balanceMessages = () => sent.filter(item => /Saldo das contas às 09:00/.test(item.text));
+
+  api.write('settings', 'user-a', {flow_whatsapp_instance: 'inst', plans: {}, profiles: {items: [outside, inside], activeId: 'p1'}});
+  await api.runAlertCycle(Date.UTC(2026, 9, 31, 12, 10));
+  assert.equal(balanceMessages().length, 0, 'an account outside the active profile is not sent');
+
+  api.write('settings', 'user-a', {flow_whatsapp_instance: 'inst', plans: {}, profiles: {items: [outside, inside], activeId: 'p2'}});
+  await api.runAlertCycle(Date.UTC(2026, 9, 31, 12, 10));
+  assert.equal(balanceMessages().length, 1, 'the account of the active profile is sent');
+  assert.match(balanceMessages()[0].text, /CA - Um/);
+});

@@ -628,6 +628,14 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   const saveAlertIndex = userIds => write('alert-index', 'global', {userIds});
   const dayKey = now => new Date(now).toLocaleDateString('sv-SE', {timeZone: 'America/Sao_Paulo'});
   const dayLabel = key => key.split('-').reverse().slice(0, 2).join('/');
+  // Alertas usam só as contas do perfil ativo na sessão Contas; sem perfil, todas as contas.
+  function alertScope(userId) {
+    const profiles = read('settings', userId)?.profiles || {};
+    const items = Array.isArray(profiles.items) ? profiles.items : [];
+    const active = items.find(item => item.id === profiles.activeId) || items[0];
+    return Array.isArray(active?.accountIds) ? new Set(active.accountIds) : null;
+  }
+  const inAlertScope = (scope, id) => !scope || scope.has(id);
 
   async function prepayBalances(user, ids) {
     const {conn} = await authorizeAccounts(user, ids);
@@ -663,7 +671,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
   async function alertPreview(userId, now = Date.now()) {
     const config = alertConfig(userId) || {};
     const plans = read('settings', userId)?.plans || {};
-    const ids = Object.keys(plans);
+    const scope = alertScope(userId);
+    const ids = Object.keys(plans).filter(id => inAlertScope(scope, id));
     const dateKey = dayKey(now);
     const [balances, spends] = await Promise.all([
       ids.length ? prepayBalances({id: userId}, ids).catch(() => ({})) : {},
@@ -698,6 +707,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     const sent = {...previous};
     let accounts = [];
     try { accounts = (await catalog({id: userId}, false)).accounts || []; } catch { return; }
+    const scope = alertScope(userId);
+    accounts = accounts.filter(account => inAlertScope(scope, account.id));
     for (const account of accounts) {
       const key = `${day}:${account.id}`;
       if (sent[key]) continue;
@@ -725,7 +736,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
 
   // Saldo pré-pago, gasto de ontem, gasto do dia anterior a ele e limites configurados de cada conta.
   async function balanceRows(userId, now = Date.now()) {
-    const accounts = (await catalog({id: userId}, false)).accounts || [];
+    const scope = alertScope(userId);
+    const accounts = ((await catalog({id: userId}, false)).accounts || []).filter(account => inAlertScope(scope, account.id));
     const ids = accounts.map(account => account.id);
     const yesterday = dayKey(now - 24 * 60 * 60 * 1000), before = dayKey(now - 2 * 24 * 60 * 60 * 1000);
     const [year, month] = yesterday.split('-').map(Number);
@@ -790,7 +802,10 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     const users = alertIndex().map(id => ({id}));
     return runPersonalAlerts({users, dateKey, now, deps: {
       loadConfig: async id => alertConfig(id),
-      loadPlans: async id => read('settings', id)?.plans || {},
+      loadPlans: async id => {
+        const scope = alertScope(id);
+        return Object.fromEntries(Object.entries(read('settings', id)?.plans || {}).filter(([accountId]) => inAlertScope(scope, accountId)));
+      },
       fetchBalances: (id, ids) => prepayBalances({id}, ids),
       fetchSpend: (id, ids) => todaySpend({id}, ids),
       send: sendAlert,
