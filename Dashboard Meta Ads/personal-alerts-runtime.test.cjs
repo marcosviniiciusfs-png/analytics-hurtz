@@ -118,7 +118,7 @@ test('send-now posts every account balance to the group, and only in live mode',
   assert.equal(live.body.sent, true);
   assert.equal(live.body.accounts, 1);
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /CA - Um: R\$\s?480,00/);
+  assert.match(sent[0].text, /\*CA - Um\*: R\$\s?480,00/);
 });
 
 test('balance times are saved with at most two valid HH:MM values', async t => {
@@ -141,7 +141,7 @@ test('balance alerts go out at the chosen time, regardless of limit or deposit, 
   await api.runAlertCycle(Date.UTC(2026, 9, 31, 12, 10));
   const balanceMessages = sent.filter(item => /Saldo das contas às 09:00/.test(item.text));
   assert.equal(balanceMessages.length, 1);
-  assert.match(balanceMessages[0].text, /CA - Um: R\$\s?480,00/);
+  assert.match(balanceMessages[0].text, /\*CA - Um\*: R\$\s?480,00/);
 
   await api.runAlertCycle(Date.UTC(2026, 9, 31, 12, 25));
   assert.equal(sent.filter(item => /Saldo das contas às 09:00/.test(item.text)).length, 1, 'the same slot is not repeated the same day');

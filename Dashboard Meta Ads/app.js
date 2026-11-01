@@ -1975,8 +1975,8 @@ function applyActiveAccountProfile(sync=true){
   renderSummary();renderAccounts(document.querySelector('#searchInput')?.value||'');
   if(sync&&selectedAccountIds.size)syncAccountsForAudit([...selectedAccountIds]).catch(()=>{});
 }
-function profileAccountChecklist(profile){
-  const selected=new Set(profile?.accountIds||[]);
+function profileAccountChecklist(profile,pickedIds){
+  const selected=new Set(pickedIds||profile?.accountIds||[]);
   return accounts.slice().sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')).map(account=>`<label class="profile-account-option"><input type="checkbox" value="${escapeHtml(account.id)}" ${selected.has(account.id)?'checked':''}><span><b>${escapeHtml(account.name)}</b><small>${escapeHtml(account.businessName||account.id)}</small></span></label>`).join('')||'<p class="profile-empty">Nenhuma conta encontrada. Use “Atualizar contas”.</p>';
 }
 function renderProfileSelector(){
@@ -1985,9 +1985,9 @@ function renderProfileSelector(){
   select.value=accountProfiles.activeId||'';
   const profile=activeAccountProfile(),count=document.querySelector('#accountProfileCount');if(count)count.textContent=profile?`${profile.accountIds.length} conta${profile.accountIds.length===1?'':'s'}`:'Sem perfil';
 }
-function renderProfileManager(){
+function renderProfileManager(pickedIds){
   const profile=creatingAccountProfile?null:activeAccountProfile(),title=document.querySelector('#profileEditorTitle'),name=document.querySelector('#profileName'),list=document.querySelector('#profileAccountList'),remove=document.querySelector('#deleteAccountProfile');
-  title.textContent=profile?'Editar perfil':'Criar perfil';name.value=profile?.name||'';list.innerHTML=profileAccountChecklist(profile);remove.hidden=!profile;
+  title.textContent=profile?'Editar perfil':'Criar perfil';name.value=profile?.name||'';list.innerHTML=profileAccountChecklist(profile,pickedIds);remove.hidden=!profile;
   document.querySelector('#profileSelectionCount').textContent=`${list.querySelectorAll('input:checked').length} selecionada(s)`;
 }
 function openProfileManager(){creatingAccountProfile=!activeAccountProfile();renderProfileManager();const modal=document.querySelector('#accountProfileModal');modal.hidden=false;requestAnimationFrame(()=>document.querySelector('#profileName').focus())}
@@ -2011,7 +2011,7 @@ function installAccountProfilesUI(){
   document.querySelector('#newAccountProfile').onclick=()=>{creatingAccountProfile=true;renderProfileManager()};
   document.querySelector('#saveAccountProfile').onclick=async event=>{const name=document.querySelector('#profileName').value.trim(),ids=[...document.querySelectorAll('#profileAccountList input:checked')].map(input=>input.value),status=document.querySelector('#profileStatus');if(!name){status.textContent='Informe um nome para o perfil.';document.querySelector('#profileName').focus();return}if(!ids.length){status.textContent='Selecione pelo menos uma conta de anúncio.';return}let profile=creatingAccountProfile?null:activeAccountProfile();if(profile){profile.name=name;profile.accountIds=ids}else{profile={id:`profile_${Date.now().toString(36)}`,name,accountIds:ids};accountProfiles.items.push(profile);accountProfiles.activeId=profile.id}creatingAccountProfile=false;status.textContent='Salvando perfil...';try{await persistAccountProfiles()}catch(error){status.textContent=error.message;return}renderProfileSelector();applyActiveAccountProfile();status.textContent='Perfil salvo.';setTimeout(closeProfileManager,450)};
   document.querySelector('#deleteAccountProfile').onclick=async()=>{const profile=activeAccountProfile();if(!profile||!confirm(`Excluir o perfil “${profile.name}”? As contas de anúncio não serão excluídas.`))return;accountProfiles.items=accountProfiles.items.filter(item=>item.id!==profile.id);accountProfiles.activeId=accountProfiles.items[0]?.id||null;try{await persistAccountProfiles()}catch(error){document.querySelector('#profileStatus').textContent=error.message;return}renderProfileSelector();if(activeAccountProfile())applyActiveAccountProfile();else{selectedAccountIds=new Set(accounts.map(account=>account.id));renderSummary();renderAccounts(document.querySelector('#searchInput')?.value||'')}closeProfileManager()};
-  document.querySelector('#refreshProfileAccounts').onclick=async event=>{const status=document.querySelector('#profileStatus');status.textContent='Buscando novas contas na Meta...';setButtonLoading(event.currentTarget,true,'Atualizando contas...');const result=await findMetaAccounts(false);renderProfileManager();status.textContent=result?'Lista de contas atualizada.':document.querySelector('#accountSearchStatus').textContent;setButtonLoading(event.currentTarget,false)};
+  document.querySelector('#refreshProfileAccounts').onclick=async event=>{const button=event.currentTarget,status=document.querySelector('#profileStatus');const picked=[...document.querySelectorAll('#profileAccountList input:checked')].map(input=>input.value);status.textContent='Buscando novas contas na Meta...';setButtonLoading(button,true,'Atualizando contas...');try{const result=await findMetaAccounts(false);renderProfileManager(picked);status.textContent=result?'Lista de contas atualizada.':document.querySelector('#accountSearchStatus').textContent}finally{setButtonLoading(button,false)}};
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!modal.hidden)closeProfileManager()});
   renderProfileSelector();loadAccountProfiles();
 }

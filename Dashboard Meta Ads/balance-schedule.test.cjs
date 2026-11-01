@@ -23,6 +23,6 @@ test('balance message lists each account with its balance, or says it is unavail
     {name: 'CA - Dois', balance: null},
   ]});
   assert.match(text, /Saldo das contas às 09:00/);
-  assert.match(text, /CA - Um: R\$\s?1\.234,50/);
-  assert.match(text, /CA - Dois: saldo indisponível/);
+  assert.match(text, /\*CA - Um\*: R\$\s?1\.234,50/);
+  assert.match(text, /\*CA - Dois\*: saldo indisponível/);
 });

@@ -40,7 +40,7 @@ function formatBrl(value) {
 
 // Mensagem com o saldo pré-pago de cada conta; conta sem leitura aparece como indisponível.
 function balanceTimeText({time, accounts}) {
-  const lines = accounts.map(account => `• ${account.name}: ${account.balance == null ? 'saldo indisponível' : formatBrl(account.balance)}`);
+  const lines = accounts.map(account => `• *${account.name}*: ${account.balance == null ? 'saldo indisponível' : formatBrl(account.balance)}`);
   return [`🏦 Saldo das contas às ${time}`, ...lines].join('\n');
 }
 
