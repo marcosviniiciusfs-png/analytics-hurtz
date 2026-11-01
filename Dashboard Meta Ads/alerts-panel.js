@@ -106,6 +106,7 @@ function buildAlertsPanel() {
         </div>
         <div class="ap-actions ap-foot">
           <button type="button" class="ap-btn ap-btn-primary" id="apSave">Salvar regras</button>
+          <button type="button" class="ap-btn" id="apBalanceNow">Enviar saldo agora</button>
           <span class="ap-status-text" id="apSaveStatus"></span>
         </div>
       </section>
@@ -137,6 +138,7 @@ function buildAlertsPanel() {
   document.querySelector('#apDisconnect').onclick = disconnectWhatsapp;
   document.querySelector('#apLoadGroups').onclick = loadWhatsappGroups;
   document.querySelector('#apSave').onclick = saveAlertRules;
+  document.querySelector('#apBalanceNow').onclick = sendBalancesNow;
   document.querySelector('#apPreview').onclick = showAlertPreview;
   document.querySelector('#apFreqSave').onclick = saveFrequencyAlert;
   document.querySelectorAll('#apThresholds .ap-threshold').forEach(button => {
@@ -316,6 +318,20 @@ async function saveAlertRules() {
     });
     status.textContent = 'Regras salvas.';
     await refreshAlertStatus();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
+// Dispara agora o saldo de todas as contas do usuário para o grupo configurado.
+async function sendBalancesNow() {
+  const status = document.querySelector('#apSaveStatus');
+  status.textContent = 'Consultando saldos...';
+  try {
+    const payload = await apJson('/api/alert-balance-now', {method: 'POST'});
+    status.textContent = payload.sent
+      ? `Saldo de ${payload.accounts} conta(s) enviado ao grupo.`
+      : 'Modo de validação ligado: o saldo não foi enviado.';
   } catch (error) {
     status.textContent = error.message;
   }

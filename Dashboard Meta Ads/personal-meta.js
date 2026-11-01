@@ -591,6 +591,17 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (route === '/api/alert-config' && req.method === 'GET') {
       return send(res, 200, {config: alertConfig(user.id) || {enabled: false, dryRun: true, instance: '', groupJid: '', thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100], balanceTimes: []}});
     }
+    // Envio imediato do saldo de todas as contas, acionado pelo botão da seção de alertas.
+    if (route === '/api/alert-balance-now' && req.method === 'POST') {
+      const config = alertConfig(user.id) || {};
+      if (!config.instance || !config.groupJid) throw fail(400, 'Conecte o WhatsApp e escolha o grupo antes de enviar o saldo.');
+      const rows = await balanceRows(user.id);
+      if (!rows.length) throw fail(400, 'Nenhuma conta disponível para consultar o saldo.');
+      const time = new Date(Date.now()).toLocaleTimeString('pt-BR', {timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'});
+      const text = balanceTimeText({time, accounts: rows});
+      if (!config.dryRun) await sendAlert(config, text);
+      return send(res, 200, {ok: true, sent: !config.dryRun, accounts: rows.length, text});
+    }
     if (route === '/api/alert-config' && req.method === 'PUT') {
       const payload = await body(req), settings = read('settings', user.id) || {};
       const instance = String(payload.instance || ''), groupJid = String(payload.groupJid || '');
@@ -700,6 +711,15 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     }
     write('frequency-sent', userId, Object.fromEntries(Object.entries(sent).filter(([key]) => key.startsWith(day))));
   }
+  // Saldo pré-pago de cada conta do catálogo do usuário, com nome para a mensagem.
+  async function balanceRows(userId) {
+    const accounts = (await catalog({id: userId}, false)).accounts || [];
+    const ids = accounts.map(account => account.id);
+    if (!ids.length) return [];
+    const balances = await prepayBalances({id: userId}, ids).catch(() => ({}));
+    return accounts.map(account => ({name: account.name || account.id, balance: balances[account.id]?.audited ? balances[account.id].balance : null}));
+  }
+
   // Saldo das contas nos horários escolhidos (1 ou 2 por dia), independente de limite ou depósito.
   async function runBalanceTimeAlerts(userId, now) {
     const config = alertConfig(userId) || {};
@@ -708,13 +728,9 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (!slots.length) return;
     const day = dayKey(now);
     const sent = {...(read('balance-sent', userId) || {})};
-    let accounts = [];
-    try { accounts = (await catalog({id: userId}, false)).accounts || []; } catch { return; }
-    const ids = accounts.map(account => account.id);
-    if (!ids.length) return;
-    const names = Object.fromEntries(accounts.map(account => [account.id, account.name || account.id]));
-    const balances = await prepayBalances({id: userId}, ids).catch(() => ({}));
-    const rows = ids.map(id => ({name: names[id], balance: balances[id]?.audited ? balances[id].balance : null}));
+    let rows = [];
+    try { rows = await balanceRows(userId); } catch { return; }
+    if (!rows.length) return;
     // Sem nenhum saldo lido não há o que enviar; o horário fica pendente para o próximo ciclo.
     if (rows.every(row => row.balance == null)) return;
     for (const time of slots) {

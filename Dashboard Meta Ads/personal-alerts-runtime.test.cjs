@@ -99,6 +99,28 @@ test('account report route returns the parsed metrics and findings of the connec
   assert.equal((await request(api, token, '/api/account-report?account=abc')).status, 400);
 });
 
+test('send-now posts every account balance to the group, and only in live mode', async t => {
+  const {api, token, sent} = setup(t);
+  const connected = await request(api, token, '/api/meta/challenge', 'POST');
+  assert.equal((await request(api, token, '/api/meta/connection', 'POST', {nonce: connected.body.nonce, accessToken: facebookToken})).status, 200);
+  api.write('settings', 'user-a', {flow_whatsapp_instance: 'inst', plans: {}});
+  assert.equal((await request(api, token, '/api/alert-balance-now', 'POST')).status, 400, 'needs WhatsApp and group first');
+
+  api.write('alert-config', 'user-a', {enabled: false, dryRun: true, instance: 'inst', groupJid: 'grupo@g.us', thresholds: [75], balanceThresholds: [50]});
+  const validation = await request(api, token, '/api/alert-balance-now', 'POST');
+  assert.equal(validation.status, 200);
+  assert.equal(validation.body.sent, false);
+  assert.equal(sent.length, 0, 'validation mode sends nothing');
+
+  api.write('alert-config', 'user-a', {enabled: false, dryRun: false, instance: 'inst', groupJid: 'grupo@g.us', thresholds: [75], balanceThresholds: [50]});
+  const live = await request(api, token, '/api/alert-balance-now', 'POST');
+  assert.equal(live.status, 200);
+  assert.equal(live.body.sent, true);
+  assert.equal(live.body.accounts, 1);
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].text, /CA - Um: R\$\s?480,00/);
+});
+
 test('balance times are saved with at most two valid HH:MM values', async t => {
   const {api, token} = setup(t);
   api.write('settings', 'user-a', {flow_whatsapp_instance: 'inst', plans: {}});
