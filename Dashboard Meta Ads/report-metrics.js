@@ -3,7 +3,8 @@
 // A Meta devolve gasto e alcance como texto, e ações (leads, cliques no link,
 // reproduções de 3 segundos) como listas de {action_type, value}.
 
-const INSIGHT_FIELDS = 'spend,impressions,reach,cpm,ctr,frequency,inline_link_clicks,actions,video_3_sec_watched_actions';
+// video_3_sec_watched_actions não é aceito como campo na API atual; as reproduções de 3 segundos vêm em actions (video_view).
+const INSIGHT_FIELDS = 'spend,impressions,reach,cpm,ctr,frequency,inline_link_clicks,actions';
 
 function actionValue(list, type) {
   const item = (list || []).find(entry => entry.action_type === type);
@@ -17,9 +18,7 @@ function parseInsightRow(row) {
   const impressions = Number(row.impressions);
   const spend = row.spend != null ? Number(row.spend) : null;
   const leads = actionValue(row.actions, 'lead');
-  const threeSecondViews = actionValue(row.video_3_sec_watched_actions, 'video_view')
-    ?? (Array.isArray(row.video_3_sec_watched_actions) && row.video_3_sec_watched_actions[0]
-      ? Number(row.video_3_sec_watched_actions[0].value) : null);
+  const threeSecondViews = actionValue(row.actions, 'video_view');
   return {
     spend,
     impressions: Number.isFinite(impressions) ? impressions : null,

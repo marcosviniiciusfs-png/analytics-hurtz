@@ -20,7 +20,7 @@ test('cost per lead is spend divided by leads, and null without leads', () => {
 });
 
 test('hook rate is the 3-second video views as a percentage of impressions', () => {
-  const m = parseInsightRow({spend: '50', impressions: '2000', video_3_sec_watched_actions: [{action_type: 'video_view', value: '500'}]});
+  const m = parseInsightRow({spend: '50', impressions: '2000', actions: [{action_type: 'video_view', value: '500'}]});
   assert.equal(m.hookRate, 25);
 });
 
