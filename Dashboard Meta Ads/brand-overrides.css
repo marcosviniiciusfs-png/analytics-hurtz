@@ -744,6 +744,8 @@ dialog.cm-editor-dialog[open]:not(.cm-dialog-fallback){position:fixed!important;
 .ap-thresholds{display:flex;gap:10px;flex-wrap:wrap}
 .ap-threshold{padding:10px 20px;border-radius:999px;border:1px solid #cfd9d1;background:#fff;font:inherit;font-weight:600;cursor:pointer;color:#1c2a20}
 .ap-threshold[aria-pressed="true"]{background:#2e7d32;border-color:#2e7d32;color:#fff}
+.ap-times{display:flex;gap:10px;flex-wrap:wrap}
+.ap-times input{padding:10px 12px;border:1px solid #cfd9d1;border-radius:10px;font:inherit;background:#fbfdfb;color:#1c2a20}
 /* Card do relatório de desempenho na Central de alertas. */
 .ap-report{grid-column:span 12}
 .ap-thresholds-note{margin:0;padding:10px 14px;border-radius:12px;background:#f3faf4;font-size:13px}

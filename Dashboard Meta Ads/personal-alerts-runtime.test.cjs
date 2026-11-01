@@ -98,3 +98,29 @@ test('account report route returns the parsed metrics and findings of the connec
   assert.equal((await request(api, token, '/api/account-report?account=act_999')).status, 403);
   assert.equal((await request(api, token, '/api/account-report?account=abc')).status, 400);
 });
+
+test('balance times are saved with at most two valid HH:MM values', async t => {
+  const {api, token} = setup(t);
+  api.write('settings', 'user-a', {flow_whatsapp_instance: 'inst', plans: {}});
+  const saved = await request(api, token, '/api/alert-config', 'PUT', {enabled: false, balanceTimes: ['18:00', '09:00', '09:00', '25:00', '12:30']});
+  assert.equal(saved.status, 200);
+  assert.deepEqual(saved.body.config.balanceTimes, ['09:00', '12:30']);
+});
+
+test('balance alerts go out at the chosen time, regardless of limit or deposit, and only once per day', async t => {
+  const {api, token, sent} = setup(t);
+  const connected = await request(api, token, '/api/meta/challenge', 'POST');
+  assert.equal((await request(api, token, '/api/meta/connection', 'POST', {nonce: connected.body.nonce, accessToken: facebookToken})).status, 200);
+  api.write('settings', 'user-a', {flow_whatsapp_instance: 'inst', plans: {}});
+  api.write('alert-config', 'user-a', {enabled: true, dryRun: false, instance: 'inst', groupJid: 'grupo@g.us', balanceTimes: ['09:00'], thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100]});
+  api.write('alert-index', 'global', {userIds: ['user-a']});
+
+  // 12:10 UTC é 09:10 em São Paulo, dentro da janela do horário 09:00.
+  await api.runAlertCycle(Date.UTC(2026, 9, 31, 12, 10));
+  const balanceMessages = sent.filter(item => /Saldo das contas às 09:00/.test(item.text));
+  assert.equal(balanceMessages.length, 1);
+  assert.match(balanceMessages[0].text, /CA - Um: R\$\s?480,00/);
+
+  await api.runAlertCycle(Date.UTC(2026, 9, 31, 12, 25));
+  assert.equal(sent.filter(item => /Saldo das contas às 09:00/.test(item.text)).length, 1, 'the same slot is not repeated the same day');
+});

@@ -8,6 +8,7 @@ const {evaluateAccountAlerts} = require('./alert-evaluator');
 const {evaluateReport} = require('./report-rules');
 const {INSIGHT_FIELDS, parseInsightRow} = require('./report-metrics');
 const {formatReportMessage, frequencyAlertText} = require('./report-message');
+const {normalizeTimes, dueSlots, balanceTimeText} = require('./balance-schedule');
 
 const fail = (status, message) => Object.assign(new Error(message), {status});
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -588,7 +589,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       return send(res, 200, await accountReport(user, account));
     }
     if (route === '/api/alert-config' && req.method === 'GET') {
-      return send(res, 200, {config: alertConfig(user.id) || {enabled: false, dryRun: true, instance: '', groupJid: '', thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100]}});
+      return send(res, 200, {config: alertConfig(user.id) || {enabled: false, dryRun: true, instance: '', groupJid: '', thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100], balanceTimes: []}});
     }
     if (route === '/api/alert-config' && req.method === 'PUT') {
       const payload = await body(req), settings = read('settings', user.id) || {};
@@ -598,7 +599,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (instance && settings.flow_whatsapp_instance !== instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar os alertas.');
       const thresholds = (Array.isArray(payload.thresholds) ? payload.thresholds : [75, 90, 100, 120]).map(Number).filter(Number.isFinite);
       const groupName = String(payload.groupName || '').trim().slice(0, 200);
-      const config = {enabled, dryRun: payload.dryRun !== false, instance, groupJid: groupJid.slice(0, 200), groupName, thresholds, balanceThresholds: [50, 75, 90, 100], frequencyAlertEnabled: Boolean(payload.frequencyAlertEnabled), maxFrequency: Number(payload.maxFrequency) > 0 ? Number(payload.maxFrequency) : 0};
+      const config = {enabled, dryRun: payload.dryRun !== false, instance, groupJid: groupJid.slice(0, 200), groupName, thresholds, balanceThresholds: [50, 75, 90, 100], balanceTimes: normalizeTimes(payload.balanceTimes), frequencyAlertEnabled: Boolean(payload.frequencyAlertEnabled), maxFrequency: Number(payload.maxFrequency) > 0 ? Number(payload.maxFrequency) : 0};
       write('alert-config', user.id, config);
       const ids = new Set(alertIndex());
       if (enabled) ids.add(user.id); else ids.delete(user.id);
@@ -699,9 +700,40 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     }
     write('frequency-sent', userId, Object.fromEntries(Object.entries(sent).filter(([key]) => key.startsWith(day))));
   }
+  // Saldo das contas nos horários escolhidos (1 ou 2 por dia), independente de limite ou depósito.
+  async function runBalanceTimeAlerts(userId, now) {
+    const config = alertConfig(userId) || {};
+    if (!config.enabled) return;
+    const slots = dueSlots(config.balanceTimes, now);
+    if (!slots.length) return;
+    const day = dayKey(now);
+    const sent = {...(read('balance-sent', userId) || {})};
+    let accounts = [];
+    try { accounts = (await catalog({id: userId}, false)).accounts || []; } catch { return; }
+    const ids = accounts.map(account => account.id);
+    if (!ids.length) return;
+    const names = Object.fromEntries(accounts.map(account => [account.id, account.name || account.id]));
+    const balances = await prepayBalances({id: userId}, ids).catch(() => ({}));
+    const rows = ids.map(id => ({name: names[id], balance: balances[id]?.audited ? balances[id].balance : null}));
+    // Sem nenhum saldo lido não há o que enviar; o horário fica pendente para o próximo ciclo.
+    if (rows.every(row => row.balance == null)) return;
+    for (const time of slots) {
+      const key = `${day}:${time}`;
+      if (sent[key]) continue;
+      try {
+        if (!config.dryRun) await sendAlert(config, balanceTimeText({time, accounts: rows}));
+        sent[key] = {delivered: !config.dryRun, at: new Date(now).toISOString()};
+      } catch { /* tenta de novo no próximo ciclo */ }
+    }
+    write('balance-sent', userId, Object.fromEntries(Object.entries(sent).filter(([key]) => key.startsWith(day))));
+  }
+
   async function runAlertCycle(now = Date.now()) {
     const results = await runAlertsOnly(now);
-    for (const userId of alertIndex()) await runFrequencyAlerts(userId, now);
+    for (const userId of alertIndex()) {
+      await runFrequencyAlerts(userId, now);
+      await runBalanceTimeAlerts(userId, now);
+    }
     return results;
   }
 

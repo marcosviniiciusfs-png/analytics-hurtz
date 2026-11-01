@@ -96,6 +96,14 @@ function buildAlertsPanel() {
           </div>
           <small class="ap-muted">Você recebe um aviso ao atingir cada faixa escolhida, uma vez por dia.</small>
         </div>
+        <div class="ap-field">
+          <span class="ap-label">Horários do saldo</span>
+          <div class="ap-times">
+            <input type="time" id="apBalanceTime1" aria-label="Primeiro horário do saldo">
+            <input type="time" id="apBalanceTime2" aria-label="Segundo horário do saldo">
+          </div>
+          <small class="ap-muted">Até 2 horários por dia. Em cada um, sai o saldo de todas as contas, com ou sem limite diário.</small>
+        </div>
         <div class="ap-actions ap-foot">
           <button type="button" class="ap-btn ap-btn-primary" id="apSave">Salvar regras</button>
           <span class="ap-status-text" id="apSaveStatus"></span>
@@ -182,6 +190,9 @@ function renderAlertStatus() {
   document.querySelectorAll('#apThresholds .ap-threshold').forEach(button => {
     button.setAttribute('aria-pressed', String(selectedThresholds.includes(Number(button.dataset.value))));
   });
+  const balanceTimes = config?.balanceTimes || [];
+  document.querySelector('#apBalanceTime1').value = balanceTimes[0] || '';
+  document.querySelector('#apBalanceTime2').value = balanceTimes[1] || '';
 
   document.querySelector('#apStatInstance').textContent = instance || '—';
   document.querySelector('#apStatState').textContent = connected ? 'Conectado' : configured ? 'Desconectado' : 'Sem instância';
@@ -293,12 +304,15 @@ async function saveAlertRules() {
   const thresholds = [...document.querySelectorAll('#apThresholds .ap-threshold[aria-pressed="true"]')].map(button => Number(button.dataset.value));
   if (enabled && !groupJid) { status.textContent = 'Escolha um grupo antes de ativar.'; return; }
   if (!thresholds.length) { status.textContent = 'Informe pelo menos uma faixa de percentual.'; return; }
+  const balanceTimes = [document.querySelector('#apBalanceTime1').value, document.querySelector('#apBalanceTime2').value].filter(Boolean);
+  if (new Set(balanceTimes).size !== balanceTimes.length) { status.textContent = 'Os dois horários do saldo precisam ser diferentes.'; return; }
   status.textContent = 'Salvando...';
   try {
+    // Mantém os demais campos (como o alerta de frequência) ao salvar só as regras.
     await apJson('/api/alert-config', {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({enabled, dryRun: document.querySelector('#apDryRun').checked, instance: apState.instance, groupJid, groupName: groupNameFor(groupJid), thresholds}),
+      body: JSON.stringify({...(apState.config || {}), enabled, dryRun: document.querySelector('#apDryRun').checked, instance: apState.instance, groupJid, groupName: groupNameFor(groupJid), thresholds, balanceTimes}),
     });
     status.textContent = 'Regras salvas.';
     await refreshAlertStatus();
