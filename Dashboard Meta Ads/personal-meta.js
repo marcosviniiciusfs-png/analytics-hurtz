@@ -717,7 +717,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
         const report = await accountReport({id: userId}, account.id);
         const frequency = report.metrics.frequency;
         if (frequency == null || frequency <= config.maxFrequency) continue;
-        const text = frequencyAlertText({name: report.name, metrics: report.metrics, maxFrequency: config.maxFrequency});
+        // O nome vem da conta na Meta; o ID só aparece se a Meta não informar o nome.
+        const text = frequencyAlertText({name: account.name || report.name, metrics: report.metrics, maxFrequency: config.maxFrequency});
         if (!config.dryRun) await sendAlert(config, text);
         sent[key] = {delivered: !config.dryRun, at: new Date(now).toISOString()};
       } catch { /* tenta de novo no próximo ciclo */ }
@@ -806,7 +807,12 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       loadConfig: async id => alertConfig(id),
       loadPlans: async id => {
         const scope = alertScope(id);
-        return Object.fromEntries(Object.entries(read('settings', id)?.plans || {}).filter(([accountId]) => inAlertScope(scope, accountId)));
+        // Planos sem nome recebem o nome da conta na Meta, para a mensagem nunca mostrar só o ID.
+        let names = {};
+        try { names = Object.fromEntries(((await catalog({id}, false)).accounts || []).map(account => [account.id, account.name])); } catch { /* sem nomes, usa o ID */ }
+        return Object.fromEntries(Object.entries(read('settings', id)?.plans || {})
+          .filter(([accountId]) => inAlertScope(scope, accountId))
+          .map(([accountId, plan]) => [accountId, {...plan, name: plan.name || names[accountId] || accountId}]));
       },
       fetchBalances: (id, ids) => prepayBalances({id}, ids),
       fetchSpend: (id, ids) => todaySpend({id}, ids),

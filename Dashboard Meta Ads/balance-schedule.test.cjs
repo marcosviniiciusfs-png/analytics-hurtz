@@ -1,7 +1,7 @@
 'use strict';
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const {normalizeTimes, dueSlots, balanceTimeText} = require('./balance-schedule');
+const {normalizeTimes, dueSlots, balanceTimeText, SEPARATOR} = require('./balance-schedule');
 
 test('normalizeTimes keeps unique valid HH:MM values, sorted, at most two', () => {
   assert.deepEqual(normalizeTimes(['18:00', '09:00', '09:00', '25:00', 'abc', '12:30']), ['09:00', '12:30']);
@@ -19,7 +19,7 @@ test('a slot is due during the 30 minutes after its time in São Paulo', () => {
 
 const labels = {yesterday: '31/10', before: '30/10', daysInMonth: 31};
 // Cada conta vira um bloco; os blocos são separados por uma linha de =====.
-const blocksOf = text => text.split('\n\n')[1].split('\n=====\n');
+const blocksOf = text => text.split('\n\n')[1].split(`\n${SEPARATOR}\n`);
 
 test('monthly limit is compared as a daily share of the month', () => {
   const text = balanceTimeText({time: '09:00', labels, accounts: [
@@ -39,7 +39,18 @@ test('balance message shows balance, yesterday spend and change against the day 
   assert.match(text, /\*Saldo das contas às 09:00\*/);
   assert.match(text, /📣 \*CA - Um\*\n💰 Saldo agora: R\$\s?1\.234,50\n🧾 Gasto de 31\/10: R\$\s?150,00\n⚖️ 📈 50,0% acima de 30\/10/);
   assert.match(text, /📣 \*CA - Dois\* 🚨\n💰 Saldo agora: saldo indisponível/);
-  assert.match(text, /CA - Dois[\s\S]*\n=====\n📣 \*CA - Um\*/, 'accounts are separated by a ===== line');
+  assert.match(text, /CA - Dois[\s\S]*\n=+\n📣 \*CA - Um\*/, 'accounts are separated by a line of =');
+  assert.ok(SEPARATOR.length >= 60, 'the separator is wide enough to fill the message');
+});
+
+test('an account with zero balance is treated as without balance: siren and first place', () => {
+  const text = balanceTimeText({time: '09:00', labels, accounts: [
+    {name: 'CA - Com saldo', balance: 300, spendYesterday: 10, spendBefore: 10, dailyLimit: 0, weeklyLimit: 0},
+    {name: 'CA - Zerado', balance: 0, spendYesterday: 5, spendBefore: 5, dailyLimit: 0, weeklyLimit: 0},
+  ]});
+  const [first, second] = blocksOf(text);
+  assert.match(first, /^📣 \*CA - Zerado\* 🚨\n💰 Saldo agora: R\$\s?0,00/);
+  assert.match(second, /^📣 \*CA - Com saldo\*(?! 🚨)/);
 });
 
 test('accounts without balance go first with a siren, then accounts with balance, then cards', () => {

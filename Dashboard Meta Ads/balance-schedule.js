@@ -59,8 +59,11 @@ function limitLine(icon, label, spend, limit) {
   return change > 0 ? `${prefix}: 🔴 ${percent(change)} acima` : `${prefix}: 🟢 ${percent(change)} abaixo`;
 }
 
-// Contas sem saldo lido (que não são cartão) recebem a sirene; cartão não tem saldo, então não recebe.
-const noBalance = account => !account.isCard && account.balance == null;
+// Conta sem saldo (zerado ou não lido) recebe a sirene; cartão não tem saldo, então não recebe.
+const noBalance = account => !account.isCard && !(account.balance > 0);
+
+// Linha que separa uma conta da outra; longa o bastante para ocupar a largura da mensagem.
+const SEPARATOR = '='.repeat(70);
 
 function accountBlock(account, labels) {
   const balanceText = account.isCard ? 'conta cartão' : account.balance == null ? 'saldo indisponível' : formatBrl(account.balance);
@@ -79,12 +82,12 @@ function accountBlock(account, labels) {
 // Sem saldo vai para o topo, depois as contas com saldo e por último os cartões.
 const sortRank = account => account.isCard ? 2 : noBalance(account) ? 0 : 1;
 
-// Mensagem de saldo: uma linha por informação e uma linha de ===== entre as contas.
+// Mensagem de saldo: uma linha por informação e uma linha de separação entre as contas.
 // Cada conta traz spendYesterday e spendBefore (o dia anterior a ele) e os limites configurados.
 function balanceTimeText({time, accounts, labels}) {
   const sorted = [...accounts].sort((a, b) => sortRank(a) - sortRank(b));
   const blocks = sorted.map(account => accountBlock(account, labels));
-  return [`🏦 *Saldo das contas às ${time}*`, blocks.join('\n=====\n')].join('\n\n');
+  return [`🏦 *Saldo das contas às ${time}*`, blocks.join(`\n${SEPARATOR}\n`)].join('\n\n');
 }
 
-module.exports = {normalizeTimes, dueSlots, balanceTimeText, TIMEZONE, WINDOW_MINUTES};
+module.exports = {normalizeTimes, dueSlots, balanceTimeText, SEPARATOR, TIMEZONE, WINDOW_MINUTES};
