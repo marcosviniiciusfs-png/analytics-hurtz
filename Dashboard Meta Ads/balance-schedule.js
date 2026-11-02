@@ -95,4 +95,4 @@ function balanceTimeText({time, accounts, labels}) {
   return [`🏦 *Saldo das contas às ${time}*`, blocks.join(`\n\n${SEPARATOR}\n\n`)].join('\n\n');
 }
 
-module.exports = {normalizeTimes, dueSlots, balanceTimeText, SEPARATOR, TIMEZONE, WINDOW_MINUTES};
+module.exports = {normalizeTimes, dueSlots, balanceTimeText, formatBrl, SEPARATOR, TIMEZONE, WINDOW_MINUTES};

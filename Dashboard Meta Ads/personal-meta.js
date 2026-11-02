@@ -8,7 +8,8 @@ const {evaluateAccountAlerts} = require('./alert-evaluator');
 const {evaluateReport} = require('./report-rules');
 const {INSIGHT_FIELDS, parseInsightRow} = require('./report-metrics');
 const {formatReportMessage, frequencyAlertText} = require('./report-message');
-const {normalizeTimes, dueSlots, balanceTimeText} = require('./balance-schedule');
+const {normalizeTimes, dueSlots, balanceTimeText, SEPARATOR} = require('./balance-schedule');
+const {normalizeTriggerWords, matchTrigger, frequencyText, parseWindowRow, reportText} = require('./alert-triggers');
 
 const fail = (status, message) => Object.assign(new Error(message), {status});
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -589,7 +590,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       return send(res, 200, await accountReport(user, account));
     }
     if (route === '/api/alert-config' && req.method === 'GET') {
-      return send(res, 200, {config: alertConfig(user.id) || {enabled: false, dryRun: true, instance: '', groupJid: '', thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100], balanceTimes: []}});
+      return send(res, 200, {config: alertConfig(user.id) || {enabled: false, dryRun: true, instance: '', groupJid: '', thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100], balanceTimes: [], triggerWords: {}}});
     }
     // Envio imediato do saldo de todas as contas, acionado pelo botão da seção de alertas.
     if (route === '/api/alert-balance-now' && req.method === 'POST') {
@@ -610,7 +611,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (instance && settings.flow_whatsapp_instance !== instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar os alertas.');
       const thresholds = (Array.isArray(payload.thresholds) ? payload.thresholds : [75, 90, 100, 120]).map(Number).filter(Number.isFinite);
       const groupName = String(payload.groupName || '').trim().slice(0, 200);
-      const config = {enabled, dryRun: payload.dryRun !== false, instance, groupJid: groupJid.slice(0, 200), groupName, thresholds, balanceThresholds: [50, 75, 90, 100], balanceTimes: normalizeTimes(payload.balanceTimes), frequencyAlertEnabled: Boolean(payload.frequencyAlertEnabled), maxFrequency: Number(payload.maxFrequency) > 0 ? Number(payload.maxFrequency) : 0};
+      const config = {enabled, dryRun: payload.dryRun !== false, instance, groupJid: groupJid.slice(0, 200), groupName, thresholds, balanceThresholds: [50, 75, 90, 100], balanceTimes: normalizeTimes(payload.balanceTimes), frequencyAlertEnabled: Boolean(payload.frequencyAlertEnabled), maxFrequency: Number(payload.maxFrequency) > 0 ? Number(payload.maxFrequency) : 0, triggerWords: normalizeTriggerWords(payload.triggerWords), webhookToken: alertConfig(user.id)?.webhookToken || crypto.randomBytes(18).toString('hex')};
       write('alert-config', user.id, config);
       const ids = new Set(alertIndex());
       if (enabled) ids.add(user.id); else ids.delete(user.id);
@@ -791,6 +792,73 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     write('balance-sent', userId, Object.fromEntries(Object.entries(sent).filter(([key]) => key.startsWith(day))));
   }
 
+  // Contas do perfil ativo, com o nome vindo da Meta.
+  async function scopedAccounts(userId, scope) {
+    const accounts = (await catalog({id: userId}, false)).accounts || [];
+    return accounts.filter(account => inAlertScope(scope, account.id));
+  }
+
+  // Envia agora o alerta escolhido. Devolve o texto enviado, ou null se não há o que enviar.
+  async function runTrigger(userId, kind, now = Date.now()) {
+    const config = alertConfig(userId) || {};
+    const scope = alertScope(userId);
+    const time = new Date(now).toLocaleTimeString('pt-BR', {timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'});
+    let text = null;
+    if (kind === 'saldo') {
+      const {rows, labels} = await balanceRows(userId, now);
+      if (rows.length) text = balanceTimeText({time, accounts: rows, labels});
+    } else if (kind === 'limites') {
+      const {messages} = await alertPreview(userId, now);
+      text = messages.length ? messages.map(message => message.text).join(`\n\n${SEPARATOR}\n\n`) : '✅ Nenhum limite ultrapassado agora.';
+    } else if (kind === 'frequencia') {
+      const accounts = await scopedAccounts(userId, scope);
+      const rows = await Promise.all(accounts.map(async account => {
+        const report = await accountReport({id: userId}, account.id).catch(() => ({metrics: {}}));
+        return {name: account.name || account.id, frequency: report.metrics.frequency ?? null};
+      }));
+      if (rows.length) text = frequencyText({time, accounts: rows, maxFrequency: config.maxFrequency});
+    } else if (kind === 'relatorio') {
+      // Últimos três dias, incluindo hoje.
+      const accounts = await scopedAccounts(userId, scope);
+      if (!accounts.length) return null;
+      const since = dayKey(now - 2 * 24 * 60 * 60 * 1000), until = dayKey(now);
+      const {conn} = await authorizeAccounts({id: userId}, accounts.map(account => account.id));
+      const metrics = await Promise.all(accounts.map(async account => {
+        try {
+          const data = await graph(conn.token, `${account.id}/insights`, {fields: 'spend,cpm,unique_ctr,actions', time_range: JSON.stringify({since, until})});
+          return parseWindowRow(data?.data?.[0]);
+        } catch { return null; }
+      }));
+      text = reportText({period: `${dayLabel(since)} a ${dayLabel(until)}`, accounts: accounts.map((account, index) => ({name: account.name || account.id, metrics: metrics[index]}))});
+    }
+    if (!text) return null;
+    if (!config.dryRun) await sendAlert(config, text);
+    return text;
+  }
+
+  // Recebe as mensagens do WhatsApp (Evolution). Só dispara para mensagens de fora no grupo de destino.
+  async function handleAlertWebhook(token, payload, now = Date.now()) {
+    const userId = alertIndex().find(id => alertConfig(id)?.webhookToken === token);
+    const config = userId ? alertConfig(userId) : null;
+    if (!config?.enabled || !config.groupJid) return null;
+    const data = payload?.data ?? payload;
+    for (const message of Array.isArray(data) ? data : [data]) {
+      const key = message?.key || {};
+      if (key.fromMe || key.remoteJid !== config.groupJid) continue;
+      const text = message?.message?.conversation || message?.message?.extendedTextMessage?.text || '';
+      const kind = matchTrigger(text, config.triggerWords);
+      if (!kind) continue;
+      // A mesma mensagem não dispara duas vezes, mesmo que a Evolution a reenvie.
+      const seen = read('trigger-seen', userId) || {ids: []};
+      if (key.id) {
+        if (seen.ids.includes(key.id)) return null;
+        write('trigger-seen', userId, {ids: [...seen.ids, key.id].slice(-200)});
+      }
+      return runTrigger(userId, kind, now);
+    }
+    return null;
+  }
+
   async function runAlertCycle(now = Date.now()) {
     const results = await runAlertsOnly(now);
     for (const userId of alertIndex()) {
@@ -833,6 +901,6 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     timer.unref();
   }
 
-  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow, httpFlow, saveHttpSample, appendGoogleLead, beginGoogleAuth, completeGoogleAuth, runAlertCycle};
+  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow, httpFlow, saveHttpSample, appendGoogleLead, beginGoogleAuth, completeGoogleAuth, runAlertCycle, handleAlertWebhook};
 }
 module.exports = {createPersonalMeta, parsePrepayBalance};

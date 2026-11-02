@@ -115,6 +115,17 @@ const applyFlowCors=(req,res)=>{
   res.setHeader('Vary','Origin');
   return true;
 };
+// Webhook de mensagens do WhatsApp (Evolution). O token no endereço identifica a conexão do usuário.
+function handleAlertWebhook(req,res,url){
+  const match=url.pathname.match(/^\/api\/alert-webhook\/([A-Za-z0-9]{20,})$/);
+  if(req.method!=='POST'||!match){res.writeHead(404,{'Content-Type':'application/json; charset=utf-8'});return res.end(JSON.stringify({error:'Endpoint não encontrado.'}))}
+  const chunks=[];let size=0;req.on('data',chunk=>{size+=chunk.length;if(size<=512*1024)chunks.push(chunk)});
+  req.on('end',()=>{let payload={};try{payload=JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}')}catch{}
+    // Responde antes do disparo: a Evolution não espera o envio das mensagens.
+    res.writeHead(200,{'Content-Type':'application/json; charset=utf-8'});res.end('{"ok":true}');
+    personalMeta.handleAlertWebhook(match[1],payload).catch(error=>console.warn('Alerta por palavra falhou:',error.message));
+  });
+}
 function handleHttpFlow(req,res,url){
   if(!applyFlowCors(req,res)){res.writeHead(403,{'Content-Type':'application/json; charset=utf-8','Vary':'Origin'});return res.end(JSON.stringify({error:'Origem não autorizada para este endpoint.'}));}
   if(req.method==='OPTIONS'){res.writeHead(204);return res.end();}
@@ -204,6 +215,7 @@ http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
   if(requestUrl.pathname==='/webhook')return handleFlowWebhook(req,res,requestUrl);
   if(requestUrl.pathname.startsWith('/api/flow/inbound/'))return handleHttpFlow(req,res,requestUrl);
+  if(requestUrl.pathname.startsWith('/api/alert-webhook/'))return handleAlertWebhook(req,res,requestUrl);
   if(requestUrl.pathname==='/api/flow/google/callback'&&req.method==='GET'){const code=String(requestUrl.searchParams.get('code')||''),state=String(requestUrl.searchParams.get('state')||'');return personalMeta.completeGoogleAuth(code,state).then(()=>{res.writeHead(302,{Location:`${authPublicUrl()}/?view=flow&google=connected`});res.end()}).catch(error=>{res.writeHead(302,{Location:`${authPublicUrl()}/?view=flow&google=error`});res.end()});}
   if(localRuntime&&(localOnly||!requestUrl.pathname.startsWith('/api/auth/')))return localRuntime.dispatch(req,res,requestUrl,jsonResponse,()=>handleAuthorizedRequest(req,res,requestUrl));
   const isCreativeAgentRoute=requestUrl.pathname.startsWith('/api/creative-audit/agent');

@@ -763,3 +763,9 @@ dialog.cm-editor-dialog[open]:not(.cm-dialog-fallback){position:fixed!important;
 .ap-dispatch{display:grid;gap:12px}
 .ap-dispatch select,.ap-dispatch input{padding:10px 12px;border:1px solid #b4e35f;border-radius:10px;font:inherit;background:#fbfef6;color:#14301a}
 .ap-dispatch .ap-label{color:#2d4a22}
+.ap-words{gap:8px}
+.ap-word{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:8px}
+.ap-word span{font-size:13px;font-weight:600;color:#33402f}
+.ap-word input{min-width:0}
+.ap-webhook{display:block;padding:8px 10px;border-radius:8px;background:#f3f6f3;color:#33402f;font-size:12px;word-break:break-all}
+@media(max-width:560px){.ap-word{grid-template-columns:1fr}}

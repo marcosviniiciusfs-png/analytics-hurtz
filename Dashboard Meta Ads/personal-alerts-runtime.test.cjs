@@ -167,3 +167,26 @@ test('alerts cover only the accounts of the active profile in Contas', async t =
   assert.equal(balanceMessages().length, 1, 'the account of the active profile is sent');
   assert.match(balanceMessages()[0].text, /CA - Um/);
 });
+
+test('a trigger word sent in the target group sends its alert now, once per message, and only with the right token', async t => {
+  const {api, token, sent} = setup(t);
+  const connected = await request(api, token, '/api/meta/challenge', 'POST');
+  assert.equal((await request(api, token, '/api/meta/connection', 'POST', {nonce: connected.body.nonce, accessToken: facebookToken})).status, 200);
+  api.write('settings', 'user-a', {flow_whatsapp_instance: 'inst', plans: {}});
+  api.write('alert-config', 'user-a', {enabled: true, dryRun: false, instance: 'inst', groupJid: 'grupo@g.us', balanceTimes: [], thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100], triggerWords: {saldo: 'saldo'}, webhookToken: 'tokentokentokentoken123'});
+  api.write('alert-index', 'global', {userIds: ['user-a']});
+  const message = (id, fromMe = false, text = 'saldo por favor') => ({event: 'messages.upsert', data: {key: {remoteJid: 'grupo@g.us', fromMe, id}, message: {conversation: text}}});
+
+  await api.handleAlertWebhook('tokentokentokentoken123', message('MSG-OWN', true), Date.UTC(2026, 9, 31, 12, 10));
+  assert.equal(sent.length, 0, 'the account\'s own messages do not trigger');
+
+  await api.handleAlertWebhook('tokentokentokentoken123', message('MSG-1'), Date.UTC(2026, 9, 31, 12, 10));
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].text, /Saldo das contas às/);
+
+  await api.handleAlertWebhook('tokentokentokentoken123', message('MSG-1'), Date.UTC(2026, 9, 31, 12, 10));
+  assert.equal(sent.length, 1, 'the same message is not handled twice');
+
+  await api.handleAlertWebhook('wrong-token-wrong-token-1', message('MSG-2'), Date.UTC(2026, 9, 31, 12, 10));
+  assert.equal(sent.length, 1, 'a wrong token does nothing');
+});

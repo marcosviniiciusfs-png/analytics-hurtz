@@ -77,8 +77,20 @@ function buildAlertsPanel() {
         <div class="ap-field">
           <select id="apGroupSelect" disabled><option value="">Selecione um grupo</option></select>
         </div>
+        <div class="ap-field ap-words">
+          <span class="ap-label">Palavras que disparam o alerta na hora</span>
+          <label class="ap-word"><span>Saldo</span><input id="apWordSaldo" type="text" maxlength="40" placeholder="ex.: saldo"></label>
+          <label class="ap-word"><span>Frequência</span><input id="apWordFrequencia" type="text" maxlength="40" placeholder="ex.: frequencia"></label>
+          <label class="ap-word"><span>Limites</span><input id="apWordLimites" type="text" maxlength="40" placeholder="ex.: limites"></label>
+          <label class="ap-word"><span>Relatório 3 dias</span><input id="apWordRelatorio" type="text" maxlength="40" placeholder="ex.: relatorio"></label>
+          <small class="ap-muted">Quem enviar a palavra no grupo recebe o alerta na hora. Deixe em branco para desligar.</small>
+          <span class="ap-label">Endereço do webhook (Evolution)</span>
+          <code class="ap-webhook" id="apWebhookUrl">Salve as palavras para gerar o endereço.</code>
+        </div>
         <div class="ap-actions ap-foot">
           <button type="button" class="ap-btn" id="apLoadGroups" disabled>Carregar grupos</button>
+          <button type="button" class="ap-btn ap-btn-primary" id="apSaveWords">Salvar palavras</button>
+          <span class="ap-status-text" id="apWordsStatus"></span>
         </div>
       </section>
       <section class="ap-tile ap-rules">
@@ -138,6 +150,7 @@ function buildAlertsPanel() {
   document.querySelector('#apDisconnect').onclick = disconnectWhatsapp;
   document.querySelector('#apLoadGroups').onclick = loadWhatsappGroups;
   document.querySelector('#apSave').onclick = saveAlertRules;
+  document.querySelector('#apSaveWords').onclick = saveAlertRules;
   document.querySelector('#apBalanceNow').onclick = sendBalancesNow;
   document.querySelector('#apPreview').onclick = showAlertPreview;
   document.querySelector('#apFreqSave').onclick = saveFrequencyAlert;
@@ -195,6 +208,12 @@ function renderAlertStatus() {
   const balanceTimes = config?.balanceTimes || [];
   document.querySelector('#apBalanceTime1').value = balanceTimes[0] || '';
   document.querySelector('#apBalanceTime2').value = balanceTimes[1] || '';
+  const words = config?.triggerWords || {};
+  document.querySelector('#apWordSaldo').value = words.saldo || '';
+  document.querySelector('#apWordFrequencia').value = words.frequencia || '';
+  document.querySelector('#apWordLimites').value = words.limites || '';
+  document.querySelector('#apWordRelatorio').value = words.relatorio || '';
+  document.querySelector('#apWebhookUrl').textContent = config?.webhookToken ? `${location.origin}/api/alert-webhook/${config.webhookToken}` : 'Salve as palavras para gerar o endereço.';
 
   document.querySelector('#apStatInstance').textContent = instance || '—';
   document.querySelector('#apStatState').textContent = connected ? 'Conectado' : configured ? 'Desconectado' : 'Sem instância';
@@ -314,7 +333,7 @@ async function saveAlertRules() {
     await apJson('/api/alert-config', {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({...(apState.config || {}), enabled, dryRun: document.querySelector('#apDryRun').checked, instance: apState.instance, groupJid, groupName: groupNameFor(groupJid), thresholds, balanceTimes}),
+      body: JSON.stringify({...(apState.config || {}), enabled, dryRun: document.querySelector('#apDryRun').checked, instance: apState.instance, groupJid, groupName: groupNameFor(groupJid), thresholds, balanceTimes, triggerWords: {saldo: document.querySelector('#apWordSaldo').value, frequencia: document.querySelector('#apWordFrequencia').value, limites: document.querySelector('#apWordLimites').value, relatorio: document.querySelector('#apWordRelatorio').value}}),
     });
     status.textContent = 'Regras salvas.';
     await refreshAlertStatus();
