@@ -19,7 +19,7 @@ test('a slot is due during the 30 minutes after its time in São Paulo', () => {
 
 const labels = {yesterday: '31/10', before: '30/10', daysInMonth: 31};
 // Cada conta vira um bloco; os blocos são separados por uma linha de =====.
-const blocksOf = text => text.split('\n\n')[1].split(`\n${SEPARATOR}\n`);
+const blocksOf = text => text.split('\n\n').slice(1).join('\n\n').split(`\n\n${SEPARATOR}\n\n`);
 
 test('monthly limit is compared as a daily share of the month', () => {
   const text = balanceTimeText({time: '09:00', labels, accounts: [
@@ -39,8 +39,8 @@ test('balance message shows balance, yesterday spend and change against the day 
   assert.match(text, /\*Saldo das contas às 09:00\*/);
   assert.match(text, /📣 \*CA - Um\*\n💰 Saldo agora: R\$\s?1\.234,50\n🧾 Gasto de 31\/10: R\$\s?150,00\n⚖️ 📈 50,0% acima de 30\/10/);
   assert.match(text, /📣 \*CA - Dois\* 🚨\n💰 Saldo agora: saldo indisponível/);
-  assert.match(text, /CA - Dois[\s\S]*\n=+\n📣 \*CA - Um\*/, 'accounts are separated by a line of =');
-  assert.ok(SEPARATOR.length >= 60, 'the separator is wide enough to fill the message');
+  assert.match(text, /CA - Dois[\s\S]*\n\n=+\n\n📣 \*CA - Um\*/, 'accounts are separated by a line of = with blank lines around it');
+  assert.equal(SEPARATOR, '='.repeat(20));
 });
 
 test('balance up to R$ 20 gets the warning sign, right below the accounts without balance', () => {
@@ -80,7 +80,7 @@ test('accounts without balance go first with a siren, then accounts with balance
   assert.match(first, /^📣 \*CA - Sem saldo\* 🚨/);
   assert.match(second, /^📣 \*CA - Com saldo\*(?! 🚨)/);
   assert.match(third, /^💳 \*CA - Cartão\*(?! 🚨)/);
-  assert.match(third, /💰 Saldo agora: conta cartão/);
+  assert.match(third, /💰 Saldo agora: \*conta cartão\*/);
   assert.doesNotMatch(third, /saldo indisponível|🚨/);
 });
 

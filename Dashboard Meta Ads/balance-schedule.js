@@ -67,11 +67,11 @@ const noBalance = account => !account.isCard && !(account.balance > 0);
 // Conta com saldo, mas abaixo do limite de saldo baixo.
 const lowBalance = account => !account.isCard && account.balance > 0 && account.balance <= LOW_BALANCE;
 
-// Linha que separa uma conta da outra; longa o bastante para ocupar a largura da mensagem.
-const SEPARATOR = '='.repeat(70);
+// Linha que separa uma conta da outra, com uma linha em branco antes e depois.
+const SEPARATOR = '='.repeat(20);
 
 function accountBlock(account, labels) {
-  const balanceText = account.isCard ? 'conta cartão' : account.balance == null ? 'saldo indisponível' : formatBrl(account.balance);
+  const balanceText = account.isCard ? '*conta cartão*' : account.balance == null ? 'saldo indisponível' : formatBrl(account.balance);
   const lines = [
     `${account.isCard ? '💳' : '📣'} *${account.name}*${noBalance(account) ? ' 🚨' : lowBalance(account) ? ' ⚠️' : ''}`,
     `💰 Saldo agora: ${balanceText}`,
@@ -92,7 +92,7 @@ const sortRank = account => account.isCard ? 3 : noBalance(account) ? 0 : lowBal
 function balanceTimeText({time, accounts, labels}) {
   const sorted = [...accounts].sort((a, b) => sortRank(a) - sortRank(b));
   const blocks = sorted.map(account => accountBlock(account, labels));
-  return [`🏦 *Saldo das contas às ${time}*`, blocks.join(`\n${SEPARATOR}\n`)].join('\n\n');
+  return [`🏦 *Saldo das contas às ${time}*`, blocks.join(`\n\n${SEPARATOR}\n\n`)].join('\n\n');
 }
 
 module.exports = {normalizeTimes, dueSlots, balanceTimeText, SEPARATOR, TIMEZONE, WINDOW_MINUTES};
