@@ -213,7 +213,7 @@ function renderAlertStatus() {
   document.querySelector('#apWordFrequencia').value = words.frequencia || '';
   document.querySelector('#apWordLimites').value = words.limites || '';
   document.querySelector('#apWordRelatorio').value = words.relatorio || '';
-  document.querySelector('#apWebhookUrl').textContent = config?.webhookToken ? `${location.origin}/api/alert-webhook/${config.webhookToken}` : 'Salve as palavras para gerar o endereço.';
+  document.querySelector('#apWebhookUrl').textContent = config?.webhookToken ? `${window.HURTZ_API_BASE || location.origin}/api/alert-webhook/${config.webhookToken}` : 'Salve as palavras para gerar o endereço.';
 
   document.querySelector('#apStatInstance').textContent = instance || '—';
   document.querySelector('#apStatState').textContent = connected ? 'Conectado' : configured ? 'Desconectado' : 'Sem instância';
