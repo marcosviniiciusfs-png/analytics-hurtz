@@ -643,7 +643,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       try {
         const row = await graph(conn.token, id, {fields: 'id,currency,is_prepay_account,funding_source_details'});
         const balance = row.is_prepay_account ? parsePrepayBalance(row.funding_source_details?.display_string) : null;
-        return [id, balance == null ? {audited: false} : {audited: true, balance}];
+        // Conta que não é pré-paga é cartão: não tem saldo para mostrar.
+        return [id, balance == null ? {audited: false, card: !row.is_prepay_account} : {audited: true, balance, card: false}];
       } catch { return [id, {audited: false}]; }
     })));
   }
@@ -754,6 +755,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       return {
         name: account.name || account.id,
         balance: balances[account.id]?.audited ? balances[account.id].balance : null,
+        isCard: Boolean(balances[account.id]?.card),
         spendYesterday: spendYesterday[account.id] ?? null,
         spendBefore: spendBefore[account.id] ?? null,
         dailyLimit: Number(plan.dailyLimit) || 0,

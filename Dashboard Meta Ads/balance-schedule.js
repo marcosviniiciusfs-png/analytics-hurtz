@@ -59,10 +59,14 @@ function limitLine(icon, label, spend, limit) {
   return change > 0 ? `${prefix}: 🔴 ${percent(change)} acima` : `${prefix}: 🟢 ${percent(change)} abaixo`;
 }
 
+// Contas sem saldo lido (que não são cartão) recebem a sirene; cartão não tem saldo, então não recebe.
+const noBalance = account => !account.isCard && account.balance == null;
+
 function accountBlock(account, labels) {
+  const balanceText = account.isCard ? 'conta cartão' : account.balance == null ? 'saldo indisponível' : formatBrl(account.balance);
   const lines = [
-    `📣 *${account.name}*`,
-    `💰 Saldo agora: ${account.balance == null ? 'saldo indisponível' : formatBrl(account.balance)}`,
+    `${account.isCard ? '💳' : '📣'} *${account.name}*${noBalance(account) ? ' 🚨' : ''}`,
+    `💰 Saldo agora: ${balanceText}`,
     `🧾 Gasto de ${labels.yesterday}: ${account.spendYesterday == null ? 'sem dado' : formatBrl(account.spendYesterday)}`,
     `⚖️ ${dayChange(account.spendYesterday, account.spendBefore, labels.before)}`,
     limitLine('🎯', 'Limite diário', account.spendYesterday, account.dailyLimit),
@@ -72,11 +76,15 @@ function accountBlock(account, labels) {
   return lines.filter(Boolean).join('\n');
 }
 
-// Mensagem de saldo: uma linha por informação e uma linha em branco entre as contas.
+// Sem saldo vai para o topo, depois as contas com saldo e por último os cartões.
+const sortRank = account => account.isCard ? 2 : noBalance(account) ? 0 : 1;
+
+// Mensagem de saldo: uma linha por informação e uma linha de ===== entre as contas.
 // Cada conta traz spendYesterday e spendBefore (o dia anterior a ele) e os limites configurados.
 function balanceTimeText({time, accounts, labels}) {
-  const blocks = accounts.map(account => accountBlock(account, labels));
-  return [`🏦 *Saldo das contas às ${time}*`, ...blocks].join('\n\n');
+  const sorted = [...accounts].sort((a, b) => sortRank(a) - sortRank(b));
+  const blocks = sorted.map(account => accountBlock(account, labels));
+  return [`🏦 *Saldo das contas às ${time}*`, blocks.join('\n=====\n')].join('\n\n');
 }
 
 module.exports = {normalizeTimes, dueSlots, balanceTimeText, TIMEZONE, WINDOW_MINUTES};
