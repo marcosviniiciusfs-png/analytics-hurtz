@@ -43,6 +43,23 @@ test('balance message shows balance, yesterday spend and change against the day 
   assert.ok(SEPARATOR.length >= 60, 'the separator is wide enough to fill the message');
 });
 
+test('balance up to R$ 20 gets the warning sign, right below the accounts without balance', () => {
+  const text = balanceTimeText({time: '09:00', labels, accounts: [
+    {name: 'CA - Normal', balance: 300, spendYesterday: 10, spendBefore: 10, dailyLimit: 0, weeklyLimit: 0},
+    {name: 'CA - Vinte', balance: 20, spendYesterday: 10, spendBefore: 10, dailyLimit: 0, weeklyLimit: 0},
+    {name: 'CA - Vinte e um', balance: 20.01, spendYesterday: 10, spendBefore: 10, dailyLimit: 0, weeklyLimit: 0},
+    {name: 'CA - Baixo', balance: 15, spendYesterday: 10, spendBefore: 10, dailyLimit: 0, weeklyLimit: 0},
+    {name: 'CA - Sem saldo', balance: null, spendYesterday: 0, spendBefore: 0, dailyLimit: 0, weeklyLimit: 0},
+  ]});
+  const names = blocksOf(text).map(block => block.match(/📣 \*([^*]+)\*/)[1]);
+  // Dentro de cada grupo a ordem da lista é mantida.
+  assert.deepEqual(names, ['CA - Sem saldo', 'CA - Vinte', 'CA - Baixo', 'CA - Normal', 'CA - Vinte e um']);
+  assert.match(text, /📣 \*CA - Baixo\* ⚠️\n/);
+  assert.match(text, /📣 \*CA - Vinte\* ⚠️\n/);
+  assert.match(text, /📣 \*CA - Vinte e um\*\n/);
+  assert.match(text, /📣 \*CA - Sem saldo\* 🚨\n/);
+});
+
 test('an account with zero balance is treated as without balance: siren and first place', () => {
   const text = balanceTimeText({time: '09:00', labels, accounts: [
     {name: 'CA - Com saldo', balance: 300, spendYesterday: 10, spendBefore: 10, dailyLimit: 0, weeklyLimit: 0},

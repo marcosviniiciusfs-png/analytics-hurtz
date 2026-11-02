@@ -59,8 +59,13 @@ function limitLine(icon, label, spend, limit) {
   return change > 0 ? `${prefix}: 🔴 ${percent(change)} acima` : `${prefix}: 🟢 ${percent(change)} abaixo`;
 }
 
+// Saldo até este valor (em R$) é considerado baixo e recebe o alerta.
+const LOW_BALANCE = 20;
+
 // Conta sem saldo (zerado ou não lido) recebe a sirene; cartão não tem saldo, então não recebe.
 const noBalance = account => !account.isCard && !(account.balance > 0);
+// Conta com saldo, mas abaixo do limite de saldo baixo.
+const lowBalance = account => !account.isCard && account.balance > 0 && account.balance <= LOW_BALANCE;
 
 // Linha que separa uma conta da outra; longa o bastante para ocupar a largura da mensagem.
 const SEPARATOR = '='.repeat(70);
@@ -68,7 +73,7 @@ const SEPARATOR = '='.repeat(70);
 function accountBlock(account, labels) {
   const balanceText = account.isCard ? 'conta cartão' : account.balance == null ? 'saldo indisponível' : formatBrl(account.balance);
   const lines = [
-    `${account.isCard ? '💳' : '📣'} *${account.name}*${noBalance(account) ? ' 🚨' : ''}`,
+    `${account.isCard ? '💳' : '📣'} *${account.name}*${noBalance(account) ? ' 🚨' : lowBalance(account) ? ' ⚠️' : ''}`,
     `💰 Saldo agora: ${balanceText}`,
     `🧾 Gasto de ${labels.yesterday}: ${account.spendYesterday == null ? 'sem dado' : formatBrl(account.spendYesterday)}`,
     `⚖️ ${dayChange(account.spendYesterday, account.spendBefore, labels.before)}`,
@@ -79,8 +84,8 @@ function accountBlock(account, labels) {
   return lines.filter(Boolean).join('\n');
 }
 
-// Sem saldo vai para o topo, depois as contas com saldo e por último os cartões.
-const sortRank = account => account.isCard ? 2 : noBalance(account) ? 0 : 1;
+// Sem saldo no topo, depois saldo baixo, depois as contas com saldo e por último os cartões.
+const sortRank = account => account.isCard ? 3 : noBalance(account) ? 0 : lowBalance(account) ? 1 : 2;
 
 // Mensagem de saldo: uma linha por informação e uma linha de separação entre as contas.
 // Cada conta traz spendYesterday e spendBefore (o dia anterior a ele) e os limites configurados.
