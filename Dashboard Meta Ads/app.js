@@ -887,21 +887,29 @@ initializeReports=async function(){
 function reportCampaignCity(text){const normalized=String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();if(/\bCANAA(?:\s+DOS\s+CARAJAS)?\b/.test(normalized))return 'CANAÃ';if(/\b(?:PARAUAPEBAS|PARAUPEBAS)\b/.test(normalized))return 'PARAUAPEBAS';return ''}
 const reportConfiguredProduct=name=>{const text=normalizedCampaignText(name),rules=Array.isArray(globalThis.reportProductRules)?globalThis.reportProductRules:[],match=rules.map(rule=>({...rule,key:normalizedCampaignText(rule.match)})).filter(rule=>rule.key&&text.includes(rule.key)).sort((a,b)=>b.key.length-a.key.length)[0];return match?.label||inferredProduct(name)};
 const reportIsUnidentified=product=>['NAO IDENTIFICADO','NA£O IDENTIFICADO'].includes(normalizedCampaignText(product));
-// Campanhas do mesmo produto viram um grupo só. Formulário e WhatsApp ficam em grupos separados.
-function reportChannel(campaign){
-  if(campaign.no_delivery_in_period)return 'SEM VEICULAÇÃO NO PERÍODO';
-  const objective=normalizedCampaignText(campaign.objective_label);
-  if(!objective)return '';
-  if(objective==='MENSAGEM')return 'WHATSAPP';
-  if(/FORMULARIO|LEAD/.test(objective))return 'FORMULÁRIO';
-  return String(campaign.objective_label).toUpperCase();
+// Canal do relatório pelo objetivo da campanha: formulário, site ou WhatsApp.
+const REPORT_CHANNELS={'FORMULARIO':'FORMULÁRIO','LEAD META':'FORMULÁRIO','LEAD NO SITE':'SITE','MENSAGEM':'WHATSAPP'};
+function reportChannel(campaign){return REPORT_CHANNELS[normalizedCampaignText(campaign.objective_label)]||''}
+// Só entram no relatório as campanhas que veicularam (gastaram) no período.
+const reportHasDelivery=campaign=>!campaign.no_delivery_in_period&&Number(campaign.spend||0)>0;
+// Produto e canal de uma campanha: o nome exibido é "PRODUTO - CANAL". Campanhas sem produto reconhecido usam o nome original.
+function reportGroupFor(campaign){
+  const original=String(campaign.campaign_name||campaign.name||'').trim(),product=reportConfiguredProduct(original),channel=reportChannel(campaign);
+  const productLabel=reportIsUnidentified(product)?original:product.toUpperCase();
+  return {productLabel,name:channel?`${productLabel} - ${channel}`:productLabel};
 }
-function reportGroupName(campaign){
-  const original=String(campaign.campaign_name||campaign.name||'').trim(),product=reportConfiguredProduct(original),unknown=reportIsUnidentified(product),channel=reportChannel(campaign);
-  const base=original&&unknown?original:product.toUpperCase();
-  return channel?`${base} - ${channel}`:base;
+// Campanhas do mesmo produto e do mesmo canal viram um grupo só.
+function reportGroupsForRow(row){
+  const groups=new Map();
+  (row.campaigns||[]).filter(reportHasDelivery).forEach(campaign=>{
+    const {name,productLabel}=reportGroupFor(campaign);
+    const group=groups.get(name)||{name,productLabel,spend:0,results:0,complete:true};
+    group.spend+=Number(campaign.spend||0);
+    if(campaign.results==null)group.complete=false;else group.results+=Number(campaign.results||0);
+    groups.set(name,group);
+  });
+  return [...groups.values()];
 }
-function reportGroupsForRow(row){const groups=new Map();(row.campaigns||[]).forEach(campaign=>{const original=campaign.campaign_name||campaign.name,name=reportGroupName(campaign),product=reportConfiguredProduct(original),unknown=typeof reportIsUnidentified==='function'?reportIsUnidentified(product):/IDENTIFICADO/i.test(String(product)),group=groups.get(name)||{name,productLabel:unknown?name:product.toUpperCase(),spend:0,results:0,complete:true};group.spend+=Number(campaign.spend||0);if(campaign.results==null)group.complete=false;else group.results+=Number(campaign.results||0);groups.set(name,group)});return [...groups.values()]}
 globalThis.reportProductRules=[];
 const reportRulesButton=document.createElement('button'),reportRulesPanel=document.createElement('section');reportRulesButton.type='button';reportRulesButton.className='audit-chip';reportRulesButton.textContent='Regras de produtos';document.querySelector('.reports-heading')?.append(reportRulesButton);reportRulesPanel.className='report-product-rules';reportRulesPanel.hidden=true;reportRulesPanel.innerHTML='<div><strong>Regras de agrupamento por produto</strong><p>O texto é procurado no nome da campanha. O relatório exibe somente o nome do produto.</p></div><div id="reportProductRuleRows"></div><footer><button type="button" id="addReportProductRule">Adicionar regra</button><button type="button" id="saveReportProductRules">Salvar regras</button><span id="reportProductRuleStatus" role="status"></span></footer>';document.querySelector('.report-builder')?.after(reportRulesPanel);
 const reportRulesStyle=document.createElement('style');reportRulesStyle.textContent='.report-product-rules{margin:0 0 18px;padding:16px 18px;border:1px solid #dbe6df;border-radius:14px;background:#fff}.report-product-rules p{margin:5px 0 14px;color:#667085;font-size:13px}.report-product-rule-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin:8px 0}.report-product-rule-row input{min-width:0;padding:10px;border:1px solid #d7ddd8;border-radius:8px}.report-product-rule-row button,.report-product-rules footer button{padding:9px 12px;border:1px solid #d7ddd8;border-radius:8px;background:#fff;color:#243529;font-weight:700;cursor:pointer}.report-product-rules footer{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}.report-product-rules footer #saveReportProductRules{background:#3c8528;color:#fff;border-color:#3c8528}.report-product-rules footer span{font-size:12px;color:#667085}@media(max-width:700px){.report-product-rule-row{grid-template-columns:1fr}.report-product-rule-row button{justify-self:start}}';document.head.append(reportRulesStyle);
