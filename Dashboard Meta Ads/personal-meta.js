@@ -7,9 +7,9 @@ const {runPersonalAlerts} = require('./personal-alerts');
 const {evaluateAccountAlerts} = require('./alert-evaluator');
 const {evaluateReport} = require('./report-rules');
 const {INSIGHT_FIELDS, parseInsightRow} = require('./report-metrics');
-const {formatReportMessage, frequencyAlertText} = require('./report-message');
+const {formatReportMessage, formatPerformanceMessage, frequencyAlertText} = require('./report-message');
 const {normalizeTimes, dueSlots, balanceTimeText, SEPARATOR} = require('./balance-schedule');
-const {normalizeTriggerWords, matchTrigger, frequencyText, parseWindowRow, reportText} = require('./alert-triggers');
+const {normalizeTriggerWords, matchTrigger, frequencyText} = require('./alert-triggers');
 
 const fail = (status, message) => Object.assign(new Error(message), {status});
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -821,15 +821,19 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       // Últimos três dias, incluindo hoje.
       const accounts = await scopedAccounts(userId, scope);
       if (!accounts.length) return null;
+      // Análise de gestor: métricas principais e secundárias, com as ações sugeridas para cada conta.
+      const plans = read('settings', userId)?.plans || {};
       const since = dayKey(now - 2 * 24 * 60 * 60 * 1000), until = dayKey(now);
       const {conn} = await authorizeAccounts({id: userId}, accounts.map(account => account.id));
-      const metrics = await Promise.all(accounts.map(async account => {
+      const reports = await Promise.all(accounts.map(async account => {
+        const name = account.name || account.id;
         try {
-          const data = await graph(conn.token, `${account.id}/insights`, {fields: 'spend,cpm,unique_ctr,actions', time_range: JSON.stringify({since, until})});
-          return parseWindowRow(data?.data?.[0]);
-        } catch { return null; }
+          const data = await graph(conn.token, `${account.id}/insights`, {fields: INSIGHT_FIELDS, time_range: JSON.stringify({since, until})});
+          const metrics = parseInsightRow(data?.data?.[0]);
+          return {name, metrics, findings: metrics ? evaluateReport(metrics, {maxCostPerLead: Number(plans[account.id]?.maxCostPerLead) || 0}) : []};
+        } catch { return {name, metrics: null, findings: []}; }
       }));
-      text = reportText({period: `${dayLabel(since)} a ${dayLabel(until)}`, accounts: accounts.map((account, index) => ({name: account.name || account.id, metrics: metrics[index]}))});
+      text = formatPerformanceMessage({period: `${dayLabel(since)} a ${dayLabel(until)}`, accounts: reports});
     }
     if (!text) return null;
     if (!config.dryRun) await sendAlert(config, text);

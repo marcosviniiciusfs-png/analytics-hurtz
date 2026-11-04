@@ -1,5 +1,6 @@
 'use strict';
 // Monta o texto do relatório de métricas que vai para o grupo do WhatsApp.
+const {SEPARATOR, formatBrl} = require('./balance-schedule');
 
 const ICONS = {crítico: '🔴', alto: '🟡', médio: '🟠', bom: '🟢', info: '📌'};
 
@@ -16,7 +17,40 @@ function formatReportMessage({name, period, findings}) {
   return lines.join('\n');
 }
 
-module.exports = {formatReportMessage};
+// Relatório de performance para o gestor, enviado ao grupo: métricas principais, secundárias e ações por conta.
+const percentText = value => value == null ? 'sem dado' : `${Number(value).toFixed(2).replace('.', ',')}%`;
+const moneyText = value => value == null ? 'sem dado' : formatBrl(value);
+
+function performanceBlock({name, metrics, findings}) {
+  if (!metrics) return `📣 *${name}*\n⚪ Sem dados no período`;
+  const results = metrics.results == null ? 'sem dado' : metrics.results;
+  const costPerResult = metrics.costPerResult == null ? 'sem resultado' : formatBrl(metrics.costPerResult);
+  const issues = findings.filter(finding => finding.status !== 'info').map(finding =>
+    `${ICONS[finding.status] || '📌'} *${finding.metric}* (${finding.value})\n${finding.message}\n👉 ${finding.suggestion}`);
+  return [
+    `📣 *${name}*`,
+    '🏆 *Principais*',
+    `💵 Valor usado: ${moneyText(metrics.spend)}`,
+    `🎯 Resultados: ${results}`,
+    `💲 Custo por resultado: ${costPerResult}`,
+    '',
+    '📊 *Secundárias*',
+    `📢 CPM: ${moneyText(metrics.cpm)} · 🖱️ CPC: ${moneyText(metrics.cpc)}`,
+    `👆 CTR: ${percentText(metrics.ctr)} · 🔗 CTR no link: ${percentText(metrics.linkCtr)}`,
+    `👥 Frequência: ${metrics.frequency == null ? 'sem dado' : Number(metrics.frequency).toFixed(1).replace('.', ',')} · ⏱️ Gancho 3s: ${percentText(metrics.hookRate)}`,
+    '',
+    issues.length ? '🧭 *Ações sugeridas*' : '✅ Nenhum ponto de atenção no período.',
+    ...issues.flatMap(issue => ['', issue]),
+  ].join('\n');
+}
+
+function formatPerformanceMessage({period, accounts}) {
+  const header = ['📈 *Relatório de performance*', period].filter(Boolean);
+  if (!accounts.length) return [...header, '', 'Nenhuma conta no período.'].join('\n');
+  return [...header, '', accounts.map(performanceBlock).join(`\n\n${SEPARATOR}\n\n`)].join('\n');
+}
+
+module.exports = {formatReportMessage, formatPerformanceMessage};
 
 // Alerta de frequência: mensagem quando a frequência de uma conta passa do máximo definido.
 const fmtNumber = (value, digits = 1) => Number(value).toFixed(digits).replace('.', ',');

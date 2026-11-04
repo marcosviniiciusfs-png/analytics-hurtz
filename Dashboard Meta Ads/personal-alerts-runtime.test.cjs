@@ -190,3 +190,18 @@ test('a trigger word sent in the target group sends its alert now, once per mess
   await api.handleAlertWebhook('wrong-token-wrong-token-1', message('MSG-2'), Date.UTC(2026, 9, 31, 12, 10));
   assert.equal(sent.length, 1, 'a wrong token does nothing');
 });
+
+test('the report word sends the performance analysis of each account to the group, without an image', async t => {
+  const {api, token, sent} = setup(t);
+  const connected = await request(api, token, '/api/meta/challenge', 'POST');
+  assert.equal((await request(api, token, '/api/meta/connection', 'POST', {nonce: connected.body.nonce, accessToken: facebookToken})).status, 200);
+  api.write('settings', 'user-a', {flow_whatsapp_instance: 'inst', plans: {'act_111': {name: 'CA - Um', maxCostPerLead: 30}}});
+  api.write('alert-config', 'user-a', {enabled: true, dryRun: false, instance: 'inst', groupJid: 'grupo@g.us', balanceTimes: [], thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100], triggerWords: {relatorio: 'relatorio'}, webhookToken: 'tokentokentokentoken123'});
+  api.write('alert-index', 'global', {userIds: ['user-a']});
+
+  await api.handleAlertWebhook('tokentokentokentoken123', {event: 'messages.upsert', data: {key: {remoteJid: 'grupo@g.us', fromMe: false, id: 'MSG-REL'}, message: {conversation: 'Relatório'}}}, Date.UTC(2026, 9, 31, 12, 10));
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].text, /^📈 \*Relatório de performance\*/);
+  assert.match(sent[0].text, /📣 \*CA - Um\*\n🏆 \*Principais\*/);
+  assert.match(sent[0].text, /📊 \*Secundárias\*/);
+});

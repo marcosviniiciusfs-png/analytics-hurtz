@@ -1,13 +1,13 @@
 'use strict';
 // Palavras que disparam um alerta na hora, quando alguém envia a palavra no grupo de destino.
 // Cada tipo de alerta tem a sua palavra; a comparação ignora maiúsculas e acentos.
-const {SEPARATOR, formatBrl} = require('./balance-schedule');
+const {SEPARATOR} = require('./balance-schedule');
 
 const TRIGGER_KINDS = {
   saldo: 'Saldo das contas',
   frequencia: 'Frequência das contas',
   limites: 'Limites de gasto',
-  relatorio: 'Relatório das contas (3 dias)',
+  relatorio: 'Relatório de performance (3 dias)',
 };
 
 const MAX_WORD = 40;
@@ -38,8 +38,6 @@ function matchTrigger(text, words) {
   return null;
 }
 
-const percent = value => `${Number(value).toFixed(2).replace('.', ',')}%`;
-
 // Frequência atual de cada conta, com a comparação com o máximo configurado.
 function frequencyText({time, accounts, maxFrequency}) {
   const blocks = accounts.map(account => {
@@ -53,43 +51,4 @@ function frequencyText({time, accounts, maxFrequency}) {
   return [`📊 *Frequência das contas às ${time}*`, blocks.join(`\n\n${SEPARATOR}\n\n`)].join('\n\n');
 }
 
-// Resultados de uma conta: leads, ou conversas iniciadas no WhatsApp quando não há leads.
-function resultsOf(actions) {
-  const find = type => {
-    const item = (actions || []).find(entry => entry.action_type === type);
-    return item ? Number(item.value) : null;
-  };
-  return find('lead') ?? find('onsite_conversion.messaging_conversation_started_7d');
-}
-
-// Métricas de uma conta no período, a partir da linha de Insights da Meta.
-function parseWindowRow(row) {
-  if (!row) return null;
-  const spend = row.spend != null ? Number(row.spend) : null;
-  const results = resultsOf(row.actions);
-  return {
-    spend,
-    results,
-    costPerResult: spend != null && results > 0 ? spend / results : null,
-    cpm: row.cpm != null ? Number(row.cpm) : null,
-    uniqueCtr: row.unique_ctr != null ? Number(row.unique_ctr) : null,
-  };
-}
-
-// Relatório de cada conta: valor usado, resultado, custo por lead, CPM e CTR único.
-function reportText({period, accounts}) {
-  const blocks = accounts.map(({name, metrics}) => {
-    if (!metrics) return `📣 *${name}*\n⚪ Sem dados no período`;
-    return [
-      `📣 *${name}*`,
-      `💵 Valor usado: ${metrics.spend == null ? 'sem dado' : formatBrl(metrics.spend)}`,
-      `🎯 Resultado: ${metrics.results == null ? 'sem dado' : metrics.results}`,
-      `💲 Custo por lead: ${metrics.costPerResult == null ? 'sem resultado' : formatBrl(metrics.costPerResult)}`,
-      `📢 CPM: ${metrics.cpm == null ? 'sem dado' : formatBrl(metrics.cpm)}`,
-      `👆 CTR único: ${metrics.uniqueCtr == null ? 'sem dado' : percent(metrics.uniqueCtr)}`,
-    ].join('\n');
-  });
-  return [`📈 *Relatório das contas: ${period}*`, blocks.join(`\n\n${SEPARATOR}\n\n`)].join('\n\n');
-}
-
-module.exports = {TRIGGER_KINDS, normalizeTriggerWords, matchTrigger, frequencyText, parseWindowRow, reportText};
+module.exports = {TRIGGER_KINDS, normalizeTriggerWords, matchTrigger, frequencyText};
