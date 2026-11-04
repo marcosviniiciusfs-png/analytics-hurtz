@@ -7,7 +7,7 @@ const {runPersonalAlerts} = require('./personal-alerts');
 const {evaluateAccountAlerts} = require('./alert-evaluator');
 const {evaluateReport} = require('./report-rules');
 const {INSIGHT_FIELDS, parseInsightRow} = require('./report-metrics');
-const {formatReportMessage, formatPerformanceMessage, frequencyAlertText} = require('./report-message');
+const {formatReportMessage, performanceMessages, frequencyAlertText} = require('./report-message');
 const {normalizeTimes, dueSlots, balanceTimeText, SEPARATOR} = require('./balance-schedule');
 const {normalizeTriggerWords, matchTrigger, frequencyText} = require('./alert-triggers');
 // Comando enviado pela própria conta conectada é curto; respostas longas do bot não disparam.
@@ -809,6 +809,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     const scope = alertScope(userId);
     const time = new Date(now).toLocaleTimeString('pt-BR', {timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'});
     let text = null;
+    // Relatório de performance vai em uma mensagem por parte (cabeçalho e cada conta).
+    let messages = null;
     if (kind === 'saldo') {
       const {rows, labels} = await balanceRows(userId, now);
       if (rows.length) text = balanceTimeText({time, accounts: rows, labels});
@@ -838,13 +840,16 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
           return {name, metrics, findings: metrics ? evaluateReport(metrics, {maxCostPerLead: Number(plans[account.id]?.maxCostPerLead) || 0}) : []};
         } catch { return {name, metrics: null, findings: []}; }
       }));
-      text = formatPerformanceMessage({period: `${dayLabel(since)} a ${dayLabel(until)}`, accounts: reports});
+      messages = performanceMessages({period: `${dayLabel(since)} a ${dayLabel(until)}`, accounts: reports});
+      text = messages.join('\n\n');
     }
     if (!text) return null;
     if (!config.dryRun) {
-      // Guarda o ID da resposta: o webhook devolve essa mensagem e ela não pode disparar outra.
-      const id = await sendAlert(config, text);
-      if (id) write('bot-sent', userId, {ids: [...(read('bot-sent', userId)?.ids || []), id].slice(-200)});
+      // Cada parte vai num balão próprio. Guarda o ID de cada uma: o webhook devolve essas mensagens e elas não podem disparar outra.
+      for (const part of messages || [text]) {
+        const id = await sendAlert(config, part);
+        if (id) write('bot-sent', userId, {ids: [...(read('bot-sent', userId)?.ids || []), id].slice(-200)});
+      }
     }
     return text;
   }

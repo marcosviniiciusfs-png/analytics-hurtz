@@ -1,6 +1,6 @@
 'use strict';
 // Monta o texto do relatório de métricas que vai para o grupo do WhatsApp.
-const {SEPARATOR, formatBrl} = require('./balance-schedule');
+const {formatBrl} = require('./balance-schedule');
 
 const ICONS = {crítico: '🔴', alto: '🟡', médio: '🟠', bom: '🟢', info: '📌'};
 
@@ -44,13 +44,14 @@ function performanceBlock({name, metrics, findings}) {
   ].join('\n');
 }
 
-function formatPerformanceMessage({period, accounts}) {
-  const header = ['📈 *Relatório de performance*', period].filter(Boolean);
-  if (!accounts.length) return [...header, '', 'Nenhuma conta no período.'].join('\n');
-  return [...header, '', accounts.map(performanceBlock).join(`\n\n${SEPARATOR}\n\n`)].join('\n');
+// Uma mensagem de cabeçalho e uma mensagem por conta: cada uma vai num balão separado do WhatsApp.
+function performanceMessages({period, accounts}) {
+  const header = ['📈 *Relatório de performance*', period].filter(Boolean).join('\n');
+  if (!accounts.length) return [`${header}\n\nNenhuma conta no período.`];
+  return [header, ...accounts.map(performanceBlock)];
 }
 
-module.exports = {formatReportMessage, formatPerformanceMessage};
+module.exports = {formatReportMessage, performanceMessages};
 
 // Alerta de frequência: mensagem quando a frequência de uma conta passa do máximo definido.
 const fmtNumber = (value, digits = 1) => Number(value).toFixed(digits).replace('.', ',');

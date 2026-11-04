@@ -200,10 +200,10 @@ test('the report word sends the performance analysis of each account to the grou
   api.write('alert-index', 'global', {userIds: ['user-a']});
 
   await api.handleAlertWebhook('tokentokentokentoken123', {event: 'messages.upsert', data: {key: {remoteJid: 'grupo@g.us', fromMe: false, id: 'MSG-REL'}, message: {conversation: 'Relatório'}}}, Date.UTC(2026, 9, 31, 12, 10));
-  assert.equal(sent.length, 1);
+  assert.equal(sent.length, 2, 'one message for the header and one balloon per account');
   assert.match(sent[0].text, /^📈 \*Relatório de performance\*/);
-  assert.match(sent[0].text, /📣 \*CA - Um\*\n🏆 \*Principais\*/);
-  assert.match(sent[0].text, /📊 \*Secundárias\*/);
+  assert.match(sent[1].text, /^📣 \*CA - Um\*\n🏆 \*Principais\*/);
+  assert.match(sent[1].text, /📊 \*Secundárias\*/);
 });
 
 test('a short command sent by the connected account triggers, but its long replies do not', async t => {
