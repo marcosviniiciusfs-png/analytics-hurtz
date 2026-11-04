@@ -286,3 +286,12 @@ test('missing server OAuth configuration cannot save a short-lived SDK connectio
  assert.deepEqual(f.api.read('connection','user-a'),saved);
  assert.equal((await f.request(f.sessionA,'/api/meta/connection')).body.connected,true);
 });
+
+test('a new WhatsApp connection can be paired with a phone number code instead of the QR code',async t=>{
+ const previousUrl=process.env.EVOLUTION_API_URL,previousKey=process.env.EVOLUTION_API_KEY;process.env.EVOLUTION_API_URL='http://evolution.test';process.env.EVOLUTION_API_KEY='test-key';t.after(()=>{if(previousUrl===undefined)delete process.env.EVOLUTION_API_URL;else process.env.EVOLUTION_API_URL=previousUrl;if(previousKey===undefined)delete process.env.EVOLUTION_API_KEY;else process.env.EVOLUTION_API_KEY=previousKey;});
+ const calls=[];const f=fixture(t,null,{evolution:async(url,options)=>{const parsed=new URL(url);calls.push({endpoint:parsed.pathname,number:parsed.searchParams.get('number'),method:options.method||'GET'});if(parsed.pathname==='/instance/create')return {ok:true,status:201,json:async()=>({qrcode:{base64:'data:image/png;base64,QR'}})};if(parsed.pathname.startsWith('/instance/connect/'))return {ok:true,status:200,json:async()=>({pairingCode:'ABCD1234',code:'raw'})};if(parsed.pathname.startsWith('/instance/connectionState/'))return {ok:false,status:404,json:async()=>({})};throw new Error(`Unexpected Evolution endpoint: ${parsed.pathname}`);}});
+ await f.connect(f.sessionA,f.tokens.a);
+ const invalid=await f.request(f.sessionA,'/api/flow/whatsapp/instance','POST',{phone:'123'});assert.equal(invalid.status,400);
+ const paired=await f.request(f.sessionA,'/api/flow/whatsapp/instance','POST',{phone:'+55 (11) 99999-8888'});assert.equal(paired.status,201);assert.equal(paired.body.pairingCode,'ABCD1234');
+ const connect=calls.find(call=>call.endpoint.startsWith('/instance/connect/'));assert.equal(connect.number,'5511999998888');
+});

@@ -446,14 +446,19 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (route === '/api/flow/whatsapp/instance' && req.method === 'POST') {
       const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
       if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
+      // Com o número do WhatsApp (DDI + DDD + número), a Evolution devolve um código de
+      // pareamento de 8 caracteres, que o usuário digita no aparelho em vez de ler o QR.
+      const request = await body(req).catch(() => ({})), phone = String(request?.phone || '').replace(/\D/g, '');
+      if (phone && (phone.length < 10 || phone.length > 15)) throw fail(400, 'Digite o número completo com DDI e DDD, por exemplo 5511999998888.');
+      const connectPath = instance => `${base}/instance/connect/${encodeURIComponent(instance)}${phone ? `?number=${phone}` : ''}`;
       const settings = read('settings', user.id) || {}, existing = String(settings.flow_whatsapp_instance || '');
       if (existing) {
         const connection = await whatsappConnection(existing);
-        if (['open', 'connected'].includes(connection.state)) return send(res, 200, {instance: existing, connected: true, qr: ''});
+        if (['open', 'connected'].includes(connection.state)) return send(res, 200, {instance: existing, connected: true, qr: '', pairingCode: ''});
         if (!connection.missing) {
-          const reconnect = await fetchImpl(`${base}/instance/connect/${encodeURIComponent(existing)}`, {headers: {apikey: key}, signal: AbortSignal.timeout(12000)});
+          const reconnect = await fetchImpl(connectPath(existing), {headers: {apikey: key}, signal: AbortSignal.timeout(12000)});
           const payload = await reconnect.json().catch(() => ({}));
-          if (reconnect.ok) return send(res, 200, {instance: existing, connected: false, qr: payload?.base64 || payload?.qrcode?.base64 || ''});
+          if (reconnect.ok) return send(res, 200, {instance: existing, connected: false, qr: payload?.base64 || payload?.qrcode?.base64 || '', pairingCode: payload?.pairingCode || ''});
         }
       }
       const instance = `flow-${hash(user.id).slice(0,14)}-${crypto.randomBytes(3).toString('hex')}`;
@@ -461,7 +466,14 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw fail(502, 'Não foi possível criar a conexão WhatsApp.');
       write('settings', user.id, {...(read('settings', user.id) || {}), flow_whatsapp_instance: instance});
-      return send(res, 201, {instance, qr: payload?.qrcode?.base64 || payload?.base64 || ''});
+      let pairingCode = '';
+      if (phone) {
+        const paired = await fetchImpl(connectPath(instance), {headers: {apikey: key}, signal: AbortSignal.timeout(12000)});
+        const pairPayload = await paired.json().catch(() => ({}));
+        if (!paired.ok || !pairPayload?.pairingCode) throw fail(502, 'Não foi possível gerar o código de pareamento. Tente novamente.');
+        pairingCode = pairPayload.pairingCode;
+      }
+      return send(res, 201, {instance, qr: payload?.qrcode?.base64 || payload?.base64 || '', pairingCode});
     }
     if ((route === '/api/flow/whatsapp/qr' || route === '/api/flow/whatsapp/status') && req.method === 'GET') {
       const instance = String(url.searchParams.get('instance') || ''), settings = read('settings', user.id) || {};

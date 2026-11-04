@@ -39,6 +39,10 @@
   // O painel não inventa porcentagem: a Evolution só informa o resultado final
   // da geração. Enquanto ela processa, mostramos estado indeterminado acessível.
   $('flowQrPanel').innerHTML = '<div class="flow-qr-loading" id="flowQrLoading" role="status" hidden><span class="flow-circular-progress" role="progressbar" aria-label="Gerando QR Code" aria-valuetext="Aguardando resposta da Evolution API"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="flow-progress-track" cx="24" cy="24" r="19"></circle><circle class="flow-progress-range" cx="24" cy="24" r="19"></circle></svg></span><span id="flowQrLoadingText">Preparando conexão segura…</span></div><img id="flowQrImage" alt="QR Code para conectar o WhatsApp"><b id="flowQrStatus">Leia o QR Code no WhatsApp.</b>';
+  $('flowQrPanel').insertAdjacentHTML('beforeend', '<b id="flowPairingCodeText" hidden style="font-size:24px;letter-spacing:3px"></b>');
+  $('flowConnectWhatsApp').insertAdjacentHTML('afterend', '<button type="button" id="flowPairingToggle" style="width:100%;margin-top:8px;background:none;border:0;color:#1d6b4f;font-weight:600;cursor:pointer">Conectar com código em vez do QR</button><div id="flowPairing" hidden style="margin-top:8px"><label style="display:block;font-size:13px">Número do WhatsApp (com DDI e DDD)<input id="flowPairingPhone" type="tel" inputmode="tel" autocomplete="off" placeholder="5511999998888" style="display:block;width:100%;margin-top:4px;padding:8px;box-sizing:border-box"></label><button type="button" id="flowPairingStart" style="width:100%;margin-top:8px;padding:9px">Gerar código</button></div>');
+  $('flowPairingToggle').onclick = () => { $('flowPairing').hidden = !$('flowPairing').hidden; };
+  $('flowPairingStart').onclick = () => { const phone = $('flowPairingPhone').value.replace(/\D/g, ''); if (phone.length < 10 || phone.length > 15) { $('flowPairingPhone').setCustomValidity('Digite o número completo com DDI e DDD.'); $('flowPairingPhone').reportValidity(); return; } $('flowPairingPhone').setCustomValidity(''); pairingPhone = phone; $('flowConnectWhatsApp').click(); };
   const disconnectDialog = document.createElement('dialog');
   disconnectDialog.className = 'flow-dialog flow-disconnect-dialog'; disconnectDialog.setAttribute('aria-labelledby', 'flowDisconnectTitle'); disconnectDialog.setAttribute('aria-describedby', 'flowDisconnectDescription');
   disconnectDialog.innerHTML = '<div><span class="flow-dialog-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span><h3 id="flowDisconnectTitle">Desconectar WhatsApp?</h3><p id="flowDisconnectDescription">O fluxo ficará pausado até você conectar este WhatsApp novamente pelo QR Code.</p><div><button type="button" class="flow-cancel" id="flowCancelDisconnect">Manter conectado</button><button type="button" class="flow-danger" id="flowConfirmDisconnect">Desconectar WhatsApp</button></div></div>';
@@ -54,6 +58,8 @@
     button.dataset.connected = connected ? 'true' : 'false';
     button.classList.toggle('is-connected', connected);
     button.textContent = connected ? 'Desconectar WhatsApp' : 'Conectar WhatsApp por QR Code';
+    if ($('flowPairingToggle')) $('flowPairingToggle').hidden = connected;
+    if (connected && $('flowPairing')) $('flowPairing').hidden = true;
   }
 
   function searchControl(key, rows = [], selected = '') {
@@ -100,6 +106,7 @@
   // A conexão WhatsApp pertence à conta, mas cada fluxo só mostra "conectado" quando
   // ele mesmo salvou essa instância. Antes, um fluxo novo herdava a conexão de outro
   // fluxo, e o botão "Desconectar" derrubava o WhatsApp de todos eles.
+  let pairingPhone = '';
   const attachWhatsApp = instance => { $('flowInstance').value = instance; $('flowInstance').dispatchEvent(new Event('change', {bubbles: true})); };
   async function syncWhatsAppState(selectedGroup = '') {
     const state = await api('/api/flow/whatsapp/instance');
@@ -139,9 +146,9 @@
   async function openFlow(id) { clearInterval(httpListenTimer); currentFlow = {id}; sessionStorage.setItem(lastFlowKey, id); $('flowBuilder').hidden = true; $('flowSendHttpSample').hidden = true; $('flowListenHttpEndpoint').textContent = 'Ouvir endpoint para teste'; endpointAdvanced.querySelector('summary').textContent = 'Testar recebimento'; endpointAdvanced.open = false; googleAdvanced.open = false; $('flowTitle').textContent = 'Carregando fluxo…'; $('flowProjectsView').hidden = true; $('flowEditorView').hidden = false; await loadEditor(); }
   async function showQr(payload) {
     if (payload.connected) { $('flowQrPanel').hidden = true; attachWhatsApp(payload.instance); setWhatsAppButton(true); await loadGroups(); status('WhatsApp já está conectado. Escolha o grupo de destino.'); return; }
-    if (!payload.qr) throw new Error('A Evolution não retornou um QR Code.');
-    $('flowInstance').value = payload.instance; hideQrLoading(); $('flowQrImage').src = payload.qr; $('flowQrPanel').hidden = false;
-    $('flowQrStatus').textContent = 'Leia o QR Code em WhatsApp > Aparelhos conectados.';
+    if (!payload.qr && !payload.pairingCode) throw new Error('A Evolution não retornou um QR Code nem um código de pareamento.');
+    $('flowInstance').value = payload.instance; hideQrLoading(); $('flowQrImage').hidden = !payload.qr; if (payload.qr) $('flowQrImage').src = payload.qr; $('flowPairingCodeText').hidden = !payload.pairingCode; $('flowPairingCodeText').textContent = payload.pairingCode || ''; $('flowQrPanel').hidden = false;
+    $('flowQrStatus').textContent = payload.pairingCode ? 'No WhatsApp, toque em Aparelhos conectados > Conectar com número de telefone e digite o código acima.' : 'Leia o QR Code em WhatsApp > Aparelhos conectados.';
     let checking = false;
     clearInterval(qrTimer); qrTimer = setInterval(async () => { if (checking) return; checking = true; try { const state = await api(`/api/flow/whatsapp/status?instance=${encodeURIComponent(payload.instance)}`); if (state.connected) { clearInterval(qrTimer); attachWhatsApp(payload.instance); setWhatsAppButton(true); await loadGroups(); $('flowQrPanel').hidden = true; status('WhatsApp conectado. Escolha o grupo de destino.'); } } catch (error) { $('flowQrStatus').textContent = error.message; } finally { checking = false; } }, 1000);
   }
@@ -227,7 +234,7 @@
   $('flowBuilder').addEventListener('change', saveDraftSoon);
   $('flowBuilder').addEventListener('flowchange', saveDraftSoon);
   $('flowDelete').onclick = async () => { if (!currentFlow || !confirm(`Excluir o fluxo "${currentFlow.name}"? Esta ação não pode ser desfeita.`)) return; try { await api(`/api/flows/${encodeURIComponent(currentFlow.id)}`, {method: 'DELETE'}); $('flowBack').click(); } catch (error) { status(error.message); } };
-  $('flowConnectWhatsApp').onclick = async event => { const button = event.currentTarget; button.disabled = true; try { if (button.dataset.connected === 'true') { if (!(await askDisconnect())) return; status('Desconectando WhatsApp…'); await api('/api/flow/whatsapp/instance', {method: 'DELETE'}); clearInterval(qrTimer); $('flowQrPanel').hidden = true; controls.group.clear('Conecte seu WhatsApp'); setWhatsAppButton(false); status('WhatsApp desconectado.'); return; } showQrLoading('A Evolution está gerando seu QR Code…'); status('Aguardando o QR Code da Evolution…'); const result = await api('/api/flow/whatsapp/instance', {method: 'POST', body: '{}'}); await showQr(result); if (!result.connected) status('Leia o QR Code para conectar seu WhatsApp.'); } catch (error) { $('flowQrPanel').hidden = true; status(error.message); } finally { button.disabled = false; } };
+  $('flowConnectWhatsApp').onclick = async event => { const button = event.currentTarget; button.disabled = true; try { if (button.dataset.connected === 'true') { if (!(await askDisconnect())) return; status('Desconectando WhatsApp…'); await api('/api/flow/whatsapp/instance', {method: 'DELETE'}); clearInterval(qrTimer); $('flowQrPanel').hidden = true; controls.group.clear('Conecte seu WhatsApp'); setWhatsAppButton(false); status('WhatsApp desconectado.'); return; } showQrLoading('A Evolution está gerando seu QR Code…'); status('Aguardando o QR Code da Evolution…'); const phone = pairingPhone; pairingPhone = ''; const result = await api('/api/flow/whatsapp/instance', {method: 'POST', body: JSON.stringify({phone})}); await showQr(result); if (!result.connected) status('Leia o QR Code para conectar seu WhatsApp.'); } catch (error) { $('flowQrPanel').hidden = true; status(error.message); } finally { button.disabled = false; } };
   $('flowBuilder').onsubmit = async event => { event.preventDefault(); status('Salvando fluxo…'); const selectedSheet = sheetCatalog.find(row => row.name === $('flowSheet').value), mapping = Object.fromEntries([...document.querySelectorAll('[data-sheet-header]')].map(input => [input.dataset.sheetHeader, input.value]).filter(([, value]) => value)); const flow = {enabled: $('flowEnabled').checked, source: $('flowSource').value, destination: $('flowDestination').value, facebook: {adAccountId: $('flowAdAccount').value, pageId: $('flowPage').value, formId: $('flowForm').value}, whatsapp: {instance: $('flowInstance').value.trim(), groupJid: $('flowGroup').value}, googleSheets: {spreadsheetId: $('flowSpreadsheet').value, sheetName: $('flowSheet').value, headers: selectedSheet?.headers || [], mapping}}; try { currentFlow = await api(`/api/flows/${encodeURIComponent(currentFlow.id)}`, {method: 'PUT', body: JSON.stringify(flow)}); updateFlowKinds(); status(flow.enabled ? 'Fluxo ativo e pronto para receber leads.' : 'Fluxo salvo como rascunho.'); } catch (error) { status(error.message); } };
   // app.js valida uma sess\u00e3o existente de forma ass\u00edncrona. N\u00e3o deixe a
   // primeira listagem escapar para o host est\u00e1tico enquanto o roteador da API
