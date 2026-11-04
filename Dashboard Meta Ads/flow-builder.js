@@ -97,13 +97,18 @@
     const data = await api(`/api/flow/whatsapp/groups?instance=${encodeURIComponent(instance)}`);
     controls.group = searchControl('Group', data.groups || [], selected);
   }
+  // A conexão WhatsApp pertence à conta, mas cada fluxo só mostra "conectado" quando
+  // ele mesmo salvou essa instância. Antes, um fluxo novo herdava a conexão de outro
+  // fluxo, e o botão "Desconectar" derrubava o WhatsApp de todos eles.
+  const attachWhatsApp = instance => { $('flowInstance').value = instance; $('flowInstance').dispatchEvent(new Event('change', {bubbles: true})); };
   async function syncWhatsAppState(selectedGroup = '') {
     const state = await api('/api/flow/whatsapp/instance');
     const instance = state.configured ? state.instance : '';
-    $('flowInstance').value = instance;
-    setWhatsAppButton(Boolean(state.connected));
-    if (state.connected && instance) await loadGroups(selectedGroup);
-    else controls.group.clear(state.configured ? 'WhatsApp desconectado' : 'Conecte seu WhatsApp');
+    const owned = Boolean(instance) && (currentFlow?.whatsapp?.instance || '') === instance;
+    $('flowInstance').value = owned ? instance : '';
+    setWhatsAppButton(Boolean(state.connected && owned));
+    if (state.connected && owned) await loadGroups(selectedGroup);
+    else controls.group.clear(state.connected ? 'Conecte este fluxo ao WhatsApp' : (state.configured ? 'WhatsApp desconectado' : 'Conecte seu WhatsApp'));
     return state;
   }
   async function loadEditor() {
@@ -133,12 +138,12 @@
   }
   async function openFlow(id) { clearInterval(httpListenTimer); currentFlow = {id}; sessionStorage.setItem(lastFlowKey, id); $('flowBuilder').hidden = true; $('flowSendHttpSample').hidden = true; $('flowListenHttpEndpoint').textContent = 'Ouvir endpoint para teste'; endpointAdvanced.querySelector('summary').textContent = 'Testar recebimento'; endpointAdvanced.open = false; googleAdvanced.open = false; $('flowTitle').textContent = 'Carregando fluxo…'; $('flowProjectsView').hidden = true; $('flowEditorView').hidden = false; await loadEditor(); }
   async function showQr(payload) {
-    if (payload.connected) { $('flowQrPanel').hidden = true; setWhatsAppButton(true); await loadGroups(); status('WhatsApp já está conectado. Escolha o grupo de destino.'); return; }
+    if (payload.connected) { $('flowQrPanel').hidden = true; attachWhatsApp(payload.instance); setWhatsAppButton(true); await loadGroups(); status('WhatsApp já está conectado. Escolha o grupo de destino.'); return; }
     if (!payload.qr) throw new Error('A Evolution não retornou um QR Code.');
     $('flowInstance').value = payload.instance; hideQrLoading(); $('flowQrImage').src = payload.qr; $('flowQrPanel').hidden = false;
     $('flowQrStatus').textContent = 'Leia o QR Code em WhatsApp > Aparelhos conectados.';
     let checking = false;
-    clearInterval(qrTimer); qrTimer = setInterval(async () => { if (checking) return; checking = true; try { const state = await api(`/api/flow/whatsapp/status?instance=${encodeURIComponent(payload.instance)}`); if (state.connected) { clearInterval(qrTimer); setWhatsAppButton(true); await loadGroups(); $('flowQrPanel').hidden = true; status('WhatsApp conectado. Escolha o grupo de destino.'); } } catch (error) { $('flowQrStatus').textContent = error.message; } finally { checking = false; } }, 1000);
+    clearInterval(qrTimer); qrTimer = setInterval(async () => { if (checking) return; checking = true; try { const state = await api(`/api/flow/whatsapp/status?instance=${encodeURIComponent(payload.instance)}`); if (state.connected) { clearInterval(qrTimer); attachWhatsApp(payload.instance); setWhatsAppButton(true); await loadGroups(); $('flowQrPanel').hidden = true; status('WhatsApp conectado. Escolha o grupo de destino.'); } } catch (error) { $('flowQrStatus').textContent = error.message; } finally { checking = false; } }, 1000);
   }
   let spreadsheetCatalog = [], sheetCatalog = [];
   let fieldChoices = ['name','full_name','email','phone','phone_number','message','created_time','fields.name','fields.email','fields.phone_number'];
