@@ -177,7 +177,7 @@ test('a trigger word sent in the target group sends its alert now, once per mess
   api.write('alert-index', 'global', {userIds: ['user-a']});
   const message = (id, fromMe = false, text = 'saldo por favor') => ({event: 'messages.upsert', data: {key: {remoteJid: 'grupo@g.us', fromMe, id}, message: {conversation: text}}});
 
-  await api.handleAlertWebhook('tokentokentokentoken123', message('MSG-OWN', true), Date.UTC(2026, 9, 31, 12, 10));
+  await api.handleAlertWebhook('tokentokentokentoken123', message('MSG-OWN', true, 'Saldo das contas às 09:00, com muitas linhas de texto de resposta do bot'), Date.UTC(2026, 9, 31, 12, 10));
   assert.equal(sent.length, 0, 'the account\'s own messages do not trigger');
 
   await api.handleAlertWebhook('tokentokentokentoken123', message('MSG-1'), Date.UTC(2026, 9, 31, 12, 10));
@@ -204,4 +204,21 @@ test('the report word sends the performance analysis of each account to the grou
   assert.match(sent[0].text, /^📈 \*Relatório de performance\*/);
   assert.match(sent[0].text, /📣 \*CA - Um\*\n🏆 \*Principais\*/);
   assert.match(sent[0].text, /📊 \*Secundárias\*/);
+});
+
+test('a short command sent by the connected account triggers, but its long replies do not', async t => {
+  const {api, token, sent} = setup(t);
+  const connected = await request(api, token, '/api/meta/challenge', 'POST');
+  assert.equal((await request(api, token, '/api/meta/connection', 'POST', {nonce: connected.body.nonce, accessToken: facebookToken})).status, 200);
+  api.write('settings', 'user-a', {flow_whatsapp_instance: 'inst', plans: {}});
+  api.write('alert-config', 'user-a', {enabled: true, dryRun: false, instance: 'inst', groupJid: 'grupo@g.us', balanceTimes: [], thresholds: [75, 90, 100, 120], balanceThresholds: [50, 75, 90, 100], triggerWords: {saldo: '/saldo'}, webhookToken: 'tokentokentokentoken123'});
+  api.write('alert-index', 'global', {userIds: ['user-a']});
+  const own = (id, text) => ({event: 'messages.upsert', data: {key: {remoteJid: 'grupo@g.us', fromMe: true, id}, message: {conversation: text}}});
+
+  await api.handleAlertWebhook('tokentokentokentoken123', own('OWN-LONG', '🏦 *Saldo das contas às 09:00*\n\n📣 *CA - Um*\n💰 Saldo agora: R$ 480,00'), Date.UTC(2026, 9, 31, 12, 10));
+  assert.equal(sent.length, 0, 'a long message from the connected account does not trigger');
+
+  await api.handleAlertWebhook('tokentokentokentoken123', own('OWN-CMD', '/saldo'), Date.UTC(2026, 9, 31, 12, 10));
+  assert.equal(sent.length, 1, 'a short command from the connected account triggers');
+  assert.match(sent[0].text, /Saldo das contas às/);
 });

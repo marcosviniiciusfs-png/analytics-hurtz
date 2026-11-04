@@ -10,6 +10,8 @@ const {INSIGHT_FIELDS, parseInsightRow} = require('./report-metrics');
 const {formatReportMessage, formatPerformanceMessage, frequencyAlertText} = require('./report-message');
 const {normalizeTimes, dueSlots, balanceTimeText, SEPARATOR} = require('./balance-schedule');
 const {normalizeTriggerWords, matchTrigger, frequencyText} = require('./alert-triggers');
+// Comando enviado pela própria conta conectada é curto; respostas longas do bot não disparam.
+const MAX_COMMAND_LENGTH = 40;
 
 const fail = (status, message) => Object.assign(new Error(message), {status});
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -668,6 +670,9 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       body: JSON.stringify({number: config.groupJid, text, delay: 1200, linkPreview: false}), signal: AbortSignal.timeout(20000),
     });
     if (!response.ok) throw fail(502, 'O WhatsApp recusou o envio do alerta.');
+    // Devolve o ID da mensagem enviada, para o webhook reconhecer a resposta do próprio bot.
+    const sent = await response.json().catch(() => ({}));
+    return sent?.key?.id || null;
   }
 
   async function alertPreview(userId, now = Date.now()) {
@@ -836,11 +841,16 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       text = formatPerformanceMessage({period: `${dayLabel(since)} a ${dayLabel(until)}`, accounts: reports});
     }
     if (!text) return null;
-    if (!config.dryRun) await sendAlert(config, text);
+    if (!config.dryRun) {
+      // Guarda o ID da resposta: o webhook devolve essa mensagem e ela não pode disparar outra.
+      const id = await sendAlert(config, text);
+      if (id) write('bot-sent', userId, {ids: [...(read('bot-sent', userId)?.ids || []), id].slice(-200)});
+    }
     return text;
   }
 
-  // Recebe as mensagens do WhatsApp (Evolution). Só dispara para mensagens de fora no grupo de destino.
+  // Recebe as mensagens do WhatsApp (Evolution). Só dispara no grupo de destino.
+  // Mensagem de fora vale sempre. Mensagem da conta conectada vale só se for um comando curto e não for resposta do bot.
   async function handleAlertWebhook(token, payload, now = Date.now()) {
     const userId = alertIndex().find(id => alertConfig(id)?.webhookToken === token);
     const config = userId ? alertConfig(userId) : null;
@@ -848,8 +858,12 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     const data = payload?.data ?? payload;
     for (const message of Array.isArray(data) ? data : [data]) {
       const key = message?.key || {};
-      if (key.fromMe || key.remoteJid !== config.groupJid) continue;
+      if (key.remoteJid !== config.groupJid) continue;
       const text = message?.message?.conversation || message?.message?.extendedTextMessage?.text || '';
+      if (key.fromMe) {
+        const botIds = read('bot-sent', userId)?.ids || [];
+        if (botIds.includes(key.id) || text.trim().length > MAX_COMMAND_LENGTH) continue;
+      }
       const kind = matchTrigger(text, config.triggerWords);
       if (!kind) continue;
       // A mesma mensagem não dispara duas vezes, mesmo que a Evolution a reenvie.
