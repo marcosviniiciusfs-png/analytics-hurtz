@@ -49,3 +49,33 @@ test('findings are ordered from the most critical to the least', () => {
   const statuses = evaluateReport({cpm: 40, ctr: 0.5, frequency: 4}).map(item => item.status);
   assert.equal(statuses[0], 'crítico');
 });
+
+test('high cost per click is flagged, with the CTR as the likely cause when it is low', () => {
+  const cpc = find(evaluateReport({cpc: 3.4, ctr: 0.9}), 'CPC');
+  assert.equal(cpc.status, 'médio');
+  assert.match(cpc.suggestion, /gancho e a chamada/);
+  assert.equal(find(evaluateReport({cpc: 1.8}), 'CPC'), undefined);
+});
+
+test('CTR on the link below 0.5% is critical; when the ad itself has good CTR, the offer is the suspect', () => {
+  const link = find(evaluateReport({ctr: 1.9, linkCtr: 0.3}), 'CTR no link');
+  assert.equal(link.status, 'crítico');
+  assert.match(link.suggestion, /não leva ao clique/);
+  assert.equal(find(evaluateReport({ctr: 1.9, linkCtr: 1.4}), 'CTR no link').status, 'bom');
+});
+
+test('spend above R$ 100 with no lead or conversation is critical', () => {
+  const result = find(evaluateReport({spend: 180, results: 0}), 'Resultado');
+  assert.equal(result.status, 'crítico');
+  assert.match(result.message, /R\$ 180,00/);
+  assert.equal(find(evaluateReport({spend: 180, results: 3}), 'Resultado'), undefined);
+});
+
+test('no result is not reported when Meta did not return the action list', () => {
+  assert.equal(find(evaluateReport({spend: 180, results: null}), 'Resultado'), undefined);
+});
+
+test('low hook rate is a high-priority finding, a good one is only informative', () => {
+  assert.equal(find(evaluateReport({hookRate: 12}), 'Hook rate (3s)').status, 'alto');
+  assert.equal(find(evaluateReport({hookRate: 40}), 'Hook rate (3s)').status, 'info');
+});

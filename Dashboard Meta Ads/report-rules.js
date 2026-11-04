@@ -5,9 +5,15 @@
 
 const THRESHOLDS = {
   cpmHigh: 25,
+  cpcHigh: 2.5,
   ctrCritical: 1,
   ctrGood: 1.5,
+  linkCtrCritical: 0.5,
+  linkCtrGood: 1,
   frequencyHigh: 3,
+  hookLow: 25,
+  // Gasto a partir do qual a falta de resultado já é crítica.
+  noResultSpend: 100,
 };
 
 const money = value => `R$ ${Number(value).toFixed(2).replace('.', ',')}`;
@@ -17,7 +23,7 @@ const pct = value => `${Number(value).toFixed(2).replace('.', ',')}%`;
 // Devolve os achados, do mais grave para o menos grave.
 function evaluateReport(metrics, targets = {}) {
   const findings = [];
-  const {cpm, ctr, linkClicks, costPerLead, frequency, hookRate, spend, leads} = metrics;
+  const {cpm, cpc, ctr, linkCtr, linkClicks, costPerLead, results, frequency, hookRate, spend} = metrics;
 
   if (cpm != null) {
     if (cpm > THRESHOLDS.cpmHigh) {
@@ -70,7 +76,46 @@ function evaluateReport(metrics, targets = {}) {
   }
 
   if (hookRate != null) {
-    findings.push({ metric: 'Hook rate (3s)', status: 'info', value: pct(hookRate), message: `${pct(hookRate)} das impressões assistiram pelo menos 3 segundos do vídeo.`, suggestion: 'Esta métrica mede o gancho inicial. Ela cai quando a abertura não prende a atenção.' });
+    if (hookRate < THRESHOLDS.hookLow) {
+      findings.push({ metric: 'Hook rate (3s)', status: 'alto', value: pct(hookRate), message: `Só ${pct(hookRate)} das impressões assistiram 3 segundos do vídeo, abaixo de ${pct(THRESHOLDS.hookLow)}.`, suggestion: 'A abertura não prende. Comece pela dor ou pelo resultado, sem vinheta, com legenda visível desde o primeiro segundo.' });
+    } else {
+      findings.push({ metric: 'Hook rate (3s)', status: 'info', value: pct(hookRate), message: `${pct(hookRate)} das impressões assistiram pelo menos 3 segundos do vídeo.`, suggestion: 'Esta métrica mede o gancho inicial. Ela cai quando a abertura não prende a atenção.' });
+    }
+  }
+
+  // Custo por clique: o leilão cobra caro quando o anúncio não atrai cliques.
+  if (cpc != null && cpc > THRESHOLDS.cpcHigh) {
+    findings.push({
+      metric: 'CPC', status: 'médio', value: money(cpc),
+      message: `O custo por clique está em ${money(cpc)}, acima de ${money(THRESHOLDS.cpcHigh)}.`,
+      suggestion: ctr != null && ctr < THRESHOLDS.ctrGood
+        ? 'O CTR baixo encarece o clique: melhore o gancho e a chamada para ação antes de mexer no lance.'
+        : 'Teste públicos mais frios e posicionamentos mais baratos. Se o CTR estiver bom, o custo vem do leilão.',
+    });
+  }
+
+  // Cliques no link medidos sobre as impressões: mostra se o interesse vira visita.
+  if (linkCtr != null) {
+    if (linkCtr < THRESHOLDS.linkCtrCritical) {
+      findings.push({
+        metric: 'CTR no link', status: 'crítico', value: pct(linkCtr),
+        message: `Só ${pct(linkCtr)} das impressões viraram clique no link, abaixo de ${pct(THRESHOLDS.linkCtrCritical)}.`,
+        suggestion: ctr != null && ctr >= THRESHOLDS.ctrGood
+          ? 'O anúncio chama atenção, mas não leva ao clique: a oferta ou a chamada para ação não convence. Deixe a oferta na primeira frase e use um botão de ação mais claro.'
+          : 'Clique fraco no link: revise a oferta, a chamada para ação e a página de destino.',
+      });
+    } else if (linkCtr > THRESHOLDS.linkCtrGood) {
+      findings.push({ metric: 'CTR no link', status: 'bom', value: pct(linkCtr), message: `${pct(linkCtr)} das impressões viraram clique no link, acima de ${pct(THRESHOLDS.linkCtrGood)}.`, suggestion: 'A oferta leva ao clique. Mantenha o criativo e teste variações da página de destino.' });
+    }
+  }
+
+  // Gasto relevante sem nenhum lead nem conversa: a otimização segue sem resultado para se guiar.
+  if (spend != null && spend >= THRESHOLDS.noResultSpend && results === 0) {
+    findings.push({
+      metric: 'Resultado', status: 'crítico', value: money(spend),
+      message: `${money(spend)} gastos no período sem nenhum lead ou conversa.`,
+      suggestion: 'Pause os conjuntos sem resultado e confira se o evento de conversão (pixel, formulário ou conversa) está registrando. Sem ele, a Meta otimiza às cegas.',
+    });
   }
 
   const order = {crítico: 0, alto: 1, médio: 2, info: 3, bom: 4};
