@@ -100,6 +100,20 @@ async function deliverFlowLead(leadgenId,value){
   flowLeadIds.add(leadgenId);if(flowLeadIds.size>FLOW_LEAD_LIMIT)flowLeadIds.delete(flowLeadIds.values().next().value);
   if(flow.destination==='google-sheets'){try{const lead=await personalMeta.graph(flow.pageToken,String(leadgenId),{fields:'field_data,created_time'}),payload={...lead,fields:Object.fromEntries((lead.field_data||[]).map(field=>[String(field.name||'campo'),(field.values||[]).join(', ')]))};await personalMeta.appendGoogleLead(flow,payload);console.log(`[Fluxo] Lead ${leadgenId} salvo no Google Sheets.`)}catch(error){flowLeadIds.delete(leadgenId);console.error(`[Fluxo] Falha ao salvar lead ${leadgenId}: ${error.message}`)}return;}
   try{const lead=await personalMeta.graph(flow.pageToken,String(leadgenId),{fields:'field_data,created_time'}),base=String(process.env.EVOLUTION_API_URL||'').replace(/\/$/,''),key=String(process.env.EVOLUTION_API_KEY||'');if(!base||!key)throw new Error('Evolution API não configurada.');const url=`${base}/message/sendText/${encodeURIComponent(flow.whatsapp.instance)}`,body={number:flow.whatsapp.groupJid,text:formatFlowLead(lead)};let sent=false;for(let attempt=1;attempt<=3;attempt++){try{const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',apikey:key},body:JSON.stringify(body)});if(!response.ok)throw new Error(`Evolution respondeu ${response.status}`);sent=true;break}catch(error){if(attempt===3)throw error;await flowWait(500*2**(attempt-1))}}if(sent)console.log(`[Fluxo] Lead ${leadgenId} entregue.`)}catch(error){flowLeadIds.delete(leadgenId);console.error(`[Fluxo] Falha ao entregar lead ${leadgenId}: ${error.message}`)}}
+// Leads encaminhados por outro sistema (ex.: KairozCRM) que recebe o webhook do mesmo app da Meta.
+// O formato é o mesmo do webhook da Meta; a autenticação é um token compartilhado (FLOW_FORWARD_TOKEN).
+function handleForwardedLeads(req,res){
+  if(req.method!=='POST'){res.writeHead(405);return res.end();}
+  const expected=String(process.env.FLOW_FORWARD_TOKEN||'');
+  if(!expected)return jsonResponse(res,503,{error:'Encaminhamento de leads não configurado.'});
+  const given=Buffer.from(String(req.headers['x-traffic-forward-token']||''));const want=Buffer.from(expected);
+  if(given.length!==want.length||!crypto.timingSafeEqual(given,want))return jsonResponse(res,403,{error:'Não autorizado.'});
+  const chunks=[];let size=0;
+  req.on('data',chunk=>{size+=chunk.length;if(size<=1024*1024)chunks.push(chunk);else req.destroy()});
+  req.on('end',()=>{let payload;try{payload=JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{return jsonResponse(res,400,{error:'JSON inválido.'})}
+    let received=0;for(const entry of payload?.entry||[])for(const change of entry?.changes||[])if(change?.field==='leadgen'&&change.value?.leadgen_id){received++;void deliverFlowLead(change.value.leadgen_id,change.value)}
+    jsonResponse(res,200,{ok:true,received});});
+}
 function metaAppSecret(){return String(process.env.META_APP_SECRET||require('./facebook-token').configuration()?.secret||'')}
 function handleFlowWebhook(req,res,url){
   if(req.method==='GET'){const valid=url.searchParams.get('hub.mode')==='subscribe'&&url.searchParams.get('hub.verify_token')===String(process.env.META_VERIFY_TOKEN||process.env.VERIFY_TOKEN||'');return valid?(res.writeHead(200),res.end(url.searchParams.get('hub.challenge')||'')):(res.writeHead(403),res.end());}
@@ -214,6 +228,7 @@ const handlePersonalTaskRoute=async(req,res,url,user)=>{
 
 http.createServer((req,res)=>{
   const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+  if(requestUrl.pathname==='/webhook/forward')return handleForwardedLeads(req,res);
   if(requestUrl.pathname==='/webhook')return handleFlowWebhook(req,res,requestUrl);
   if(requestUrl.pathname.startsWith('/api/flow/inbound/'))return handleHttpFlow(req,res,requestUrl);
   if(requestUrl.pathname.startsWith('/api/alert-webhook/'))return handleAlertWebhook(req,res,requestUrl);
