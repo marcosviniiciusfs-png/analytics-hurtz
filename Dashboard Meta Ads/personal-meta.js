@@ -397,9 +397,25 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (!/^act_\d{5,30}$/.test(adAccountId)) throw fail(400, 'Conta de anúncio inválida.');
       const conn = await upgradeConnection(user);
       if (!conn) throw fail(409, 'Conecte seu Facebook nas Configurações antes de criar um fluxo.');
-      const promoted = await rows(conn.token, `${adAccountId}/promote_pages`, {fields: 'id,name'});
-      // Só entra página com token salvo, pois o formulário precisa dele para ler os leads.
-      return send(res, 200, {pages: promoted.filter(page => conn.pageTokens?.[page.id]).map(({id, name}) => ({id, name: name || id}))});
+      // Páginas vinculadas à conta: as que a conta promove e as do negócio dela (próprias e de clientes).
+      // Se uma das consultas falhar, as outras continuam valendo.
+      const sources = await Promise.allSettled([
+        rows(conn.token, `${adAccountId}/promote_pages`, {fields: 'id,name'}),
+        graph(conn.token, adAccountId, {fields: 'business'}).then(account => {
+          const businessId = account.business?.id;
+          if (!businessId) return [];
+          return Promise.all([
+            rows(conn.token, `${businessId}/owned_pages`, {fields: 'id,name'}),
+            rows(conn.token, `${businessId}/client_pages`, {fields: 'id,name'}),
+          ]).then(([owned, client]) => [...owned, ...client]);
+        }),
+      ]);
+      sources.forEach((result, index) => { if (result.status === 'rejected') console.warn(JSON.stringify({event: 'flow_pages_source_error', source: index, message: String(result.reason?.message || result.reason).slice(0, 200)})); });
+      if (sources.every(result => result.status === 'rejected')) throw fail(502, 'Não foi possível listar as páginas desta conta de anúncio. Reconecte o Facebook e tente de novo.');
+      const pages = new Map();
+      for (const result of sources) if (result.status === 'fulfilled') for (const page of result.value) pages.set(page.id, page.name || page.id);
+      // O token só é exigido na hora de escolher a página (formulários e leads), não para listar.
+      return send(res, 200, {pages: [...pages].map(([id, name]) => ({id, name, connected: Boolean(conn.pageTokens?.[id])}))});
     }
     if (route === '/api/flow/meta/forms' && req.method === 'GET') {
       const pageId = String(url.searchParams.get('pageId') || '');
