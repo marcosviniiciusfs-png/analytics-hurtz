@@ -391,6 +391,16 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       ]);
       return send(res, 200, {connected: true, accounts: accounts.map(({id, name}) => ({id, name: name || id})), pages: pages.map(({id, name}) => ({id, name: name || id}))});
     }
+    // Páginas que a conta de anúncio pode usar (não todas as páginas do usuário).
+    if (route === '/api/flow/meta/pages' && req.method === 'GET') {
+      const adAccountId = String(url.searchParams.get('adAccountId') || '');
+      if (!/^act_\d{5,30}$/.test(adAccountId)) throw fail(400, 'Conta de anúncio inválida.');
+      const conn = await upgradeConnection(user);
+      if (!conn) throw fail(409, 'Conecte seu Facebook nas Configurações antes de criar um fluxo.');
+      const promoted = await rows(conn.token, `${adAccountId}/promote_pages`, {fields: 'id,name'});
+      // Só entra página com token salvo, pois o formulário precisa dele para ler os leads.
+      return send(res, 200, {pages: promoted.filter(page => conn.pageTokens?.[page.id]).map(({id, name}) => ({id, name: name || id}))});
+    }
     if (route === '/api/flow/meta/forms' && req.method === 'GET') {
       const pageId = String(url.searchParams.get('pageId') || '');
       if (!/^\d{5,30}$/.test(pageId)) throw fail(400, 'Página inválida.');

@@ -87,9 +87,18 @@
   const resetControls = () => {
     const saved = currentFlow?.facebook || {}, fallback = (id, label) => id ? [{id, name: `${label} selecionado (${id})`}] : [];
     controls.adAccount = searchControl('AdAccount', catalog.accounts.length ? catalog.accounts : fallback(saved.adAccountId, 'Conta'), saved.adAccountId);
-    controls.page = searchControl('Page', catalog.pages.length ? catalog.pages : fallback(saved.pageId, 'Página'), saved.pageId);
+    controls.page = searchControl('Page', fallback(saved.pageId, 'Página'), saved.pageId);
     controls.form = searchControl('Form', fallback(saved.formId, 'Formulário'), saved.formId); controls.group = searchControl('Group', [], '');
   };
+  // As páginas listadas dependem da conta de anúncio escolhida (promote_pages).
+  async function loadPages(adAccountId, selected = '') {
+    controls.form.clear('Escolha uma página primeiro');
+    if (!adAccountId) return controls.page.clear('Escolha a conta de anúncio primeiro');
+    $('flowPageSearch').placeholder = 'Carregando páginas…';
+    const data = await api(`/api/flow/meta/pages?adAccountId=${encodeURIComponent(adAccountId)}`);
+    controls.page = searchControl('Page', data.pages || [], selected);
+    if (!(data.pages || []).length) status('Nenhuma página desta conta de anúncio está liberada para o seu usuário.');
+  }
   async function loadForms(selected = '') {
     if (!$('flowPage').value) return controls.form.clear('Escolha uma página primeiro');
     $('flowFormSearch').placeholder = 'Carregando formulários…';
@@ -127,6 +136,7 @@
       $('flowSource').value = currentFlow.source || 'facebook'; $('flowDestination').value = currentFlow.destination || 'whatsapp'; updateFlowKinds();
       $('flowBuilder').hidden = false;
       resetControls(); $('flowEnabled').checked = Boolean(currentFlow.enabled); setWhatsAppButton(false);
+      if ($('flowSource').value === 'facebook' && currentFlow.facebook?.adAccountId) await loadPages(currentFlow.facebook.adAccountId, currentFlow.facebook?.pageId || '');
       if ($('flowSource').value === 'facebook' && currentFlow.facebook?.pageId) await loadForms(currentFlow.facebook.formId);
       if ($('flowDestination').value === 'whatsapp') await syncWhatsAppState(currentFlow.whatsapp?.groupJid || '');
       if ($('flowDestination').value === 'google-sheets') await loadSpreadsheets(currentFlow.googleSheets?.spreadsheetId || '');
@@ -218,6 +228,7 @@
   $('flowProjects').onclick = event => { const card = event.target.closest('[data-flow-id]'); if (card) openFlow(card.dataset.flowId); };
   $('flowBack').onclick = () => { clearInterval(qrTimer); clearInterval(httpListenTimer); sessionStorage.removeItem(lastFlowKey); $('flowEditorView').hidden = true; $('flowProjectsView').hidden = false; listFlows(); };
   $('flowConnect').onclick = loadEditor;
+  $('flowAdAccountSearch').addEventListener('flowchange', event => loadPages(event.detail?.id || '').catch(error => status(error.message)));
   $('flowPageSearch').addEventListener('flowchange', () => loadForms());
   $('flowSource').onchange = updateFlowKinds;
   $('flowDestination').onchange = async () => { updateFlowKinds(); try { if ($('flowDestination').value === 'google-sheets') await loadSpreadsheets(); else await syncWhatsAppState(currentFlow?.whatsapp?.groupJid || ''); } catch (error) { status(error.message); } };
