@@ -95,9 +95,16 @@
     controls.form.clear('Escolha uma página primeiro');
     if (!adAccountId) return controls.page.clear('Escolha a conta de anúncio primeiro');
     $('flowPageSearch').placeholder = 'Carregando páginas…';
-    const data = await api(`/api/flow/meta/pages?adAccountId=${encodeURIComponent(adAccountId)}`);
-    controls.page = searchControl('Page', data.pages || [], selected);
-    if (!(data.pages || []).length) status('Nenhuma página desta conta de anúncio está liberada para o seu usuário.');
+    try {
+      const data = await api(`/api/flow/meta/pages?adAccountId=${encodeURIComponent(adAccountId)}`);
+      controls.page = searchControl('Page', data.pages || [], selected);
+      $('flowPageSearch').placeholder = data.pages?.length ? 'Buscar página' : 'Nenhuma página vinculada a esta conta';
+      if (!data.pages?.length) status('Nenhuma página está vinculada a esta conta de anúncio no Gerenciador de Negócios da Meta.');
+    } catch (error) {
+      controls.page = searchControl('Page', [], '');
+      $('flowPageSearch').placeholder = 'Não foi possível carregar';
+      status(error.message);
+    }
   }
   async function loadForms(selected = '') {
     if (!$('flowPage').value) return controls.form.clear('Escolha uma página primeiro');
