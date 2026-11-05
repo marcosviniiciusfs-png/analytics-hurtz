@@ -99,7 +99,8 @@
       const data = await api(`/api/flow/meta/pages?adAccountId=${encodeURIComponent(adAccountId)}`);
       controls.page = searchControl('Page', data.pages || [], selected);
       $('flowPageSearch').placeholder = data.pages?.length ? 'Buscar página' : 'Nenhuma página vinculada a esta conta';
-      if (!data.pages?.length) status('Nenhuma página está vinculada a esta conta de anúncio no Gerenciador de Negócios da Meta.');
+      if (!data.pages?.length) status('Nenhuma página encontrada nesta conta de anúncio. Verifique as permissões da conexão Facebook.');
+      else if (data.linked === false) status('Não encontrei páginas vinculadas a esta conta de anúncio no Gerenciador de Negócios. Mostrando todas as páginas que você administra.');
     } catch (error) {
       controls.page = searchControl('Page', [], '');
       $('flowPageSearch').placeholder = 'Não foi possível carregar';

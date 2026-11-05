@@ -415,7 +415,10 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const pages = new Map();
       for (const result of sources) if (result.status === 'fulfilled') for (const page of result.value) pages.set(page.id, page.name || page.id);
       // O token só é exigido na hora de escolher a página (formulários e leads), não para listar.
-      return send(res, 200, {pages: [...pages].map(([id, name]) => ({id, name, connected: Boolean(conn.pageTokens?.[id])}))});
+      if (pages.size) return send(res, 200, {pages: [...pages].map(([id, name]) => ({id, name, connected: Boolean(conn.pageTokens?.[id])})), linked: true});
+      // Nenhuma página vinculada foi encontrada para esta conta: mostra as páginas que o usuário administra, para não bloquear o fluxo.
+      const own = await rows(conn.token, 'me/accounts', {fields: 'id,name'});
+      return send(res, 200, {pages: own.filter(page => conn.pageTokens?.[page.id]).map(({id, name}) => ({id, name: name || id, connected: true})), linked: false});
     }
     if (route === '/api/flow/meta/forms' && req.method === 'GET') {
       const pageId = String(url.searchParams.get('pageId') || '');
