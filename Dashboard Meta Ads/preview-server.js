@@ -12,6 +12,10 @@ if (!process.env.EVOLUTION_API_URL && integrationDefaults.evolutionUrl) process.
 if (!process.env.EVOLUTION_API_KEY && integrationDefaults.evolutionKey) process.env.EVOLUTION_API_KEY = integrationDefaults.evolutionKey;
 const {createServices}=require('./local-services');
 const personalMeta = createPersonalMeta(process.env.META_PERSONAL_DATA_DIR?{directory:process.env.META_PERSONAL_DATA_DIR}:process.platform === 'win32' ? {directory: path.join(__dirname, '..', '.codex-tmp', 'personal-secrets')} : {});
+// Entrega cada lead novo ao próximo bloco do fluxo (WhatsApp ou planilha), igual ao webhook.
+personalMeta.setLeadDeliverer((leadId, value) => deliverFlowLead(leadId, value));
+// Consulta automática: a cada 3 minutos procura leads novos nos formulários com fluxo ativo.
+if (process.env.LEAD_SYNC_DISABLED !== '1') setInterval(async () => { for (const formId of personalMeta.formIndex()) { try { await personalMeta.syncFormLeads(formId); } catch { /* tenta de novo no próximo ciclo */ } } }, 3 * 60 * 1000).unref();
 const localOnly=process.env.ANALYTICS_LOCAL_ONLY==='1';
 const personalTools=process.env.ANALYTICS_PERSONAL_TOOLS==='1';
 const localRuntime=(localOnly||personalTools)?require('./local-runtime').createRuntime(personalMeta,{production:!localOnly}):null;

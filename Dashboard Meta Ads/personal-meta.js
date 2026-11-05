@@ -533,6 +533,14 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (route === '/api/flow/google/spreadsheets' && req.method === 'GET') return send(res, 200, {spreadsheets: await googleSpreadsheets(user)});
     const googleSheetMatch = route.match(/^\/api\/flow\/google\/spreadsheets\/([A-Za-z0-9_-]{20,200})\/sheets$/);
     if (googleSheetMatch && req.method === 'GET') return send(res, 200, {sheets: await googleSheetTabs(user, googleSheetMatch[1])});
+    const syncMatch = route.match(/^\/api\/flows\/([a-f0-9-]{36})\/sync-leads$/i);
+    if (syncMatch && req.method === 'POST') {
+      const saved = read('lead-flow-project', syncMatch[1]);
+      if (!saved || saved.userId !== user.id) throw fail(404, 'Fluxo não encontrado.');
+      if (!saved.enabled) throw fail(409, 'Ative o fluxo antes de buscar leads.');
+      if (!saved.facebook?.formId) throw fail(400, 'Escolha o formulário antes de buscar leads.');
+      return send(res, 200, await syncFormLeads(saved.facebook.formId));
+    }
     if (route === '/api/flows') {
       if (req.method === 'GET') return send(res, 200, {flows: flowIds(user).map(id => read('lead-flow-project', id)).filter(value => value?.userId === user.id).sort((a, b) => b.updatedAt - a.updatedAt).map(publicFlow)});
       if (req.method !== 'POST') throw fail(405, 'Método não permitido.');
@@ -589,6 +597,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
         if (!pageToken) throw fail(403, 'A Página selecionada não pertence à sua conexão Facebook atual.');
         await graph(pageToken, `${flow.facebook.pageId}/subscribed_apps`, {subscribed_fields: 'leadgen'}, VERSION, 'POST');
         write('lead-flow', flow.facebook.formId, flow);
+        addFormToIndex(flow.facebook.formId);
+        if (flow.enabled) await syncFormLeads(flow.facebook.formId).catch(() => {});
       }
       if (previous.facebook?.formId && (previous.facebook.formId !== flow.facebook.formId || source !== 'facebook')) remove('lead-flow', previous.facebook.formId);
       if ((!flow.enabled || source !== 'facebook') && previous.facebook?.formId) remove('lead-flow', previous.facebook.formId);
@@ -977,6 +987,29 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     timer.unref();
   }
 
-  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow, httpFlow, saveHttpSample, appendGoogleLead, beginGoogleAuth, completeGoogleAuth, runAlertCycle, handleAlertWebhook};
+  // Consulta automática de leads: índice dos formulários com fluxo do Facebook.
+  const formIndex = () => read('lead-form-index', 'global')?.formIds || [];
+  const addFormToIndex = formId => { const ids = new Set(formIndex()); ids.add(String(formId)); write('lead-form-index', 'global', {formIds: [...ids]}); };
+  let leadDeliverer = null;
+  const setLeadDeliverer = fn => { leadDeliverer = fn; };
+  // Busca os leads do formulário e envia os novos ao próximo bloco. Na primeira vez registra os existentes sem enviar, para não reenviar o histórico.
+  async function syncFormLeads(formId) {
+    const flow = leadFlow(formId);
+    if (!flow) return {checked: 0, fresh: 0, delivered: 0};
+    const key = String(formId), known = read('lead-seen', key)?.ids || null;
+    const payload = await graph(flow.pageToken, `${key}/leads`, {fields: 'id', limit: 100});
+    const current = (payload.data || []).map(item => String(item.id));
+    if (known === null) { write('lead-seen', key, {ids: current.slice(0, 500)}); return {checked: current.length, fresh: 0, delivered: 0}; }
+    const seen = new Set(known);
+    const fresh = current.filter(id => !seen.has(id)).reverse();
+    let delivered = 0;
+    for (const leadId of fresh) {
+      if (!leadDeliverer) break;
+      try { await leadDeliverer(leadId, {form_id: key}); delivered++; } catch { /* segue para o próximo lead */ }
+    }
+    if (fresh.length) write('lead-seen', key, {ids: [...fresh, ...known].slice(0, 500)});
+    return {checked: current.length, fresh: fresh.length, delivered};
+  }
+  return {issueSession, session, handle, read, write, remove, directory, connection, graph, rows, catalog, authorizeAccounts, report, leadFlow, syncFormLeads, formIndex, setLeadDeliverer, httpFlow, saveHttpSample, appendGoogleLead, beginGoogleAuth, completeGoogleAuth, runAlertCycle, handleAlertWebhook};
 }
 module.exports = {createPersonalMeta, parsePrepayBalance};
