@@ -219,14 +219,18 @@ test('flow projects remain available after the API restarts on the same data vol
  assert.equal(result.status,200);assert.equal(result.body.flows.length,1);assert.equal(result.body.flows[0].id,created.body.id);assert.equal(result.body.flows[0].name,'Fluxo persistente');assert.equal(result.body.flows[0].facebook.formId,'67890');assert.equal(result.body.flows[0].whatsapp.groupJid,'120363000000@g.us');
 });
 
-test('WhatsApp connection state is reused and can be disconnected without creating another instance',async t=>{
+test('each flow keeps its own WhatsApp connection, reused and disconnected only for that flow',async t=>{
  const previousUrl=process.env.EVOLUTION_API_URL,previousKey=process.env.EVOLUTION_API_KEY;process.env.EVOLUTION_API_URL='http://evolution.test';process.env.EVOLUTION_API_KEY='test-key';t.after(()=>{if(previousUrl===undefined)delete process.env.EVOLUTION_API_URL;else process.env.EVOLUTION_API_URL=previousUrl;if(previousKey===undefined)delete process.env.EVOLUTION_API_KEY;else process.env.EVOLUTION_API_KEY=previousKey;});
  const calls=[],f=fixture(t,null,{evolution:async(url,options)=>{const endpoint=new URL(url).pathname;calls.push({endpoint,method:options.method||'GET'});if(endpoint.startsWith('/instance/connectionState/'))return {ok:true,status:200,json:async()=>({instance:{state:'open'}})};if(endpoint.startsWith('/instance/logout/'))return {ok:true,status:200,json:async()=>({status:'SUCCESS'})};throw new Error(`Unexpected Evolution endpoint: ${endpoint}`);}});
- f.api.write('settings','user-a',{flow_whatsapp_instance:'flow-user-a'});
- const state=await f.request(f.sessionA,'/api/flow/whatsapp/instance');assert.equal(state.status,200);assert.equal(state.body.connected,true);assert.equal(state.body.instance,'flow-user-a');
- const reused=await f.request(f.sessionA,'/api/flow/whatsapp/instance','POST',{});assert.equal(reused.status,200);assert.equal(reused.body.connected,true);assert.equal(calls.some(call=>call.endpoint==='/instance/create'),false);
- const disconnected=await f.request(f.sessionA,'/api/flow/whatsapp/instance','DELETE');assert.equal(disconnected.status,200);assert.equal(disconnected.body.connected,false);assert.ok(calls.some(call=>call.endpoint==='/instance/logout/flow-user-a'&&call.method==='DELETE'));
+ await f.connect(f.sessionA,f.tokens.a);
+ const created=await f.request(f.sessionA,'/api/flows','POST',{name:'Fluxo A'}),other=await f.request(f.sessionA,'/api/flows','POST',{name:'Fluxo B'});
+ assert.equal(created.status,201);assert.equal(other.status,201);
+ const saved=await f.request(f.sessionA,`/api/flows/${created.body.id}`,'PUT',{enabled:false,whatsapp:{instance:'flow-user-a',groupJid:'120363000000@g.us'}});assert.equal(saved.status,200);
+ const state=await f.request(f.sessionA,`/api/flow/whatsapp/instance?flowId=${created.body.id}`);assert.equal(state.status,200);assert.equal(state.body.connected,true);assert.equal(state.body.instance,'flow-user-a');
+ const otherState=await f.request(f.sessionA,`/api/flow/whatsapp/instance?flowId=${other.body.id}`);assert.equal(otherState.body.configured,false,'a flow without its own instance is not connected');
+ const disconnected=await f.request(f.sessionA,`/api/flow/whatsapp/instance?flowId=${created.body.id}`,'DELETE');assert.equal(disconnected.status,200);assert.equal(disconnected.body.connected,false);assert.ok(calls.some(call=>call.endpoint==='/instance/logout/flow-user-a'&&call.method==='DELETE'));
 });
+
 
 test('long-lived connection survives logout, a new session and server restart without exposing secrets',async t=>{
  const f=fixture(t,null,{oauthConfig:{appId:'2093320124537661',secret:'test-app-secret'}});await f.connect(f.sessionA,f.tokens.a);
@@ -287,11 +291,14 @@ test('missing server OAuth configuration cannot save a short-lived SDK connectio
  assert.equal((await f.request(f.sessionA,'/api/meta/connection')).body.connected,true);
 });
 
-test('a new WhatsApp connection can be paired with a phone number code instead of the QR code',async t=>{
+test('a new flow WhatsApp connection can be paired with a phone number code instead of the QR code',async t=>{
  const previousUrl=process.env.EVOLUTION_API_URL,previousKey=process.env.EVOLUTION_API_KEY;process.env.EVOLUTION_API_URL='http://evolution.test';process.env.EVOLUTION_API_KEY='test-key';t.after(()=>{if(previousUrl===undefined)delete process.env.EVOLUTION_API_URL;else process.env.EVOLUTION_API_URL=previousUrl;if(previousKey===undefined)delete process.env.EVOLUTION_API_KEY;else process.env.EVOLUTION_API_KEY=previousKey;});
- const calls=[];const f=fixture(t,null,{evolution:async(url,options)=>{const parsed=new URL(url);calls.push({endpoint:parsed.pathname,number:parsed.searchParams.get('number'),method:options.method||'GET'});if(parsed.pathname==='/instance/create')return {ok:true,status:201,json:async()=>({qrcode:{base64:'data:image/png;base64,QR'}})};if(parsed.pathname.startsWith('/instance/connect/'))return {ok:true,status:200,json:async()=>({pairingCode:'ABCD1234',code:'raw'})};if(parsed.pathname.startsWith('/instance/connectionState/'))return {ok:false,status:404,json:async()=>({})};throw new Error(`Unexpected Evolution endpoint: ${parsed.pathname}`);}});
+ const calls=[];const f=fixture(t,null,{evolution:async(url,options)=>{const parsed=new URL(url);calls.push({endpoint:parsed.pathname,body:options.body?JSON.parse(options.body):null});if(parsed.pathname==='/instance/create')return {ok:true,status:201,json:async()=>({qrcode:{base64:'data:image/png;base64,QR',pairingCode:'ABCD1234'}})};throw new Error(`Unexpected Evolution endpoint: ${parsed.pathname}`);}});
  await f.connect(f.sessionA,f.tokens.a);
- const invalid=await f.request(f.sessionA,'/api/flow/whatsapp/instance','POST',{phone:'123'});assert.equal(invalid.status,400);
- const paired=await f.request(f.sessionA,'/api/flow/whatsapp/instance','POST',{phone:'+55 (11) 99999-8888'});assert.equal(paired.status,201);assert.equal(paired.body.pairingCode,'ABCD1234');
- const connect=calls.find(call=>call.endpoint.startsWith('/instance/connect/'));assert.equal(connect.number,'5511999998888');
+ const flow=await f.request(f.sessionA,'/api/flows','POST',{name:'Fluxo pareado'});assert.equal(flow.status,201);
+ const invalid=await f.request(f.sessionA,'/api/flow/whatsapp/instance','POST',{flowId:flow.body.id,phone:'123'});assert.equal(invalid.status,400);
+ const paired=await f.request(f.sessionA,'/api/flow/whatsapp/instance','POST',{flowId:flow.body.id,phone:'+55 (11) 99999-8888'});assert.equal(paired.status,201);assert.equal(paired.body.pairingCode,'ABCD1234');
+ const create=calls.find(call=>call.endpoint==='/instance/create');assert.equal(create.body.number,'5511999998888');
+ const stored=await f.request(f.sessionA,`/api/flows/${flow.body.id}`);assert.equal(stored.status,200);
 });
+

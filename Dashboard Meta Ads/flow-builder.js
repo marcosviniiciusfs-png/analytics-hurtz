@@ -126,12 +126,12 @@
   let pairingPhone = '';
   const attachWhatsApp = instance => { $('flowInstance').value = instance; $('flowInstance').dispatchEvent(new Event('change', {bubbles: true})); };
   async function syncWhatsAppState(selectedGroup = '') {
-    const state = await api('/api/flow/whatsapp/instance');
+    const state = await api(`/api/flow/whatsapp/instance?flowId=${encodeURIComponent(currentFlow?.id || '')}`);
     const instance = state.configured ? state.instance : '';
-    const owned = Boolean(instance) && (currentFlow?.whatsapp?.instance || '') === instance;
-    $('flowInstance').value = owned ? instance : '';
-    setWhatsAppButton(Boolean(state.connected && owned));
-    if (state.connected && owned) await loadGroups(selectedGroup);
+    // A conexão agora pertence a este fluxo: o servidor devolve só a instância dele.
+    $('flowInstance').value = instance;
+    setWhatsAppButton(Boolean(state.connected));
+    if (state.connected && instance) await loadGroups(selectedGroup);
     else controls.group.clear(state.connected ? 'Conecte este fluxo ao WhatsApp' : (state.configured ? 'WhatsApp desconectado' : 'Conecte seu WhatsApp'));
     return state;
   }
@@ -253,7 +253,7 @@
   $('flowBuilder').addEventListener('change', saveDraftSoon);
   $('flowBuilder').addEventListener('flowchange', saveDraftSoon);
   $('flowDelete').onclick = async () => { if (!currentFlow || !confirm(`Excluir o fluxo "${currentFlow.name}"? Esta ação não pode ser desfeita.`)) return; try { await api(`/api/flows/${encodeURIComponent(currentFlow.id)}`, {method: 'DELETE'}); $('flowBack').click(); } catch (error) { status(error.message); } };
-  $('flowConnectWhatsApp').onclick = async event => { const button = event.currentTarget; button.disabled = true; try { if (button.dataset.connected === 'true') { if (!(await askDisconnect())) return; status('Desconectando WhatsApp…'); await api('/api/flow/whatsapp/instance', {method: 'DELETE'}); clearInterval(qrTimer); $('flowQrPanel').hidden = true; controls.group.clear('Conecte seu WhatsApp'); setWhatsAppButton(false); status('WhatsApp desconectado.'); return; } showQrLoading('A Evolution está gerando seu QR Code…'); status('Aguardando o QR Code da Evolution…'); const phone = pairingPhone; pairingPhone = ''; const result = await api('/api/flow/whatsapp/instance', {method: 'POST', body: JSON.stringify({phone})}); await showQr(result); if (!result.connected) status('Leia o QR Code para conectar seu WhatsApp.'); } catch (error) { $('flowQrPanel').hidden = true; status(error.message); } finally { button.disabled = false; } };
+  $('flowConnectWhatsApp').onclick = async event => { const button = event.currentTarget; button.disabled = true; try { if (button.dataset.connected === 'true') { if (!(await askDisconnect())) return; status('Desconectando WhatsApp…'); await api(`/api/flow/whatsapp/instance?flowId=${encodeURIComponent(currentFlow.id)}`, {method: 'DELETE'}); clearInterval(qrTimer); $('flowQrPanel').hidden = true; controls.group.clear('Conecte seu WhatsApp'); setWhatsAppButton(false); status('WhatsApp desconectado.'); return; } showQrLoading('A Evolution está gerando seu QR Code…'); status('Aguardando o QR Code da Evolution…'); const phone = pairingPhone; pairingPhone = ''; const result = await api('/api/flow/whatsapp/instance', {method: 'POST', body: JSON.stringify({flowId: currentFlow.id, phone})}); await showQr(result); if (!result.connected) status('Leia o QR Code para conectar seu WhatsApp.'); } catch (error) { $('flowQrPanel').hidden = true; status(error.message); } finally { button.disabled = false; } };
   $('flowBuilder').onsubmit = async event => { event.preventDefault(); status('Salvando fluxo…'); const selectedSheet = sheetCatalog.find(row => row.name === $('flowSheet').value), mapping = Object.fromEntries([...document.querySelectorAll('[data-sheet-header]')].map(input => [input.dataset.sheetHeader, input.value]).filter(([, value]) => value)); const flow = {enabled: $('flowEnabled').checked, source: $('flowSource').value, destination: $('flowDestination').value, facebook: {adAccountId: $('flowAdAccount').value, pageId: $('flowPage').value, formId: $('flowForm').value}, whatsapp: {instance: $('flowInstance').value.trim(), groupJid: $('flowGroup').value}, googleSheets: {spreadsheetId: $('flowSpreadsheet').value, sheetName: $('flowSheet').value, headers: selectedSheet?.headers || [], mapping}}; try { currentFlow = await api(`/api/flows/${encodeURIComponent(currentFlow.id)}`, {method: 'PUT', body: JSON.stringify(flow)}); updateFlowKinds(); status(flow.enabled ? 'Fluxo ativo e pronto para receber leads.' : 'Fluxo salvo como rascunho.'); } catch (error) { status(error.message); } };
   // app.js valida uma sess\u00e3o existente de forma ass\u00edncrona. N\u00e3o deixe a
   // primeira listagem escapar para o host est\u00e1tico enquanto o roteador da API

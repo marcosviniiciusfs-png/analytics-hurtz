@@ -446,8 +446,18 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const state = payload?.instance?.state || payload?.instance?.status || payload?.state || 'unknown';
       return {state: String(state).toLowerCase(), missing: false};
     };
+    // Cada fluxo tem a sua própria conexão de WhatsApp: a instância fica guardada no próprio fluxo.
+    const ownedFlow = flowId => {
+      if (!/^[a-f0-9-]{36}$/i.test(String(flowId || ''))) throw fail(400, 'Fluxo inválido.');
+      const flow = read('lead-flow-project', String(flowId));
+      if (!flow || flow.userId !== user.id) throw fail(404, 'Fluxo não encontrado.');
+      return flow;
+    };
+    const instanceOwned = instance => flowIds(user).some(id => read('lead-flow-project', id)?.whatsapp?.instance === instance);
+    const saveFlowInstance = (flow, instance) => write('lead-flow-project', flow.id, {...flow, whatsapp: {...(flow.whatsapp || {}), instance}, updatedAt: Date.now()});
     if (route === '/api/flow/whatsapp/instance' && req.method === 'GET') {
-      const settings = read('settings', user.id) || {}, instance = String(settings.flow_whatsapp_instance || '');
+      const flow = ownedFlow(url.searchParams.get('flowId'));
+      const instance = String(flow.whatsapp?.instance || '');
       if (!instance) return send(res, 200, {configured: false, connected: false, state: 'close'});
       const connection = await whatsappConnection(instance);
       return send(res, 200, {configured: true, instance, state: connection.state, connected: ['open', 'connected'].includes(connection.state)});
@@ -456,7 +466,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const instance = String(url.searchParams.get('instance') || '').trim();
       if (!/^[a-zA-Z0-9_-]{1,100}$/.test(instance)) throw fail(400, 'Conecte ou informe uma instância WhatsApp válida.');
       const settings = read('settings', user.id) || {};
-      if (settings.flow_whatsapp_instance !== instance) throw fail(403, 'Essa instância WhatsApp não pertence ao seu fluxo.');
+      if (!instanceOwned(instance)) throw fail(403, 'Essa instância WhatsApp não pertence ao seu fluxo.');
       const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
       if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
       // A Evolution leva dezenas de segundos para listar contas com muitos grupos (medido: ~37 s com 241 grupos).
@@ -467,51 +477,48 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       return send(res, 200, {groups: rows.map(item => ({id: item.id || item.jid, name: item.subject || item.name || item.id})).filter(item => item.id)});
     }
     if (route === '/api/flow/whatsapp/instance' && req.method === 'DELETE') {
-      const settings = read('settings', user.id) || {}, instance = String(settings.flow_whatsapp_instance || '');
+      const flow = ownedFlow(url.searchParams.get('flowId'));
+      const instance = String(flow.whatsapp?.instance || '');
       if (!instance) return send(res, 200, {ok: true, connected: false});
       const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
       if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
       const response = await fetchImpl(`${base}/instance/logout/${encodeURIComponent(instance)}`, {method: 'DELETE', headers: {apikey: key}, signal: AbortSignal.timeout(12000)});
-      // Algumas versões da Evolution retornam erro após efetivar o logout. Confirma
-      // o estado antes de informar falha para o usuário.
+      // Algumas versões da Evolution retornam erro após efetivar o logout. Confirma o estado antes de falhar.
       if (!response.ok) { const connection = await whatsappConnection(instance); if (connection.state !== 'close') throw fail(502, 'Não foi possível desconectar o WhatsApp.'); }
       return send(res, 200, {ok: true, instance, connected: false});
     }
     if (route === '/api/flow/whatsapp/instance' && req.method === 'POST') {
       const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
       if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
-      // Com o número do WhatsApp (DDI + DDD + número), a Evolution devolve um código de
-      // pareamento de 8 caracteres, que o usuário digita no aparelho em vez de ler o QR.
-      const request = await body(req).catch(() => ({})), phone = String(request?.phone || '').replace(/\D/g, '');
+      const request = await body(req).catch(() => ({})), flow = ownedFlow(request?.flowId);
+      // Com o número (DDI + DDD + número), a Evolution devolve um código de pareamento que o usuário digita no aparelho.
+      const phone = String(request?.phone || '').replace(/\D/g, '');
       if (phone && (phone.length < 10 || phone.length > 15)) throw fail(400, 'Digite o número completo com DDI e DDD, por exemplo 5511999998888.');
-      const connectPath = instance => `${base}/instance/connect/${encodeURIComponent(instance)}${phone ? `?number=${phone}` : ''}`;
-      const settings = read('settings', user.id) || {}, existing = String(settings.flow_whatsapp_instance || '');
+      const existing = String(flow.whatsapp?.instance || '');
       if (existing) {
         const connection = await whatsappConnection(existing);
         if (['open', 'connected'].includes(connection.state)) return send(res, 200, {instance: existing, connected: true, qr: '', pairingCode: ''});
-        if (!connection.missing) {
-          const reconnect = await fetchImpl(connectPath(existing), {headers: {apikey: key}, signal: AbortSignal.timeout(12000)});
+        // Sem número: reaproveita a instância deste fluxo e pede um novo QR Code.
+        if (!phone && !connection.missing) {
+          const reconnect = await fetchImpl(`${base}/instance/connect/${encodeURIComponent(existing)}`, {headers: {apikey: key}, signal: AbortSignal.timeout(12000)});
           const payload = await reconnect.json().catch(() => ({}));
-          if (reconnect.ok) return send(res, 200, {instance: existing, connected: false, qr: payload?.base64 || payload?.qrcode?.base64 || '', pairingCode: payload?.pairingCode || ''});
+          if (reconnect.ok) return send(res, 200, {instance: existing, connected: false, qr: payload?.base64 || payload?.qrcode?.base64 || '', pairingCode: ''});
         }
       }
-      const instance = `flow-${hash(user.id).slice(0,14)}-${crypto.randomBytes(3).toString('hex')}`;
-      const response = await fetchImpl(`${base}/instance/create`, {method: 'POST', headers: {apikey: key, 'Content-Type': 'application/json'}, body: JSON.stringify({instanceName: instance, qrcode: true, integration: 'WHATSAPP-BAILEYS'}), signal: AbortSignal.timeout(25000)});
+      // Instância nova para este fluxo. Com número, a Evolution devolve o código já na criação.
+      const instance = `flow-${hash(flow.id).slice(0,12)}-${crypto.randomBytes(3).toString('hex')}`;
+      const create = {instanceName: instance, qrcode: true, integration: 'WHATSAPP-BAILEYS', ...(phone ? {number: phone} : {})};
+      const response = await fetchImpl(`${base}/instance/create`, {method: 'POST', headers: {apikey: key, 'Content-Type': 'application/json'}, body: JSON.stringify(create), signal: AbortSignal.timeout(25000)});
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw fail(502, 'Não foi possível criar a conexão WhatsApp.');
-      write('settings', user.id, {...(read('settings', user.id) || {}), flow_whatsapp_instance: instance});
-      let pairingCode = '';
-      if (phone) {
-        const paired = await fetchImpl(connectPath(instance), {headers: {apikey: key}, signal: AbortSignal.timeout(12000)});
-        const pairPayload = await paired.json().catch(() => ({}));
-        if (!paired.ok || !pairPayload?.pairingCode) throw fail(502, 'Não foi possível gerar o código de pareamento. Tente novamente.');
-        pairingCode = pairPayload.pairingCode;
-      }
+      const pairingCode = String(payload?.qrcode?.pairingCode || payload?.pairingCode || '');
+      if (phone && !pairingCode) throw fail(502, 'A Evolution não gerou o código de pareamento. Tente de novo ou use o QR Code.');
+      saveFlowInstance(flow, instance);
       return send(res, 201, {instance, qr: payload?.qrcode?.base64 || payload?.base64 || '', pairingCode});
     }
     if ((route === '/api/flow/whatsapp/qr' || route === '/api/flow/whatsapp/status') && req.method === 'GET') {
       const instance = String(url.searchParams.get('instance') || ''), settings = read('settings', user.id) || {};
-      if (!instance || settings.flow_whatsapp_instance !== instance) throw fail(403, 'Essa instância WhatsApp não pertence ao seu fluxo.');
+      if (!instance || !instanceOwned(instance)) throw fail(403, 'Essa instância WhatsApp não pertence ao seu fluxo.');
       const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
       if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
       const path = route.endsWith('/qr') ? `/instance/connect/${encodeURIComponent(instance)}` : `/instance/connectionState/${encodeURIComponent(instance)}`;
@@ -574,7 +581,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (flow.enabled && destination === 'google-sheets' && (!flow.googleSheets.spreadsheetId || !flow.googleSheets.sheetName || !flow.googleSheets.headers.length)) throw fail(400, 'Selecione uma aba da planilha com colunas antes de ativar o fluxo.');
       if (flow.enabled && destination === 'google-sheets' && !Object.keys(flow.googleSheets.mapping).length) throw fail(400, 'Mapeie pelo menos uma coluna da planilha antes de ativar o fluxo.');
       if (flow.enabled && destination === 'google-sheets' && !read('google-sheets', user.id)?.refreshToken) throw fail(409, 'Conecte sua conta Google antes de ativar este fluxo.');
-      if (flow.enabled && destination === 'whatsapp' && settings.flow_whatsapp_instance !== flow.whatsapp.instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar o fluxo.');
+      if (flow.enabled && destination === 'whatsapp' && !instanceOwned(flow.whatsapp.instance)) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar o fluxo.');
       if (flow.enabled && source === 'facebook') {
         const conflict = read('lead-flow', flow.facebook.formId);
         if (conflict && conflict.id !== id) throw fail(409, 'Este formulário já está conectado a outro fluxo. Escolha outro formulário.');
