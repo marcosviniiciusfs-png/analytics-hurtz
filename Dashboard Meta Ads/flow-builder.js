@@ -64,7 +64,8 @@
 
   function searchControl(key, rows = [], selected = '') {
     const input = $(`flow${key}Search`), hidden = $(`flow${key}`), options = $(`flow${key}Options`);
-    const selectedRow = rows.find(row => String(row.id) === String(selected));
+    // Se o grupo salvo ainda não apareceu na lista (carregando ou sem conexão), mantém o valor salvo em vez de apagá-lo.
+    const selectedRow = rows.find(row => String(row.id) === String(selected)) || (selected ? {id: String(selected), name: 'Grupo já selecionado'} : null);
     hidden.value = selectedRow ? selectedRow.id : '';
     input.value = selectedRow ? selectedRow.name : '';
     const render = () => {
@@ -88,7 +89,7 @@
     const saved = currentFlow?.facebook || {}, fallback = (id, label) => id ? [{id, name: `${label} selecionado (${id})`}] : [];
     controls.adAccount = searchControl('AdAccount', catalog.accounts.length ? catalog.accounts : fallback(saved.adAccountId, 'Conta'), saved.adAccountId);
     controls.page = searchControl('Page', fallback(saved.pageId, 'Página'), saved.pageId);
-    controls.form = searchControl('Form', fallback(saved.formId, 'Formulário'), saved.formId); controls.group = searchControl('Group', [], '');
+    controls.form = searchControl('Form', fallback(saved.formId, 'Formulário'), saved.formId); controls.group = searchControl('Group', [], currentFlow?.whatsapp?.groupJid || '');
   };
   // As páginas listadas dependem da conta de anúncio escolhida (promote_pages).
   async function loadPages(adAccountId, selected = '') {
@@ -115,7 +116,7 @@
   }
   async function loadGroups(selected = '') {
     const instance = $('flowInstance').value.trim();
-    if (!instance) return controls.group.clear('Conecte seu WhatsApp');
+    if (!instance) return ($('flowGroupSearch').placeholder = 'Conecte seu WhatsApp');
     $('flowGroupSearch').placeholder = 'Carregando grupos…';
     const data = await api(`/api/flow/whatsapp/groups?instance=${encodeURIComponent(instance)}`);
     controls.group = searchControl('Group', data.groups || [], selected);
@@ -132,7 +133,7 @@
     $('flowInstance').value = instance;
     setWhatsAppButton(Boolean(state.connected));
     if (state.connected && instance) await loadGroups(selectedGroup);
-    else controls.group.clear(state.connected ? 'Conecte este fluxo ao WhatsApp' : (state.configured ? 'WhatsApp desconectado' : 'Conecte seu WhatsApp'));
+    else $('flowGroupSearch').placeholder = state.connected ? 'Conecte este fluxo ao WhatsApp' : (state.configured ? 'WhatsApp desconectado' : 'Conecte seu WhatsApp');
     return state;
   }
   async function loadEditor() {
