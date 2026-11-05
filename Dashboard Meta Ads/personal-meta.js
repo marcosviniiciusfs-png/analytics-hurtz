@@ -355,7 +355,10 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const settings=read('settings', user.id) || {},profile=settings.profile;
       for (const id of flowIds(user)) { const saved = read('lead-flow-project', id); if (saved?.facebook?.formId) remove('lead-flow', saved.facebook.formId); }
       remove('connection', user.id);
-      if(profile)write('settings', user.id, {profile});else remove('settings', user.id);
+      // Desconectar o Facebook não pode apagar a lista de fluxos (flow_ids): os fluxos continuam existindo.
+      const keep = {...(profile ? {profile} : {}), ...(Array.isArray(settings.flow_ids) ? {flow_ids: settings.flow_ids} : {})};
+      if (Object.keys(keep).length) write('settings', user.id, keep);
+      else remove('settings', user.id);
       return send(res, 200, {ok: true});
     }
     if (route === '/api/meta-accounts' && req.method === 'GET') {
