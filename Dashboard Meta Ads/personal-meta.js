@@ -414,6 +414,8 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (sources.every(result => result.status === 'rejected')) throw fail(502, 'Não foi possível listar as páginas desta conta de anúncio. Reconecte o Facebook e tente de novo.');
       const pages = new Map();
       for (const result of sources) if (result.status === 'fulfilled') for (const page of result.value) pages.set(page.id, page.name || page.id);
+      // Diagnóstico (sem tokens nem nomes): quantas páginas cada fonte devolveu.
+      console.log(JSON.stringify({event: 'flow_pages_diagnostic', promote: sources[0].status === 'fulfilled' ? sources[0].value.length : 'error', business: sources[1].status === 'fulfilled' ? sources[1].value.length : 'error', withToken: [...pages.keys()].filter(id => conn.pageTokens?.[id]).length, total: pages.size}));
       // O token só é exigido na hora de escolher a página (formulários e leads), não para listar.
       if (pages.size) return send(res, 200, {pages: [...pages].map(([id, name]) => ({id, name, connected: Boolean(conn.pageTokens?.[id])})), linked: true});
       // Nenhuma página vinculada foi encontrada para esta conta: mostra as páginas que o usuário administra, para não bloquear o fluxo.
