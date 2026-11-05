@@ -98,7 +98,35 @@ const authPublicUrl=()=>String(process.env.ANALYTICS_PUBLIC_URL||'https://analyt
 const safeEqual=(left,right)=>{const a=Buffer.from(String(left||'')),b=Buffer.from(String(right||''));return a.length===b.length&&crypto.timingSafeEqual(a,b)};
 const flowLeadIds=new Set(),FLOW_LEAD_LIMIT=5000;
 const flowWait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-const formatFlowLead=lead=>{const fields=(lead.field_data||[]).map(field=>`*${field.name||'campo'}:* ${(field.values||[]).join(', ')}`),received=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Belem',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(lead.created_time));return ['🔔 *Novo lead!*','',...fields,'',`📅 Recebido em: ${received}`].join('\n')};
+const leadNorm=text=>String(text||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const leadText=value=>String(value||'').replace(/_/g,' ').replace(/\s+/g,' ').trim().replace(/\br\$/gi,'R$');
+const leadSentence=value=>{const text=leadText(value);return text?text.charAt(0).toUpperCase()+text.slice(1):''};
+const leadTitle=value=>{const small=new Set(['e','de','da','do','das','dos','em','com','a','o','para','por']);return leadText(value).split(' ').map((word,index)=>index&&small.has(word.toLowerCase())?word.toLowerCase():word.replace(/^(\(?)(.)/,(m,p,c)=>p+c.toUpperCase())).join(' ')};
+const leadQuestion=name=>leadSentence(String(name||'').replace(/\?/g,''))||'Campo';
+// Campos conhecidos ganham rótulo e ícone; os demais aparecem com o texto da pergunta.
+const LEAD_RULES=[
+  {re:/procedimento|interesse/,emoji:'💉',label:'Interesse',format:leadTitle},
+  {re:/quando|prazo/,emoji:'⏳',label:'Prazo',format:leadSentence},
+  {re:/investimento|faixa|valor/,emoji:'💰',label:'Investimento',format:leadSentence},
+  {re:/avalia|presencial|comparecer/,emoji:'📍',label:'Avaliação presencial',format:leadSentence},
+];
+const formatFlowLead=lead=>{
+  const fields=(lead.field_data||[]).map(field=>({key:leadNorm(field.name),label:field.name||'',raw:(field.values||[]).join(', ')}));
+  const pick=re=>fields.find(field=>re.test(field.key));
+  const name=pick(/full_name|nome/),phone=pick(/phone|whatsapp|telefone|celular/),email=pick(/email|e-mail/);
+  const used=new Set([name,phone,email].filter(Boolean));
+  const blocks=[];
+  for(const rule of LEAD_RULES){const field=fields.find(item=>!used.has(item)&&rule.re.test(item.key));if(field){used.add(field);blocks.push(`${rule.emoji} *${rule.label}*\n${rule.format(field.raw)}`)}}
+  for(const field of fields){if(used.has(field))continue;blocks.push(`📝 *${leadQuestion(field.label)}*\n${leadSentence(field.raw)}`)}
+  const contact=[`👤 *${name?leadTitle(name.raw):'Lead'}*`];
+  const digits=phone?phone.raw.replace(/\D/g,''):'';if(digits)contact.push(`📱 wa.me/${digits}`);
+  if(email&&email.raw)contact.push(`✉️ ${email.raw}`);
+  const when=new Date(lead.created_time),zone={timeZone:'America/Belem'};
+  const received=`${new Intl.DateTimeFormat('pt-BR',{...zone,day:'2-digit',month:'2-digit',year:'numeric'}).format(when)} às ${new Intl.DateTimeFormat('pt-BR',{...zone,hour:'2-digit',minute:'2-digit',hour12:false}).format(when)}`;
+  const lines=['🔔 *NOVO LEAD!*','',...contact,''];
+  if(blocks.length)lines.push('━━━━━━━━━━━━━━━',blocks.join('\n\n'),'━━━━━━━━━━━━━━━');
+  lines.push('',`🕒 Recebido em ${received}`);
+  return lines.join('\n')};
 async function deliverFlowLead(leadgenId,value){
   if(flowLeadIds.has(leadgenId))return;const flow=personalMeta.leadFlow(value.form_id);if(!flow)return;
   flowLeadIds.add(leadgenId);if(flowLeadIds.size>FLOW_LEAD_LIMIT)flowLeadIds.delete(flowLeadIds.values().next().value);
