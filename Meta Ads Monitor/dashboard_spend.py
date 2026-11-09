@@ -8,7 +8,7 @@ import urllib.request
 from decimal import Decimal
 from account_credentials import account_token
 from meta_query_guard import get_json
-from result_metrics import result_metrics, serializable_metrics
+from result_metrics import result_metrics, result_for_goals, serializable_metrics, serializable_for_goals
 
 VERSION = os.environ.get("META_API_VERSION", "v25.0")
 # Accounts configured in connections.json use their own credentials.  A global
@@ -32,8 +32,8 @@ FORM_RESULT_TYPES = [
 ]
 
 
-def choose_result(actions, objective, campaign_name):
-    mapped = result_metrics(actions)
+def choose_result(actions, objective, campaign_name, goals=None):
+    mapped = result_for_goals(actions, goals)
     return mapped['label'], mapped['type'], mapped['results']
 
 
@@ -52,6 +52,7 @@ def audit(account_id, period):
     attempts = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
         campaign_details_future = pool.submit(get, f"{account_id}/campaigns", {"fields": "id,name,objective,status,effective_status", "limit": 500})
+        adsets_future = pool.submit(get, f"{account_id}/adsets", {"fields": "campaign_id,optimization_goal", "limit": 500})
         campaign_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "campaign", "fields": "campaign_id,campaign_name,objective,spend,actions,cost_per_action_type", "time_range": period, "time_increment": 1, "limit": 500})
         account_daily_future = pool.submit(get, f"{account_id}/insights", {"level": "account", "fields": "account_id,account_name,spend,actions", "time_range": period, "time_increment": 1, "limit": 500})
         metadata_available = True
@@ -63,6 +64,14 @@ def audit(account_id, period):
             metadata_available = False
         campaign_daily = campaign_daily_future.result()
         account_daily = account_daily_future.result()
+    # Optional: without ad set goals the result falls back to the action rules.
+    campaign_goals = {}
+    try:
+        for adset in adsets_future.result():
+            if adset.get("campaign_id") and adset.get("optimization_goal"):
+                campaign_goals.setdefault(adset["campaign_id"], set()).add(adset["optimization_goal"])
+    except Exception:
+        campaign_goals = {}
     campaign_meta = {row["id"]: row for row in campaign_details}
     active_campaign_count = sum(1 for row in campaign_details if row.get("effective_status") == "ACTIVE") if metadata_available else None
     for attempt_index in range(3):
@@ -119,14 +128,15 @@ def audit(account_id, period):
         if spend_reconciled:
             campaigns = []
             for row in campaign_totals.values():
-                objective_label, result_type, results = choose_result(row["actions"], row.get("objective"), row.get("campaign_name"))
+                goals = campaign_goals.get(row["campaign_id"], set())
+                objective_label, result_type, results = choose_result(row["actions"], row.get("objective"), row.get("campaign_name"), goals)
                 cost_per_result = row["spend"] / results if results and results > 0 else None
                 campaigns.append({
                     **{key: value for key, value in row.items() if key != "actions"},
                     "spend": float(row["spend"]),
                     "objective_label": objective_label,
                     "result_type": result_type,
-                    **serializable_metrics(row["actions"]),
+                    **serializable_for_goals(row["actions"], goals),
                     "cost_per_result": float(cost_per_result) if cost_per_result is not None else None,
                 })
             result_reconciled = all(account_actions.get(key, Decimal("0")) == campaign_actions.get(key, Decimal("0")) for key in set(account_actions) | set(campaign_actions) if "lead" in key or "messaging_conversation_started" in key)

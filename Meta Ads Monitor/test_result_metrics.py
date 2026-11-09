@@ -82,4 +82,19 @@ class ResultsTests(unittest.TestCase):
         self.assertEqual(row['account']['conversations'],11)
         self.assertEqual(sum(ad['results'] for ad in row['ads']),17)
 
+
+class GoalResultTests(unittest.TestCase):
+    ACTIONS={'lead': 6, 'onsite_conversion.messaging_conversation_started_7d': 134}
+
+    def test_messaging_goal_counts_conversations_not_leads(self):
+        self.assertEqual(spend.choose_result(self.ACTIONS,'OUTCOME_ENGAGEMENT','IMOVEL',{'CONVERSATIONS'})[2],134)
+
+    def test_leads_goal_keeps_leads(self):
+        self.assertEqual(spend.choose_result(self.ACTIONS,'OUTCOME_LEADS','IMOVEL',{'LEAD_GENERATION'})[2],6)
+
+    def test_without_goal_keeps_existing_rule(self):
+        self.assertEqual(spend.choose_result(self.ACTIONS,'OUTCOME_LEADS','IMOVEL')[2],6)
+        self.assertEqual(spend.choose_result(self.ACTIONS,'OUTCOME_LEADS','IMOVEL',set())[2],6)
+
+
 if __name__=='__main__':unittest.main()

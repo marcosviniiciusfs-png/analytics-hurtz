@@ -46,6 +46,31 @@ def result_metrics(actions):
             'leads': ZERO, 'conversations': ZERO, 'mixed': False}
 
 
+GOAL_CONVERSATIONS = 'CONVERSATIONS'
+
+
+def result_for_goals(actions, goals):
+    """Result shown by Meta's Results column for a campaign.
+
+    Meta counts a campaign by the optimization goal of its ad sets. A messaging
+    goal counts conversations even when the same campaign also has leads.
+    Without such a goal, keep result_metrics.
+    """
+    base = result_metrics(actions)
+    if GOAL_CONVERSATIONS in set(goals or ()) and base['conversations'] > 0:
+        return {'label': 'Mensagem', 'type': MESSAGE, 'results': base['conversations'],
+                'leads': base['leads'], 'conversations': base['conversations'], 'mixed': base['mixed']}
+    return base
+
+
+def serializable_for_goals(actions, goals):
+    mapped = result_for_goals(actions, goals)
+    base = result_metrics(actions)
+    return {'objective_label': mapped['label'], 'result_type': mapped['type'],
+            'results': float(mapped['results']), 'leads': float(base['leads']),
+            'conversations': float(base['conversations']), 'mixed_results': base['mixed']}
+
+
 def serializable_metrics(actions):
     mapped = result_metrics(actions)
     return {'objective_label': mapped['label'], 'result_type': mapped['type'],
