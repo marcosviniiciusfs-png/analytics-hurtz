@@ -98,12 +98,16 @@
 
       const accounts = ids.map(id => {
         const row = payload.accounts?.[id];
-        return { id, name: (row?.name || id).trim(), campaigns: row ? campaignsOf(row) : [] };
+        const error = !row ? "A Meta não retornou dados desta conta." : (row.error || (row.reconciled === false ? "A Meta não confirmou os dados desta conta no período." : null));
+        const retry = row?.retry_after ? ` Tente de novo em ${row.retry_after} s.` : "";
+        return { id, name: (row?.name || id).trim(), error: error ? error + (row?.rate_limited ? retry : "") : null, campaigns: !error && row ? campaignsOf(row) : [] };
       });
       state = { from, to, accounts };
       renderPicker();
       const withCampaigns = accounts.filter(a => a.campaigns.length).length;
-      setStatus(`${withCampaigns} de ${accounts.length} conta(s) com campanhas veiculadas no período. Escolha as campanhas e gere os relatórios.`);
+      const withErrors = accounts.filter(a => a.error);
+      const errorText = withErrors.length ? ` ${withErrors.length} conta(s) com erro na Meta: ${withErrors.map(a => a.name).join(", ")}.` : "";
+      setStatus(`${withCampaigns} de ${accounts.length} conta(s) com campanhas veiculadas no período.${errorText} Escolha as campanhas e gere os relatórios.`, withErrors.length > 0);
     } catch (error) {
       setStatus(error.message, true);
     } finally {
@@ -120,6 +124,9 @@
   function renderPicker() {
     if (!state) { picker.hidden = true; return; }
     const cards = state.accounts.map(account => {
+      if (account.error) {
+        return `<section class="akash-account is-error"><header><h3>${esc(account.name)}</h3><span>${esc(account.error)}</span></header></section>`;
+      }
       if (!account.campaigns.length) {
         return `<section class="akash-account is-empty"><header><h3>${esc(account.name)}</h3><span>Sem campanhas com veiculação no período</span></header></section>`;
       }
@@ -238,7 +245,8 @@
     try {
       const zip = new JSZip();
       const usedNames = new Set();
-      const accounts = state.accounts.filter(a => a.campaigns.some(c => c.selected));
+      const accounts = state.accounts.filter(a => !a.error && a.campaigns.some(c => c.selected));
+      state.accounts.filter(a => a.error).forEach(a => failures.push(`${a.name}: ${a.error}`));
       let done = 0;
       for (let i = 0; i < accounts.length; i++) {
         const account = accounts[i];
@@ -292,6 +300,8 @@
     .akash-account h3{margin:0;font-size:16px}
     .akash-account header span{font-size:13px;color:var(--muted,#6b7280)}
     .akash-account.is-empty{opacity:.7}
+    .akash-account.is-error{border-color:#fca5a5;background:#fff5f5}
+    .akash-account.is-error header span{color:#b91c1c}
     .akash-account-actions button{font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--line,#d1d5db);background:transparent;cursor:pointer}
     .akash-merged{margin:10px 0 2px;font-size:13px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
     .akash-chip{background:#fff1ee;color:#c2410c;border-radius:999px;padding:3px 10px;font-weight:600}
