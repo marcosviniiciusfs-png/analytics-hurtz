@@ -155,8 +155,10 @@
           <label class="report-field"><span>Data inicial</span><input type="date" id="reportDateFrom" /></label>
           <label class="report-field"><span>Data final</span><input type="date" id="reportDateTo" /></label>
           <button class="create-report-button" id="createReportButton" type="button">Criar relatório</button>
+          <button class="create-report-button akash-report-button" id="akashReportButton" type="button">Consultar campanhas (Akash)</button>
         </div>
         <div class="report-status" id="reportStatus">Selecione pelo menos uma conta para iniciar.</div>
+        <div id="akashPicker" hidden></div>
         <div class="report-output" id="reportOutput" hidden></div>
       </section>
 
@@ -382,5 +384,9 @@
   <script src="app.js?v=20261107-account-filter"></script>
   <script src="alerts-panel.js?v=20261102-trigger-words"></script>
   <script src="flow-builder.js?v=20261105-flow-sync-leads"></script>
+  <script src="akash/core.js"></script>
+  <script src="akash/vendor/jszip.min.js"></script>
+  <script src="akash/vendor/html-to-image.js"></script>
+  <script src="akash-reports.js?v=20261109-akash-picker2"></script>
 </body>
 </html>
