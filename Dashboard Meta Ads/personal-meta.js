@@ -453,11 +453,15 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       if (!flow || flow.userId !== user.id) throw fail(404, 'Fluxo não encontrado.');
       return flow;
     };
-    const instanceOwned = instance => flowIds(user).some(id => read('lead-flow-project', id)?.whatsapp?.instance === instance);
+    const instanceOwned = instance => instance === alertInstance() || flowIds(user).some(id => read('lead-flow-project', id)?.whatsapp?.instance === instance);
+    // WhatsApp dos alertas: uma instância por usuário, separada das conexões dos fluxos.
+    const alertInstance = () => String((read('settings', user.id) || {}).alert_whatsapp_instance || '');
+    const saveAlertInstance = instance => { const current = read('settings', user.id) || {}; write('settings', user.id, {...current, alert_whatsapp_instance: instance}); };
     const saveFlowInstance = (flow, instance) => write('lead-flow-project', flow.id, {...flow, whatsapp: {...(flow.whatsapp || {}), instance}, updatedAt: Date.now()});
     if (route === '/api/flow/whatsapp/instance' && req.method === 'GET') {
-      const flow = ownedFlow(url.searchParams.get('flowId'));
-      const instance = String(flow.whatsapp?.instance || '');
+      // Sem flowId, a conexão é a do alerta (ver alertInstance).
+      const flowId = url.searchParams.get('flowId');
+      const instance = flowId ? String(ownedFlow(flowId).whatsapp?.instance || '') : alertInstance();
       if (!instance) return send(res, 200, {configured: false, connected: false, state: 'close'});
       const connection = await whatsappConnection(instance);
       return send(res, 200, {configured: true, instance, state: connection.state, connected: ['open', 'connected'].includes(connection.state)});
@@ -477,8 +481,9 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       return send(res, 200, {groups: rows.map(item => ({id: item.id || item.jid, name: item.subject || item.name || item.id})).filter(item => item.id)});
     }
     if (route === '/api/flow/whatsapp/instance' && req.method === 'DELETE') {
-      const flow = ownedFlow(url.searchParams.get('flowId'));
-      const instance = String(flow.whatsapp?.instance || '');
+      // Sem flowId, a conexão é a do alerta (ver alertInstance).
+      const flowId = url.searchParams.get('flowId');
+      const instance = flowId ? String(ownedFlow(flowId).whatsapp?.instance || '') : alertInstance();
       if (!instance) return send(res, 200, {ok: true, connected: false});
       const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
       if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
@@ -490,11 +495,11 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
     if (route === '/api/flow/whatsapp/instance' && req.method === 'POST') {
       const base = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, ''), key = String(process.env.EVOLUTION_API_KEY || '');
       if (!base || !key) throw fail(503, 'A Evolution API ainda não está configurada no Traffic Pocket.');
-      const request = await body(req).catch(() => ({})), flow = ownedFlow(request?.flowId);
+      const request = await body(req).catch(() => ({})), flow = request?.flowId ? ownedFlow(request.flowId) : null;
       // Com o número (DDI + DDD + número), a Evolution devolve um código de pareamento que o usuário digita no aparelho.
       const phone = String(request?.phone || '').replace(/\D/g, '');
       if (phone && (phone.length < 10 || phone.length > 15)) throw fail(400, 'Digite o número completo com DDI e DDD, por exemplo 5511999998888.');
-      const existing = String(flow.whatsapp?.instance || '');
+      const existing = flow ? String(flow.whatsapp?.instance || '') : alertInstance();
       if (existing) {
         const connection = await whatsappConnection(existing);
         if (['open', 'connected'].includes(connection.state)) return send(res, 200, {instance: existing, connected: true, qr: '', pairingCode: ''});
@@ -506,14 +511,14 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
         }
       }
       // Instância nova para este fluxo. Com número, a Evolution devolve o código já na criação.
-      const instance = `flow-${hash(flow.id).slice(0,12)}-${crypto.randomBytes(3).toString('hex')}`;
+      const instance = `${flow ? 'flow-' + hash(flow.id).slice(0,12) : 'alerts-' + hash(user.id).slice(0,12)}-${crypto.randomBytes(3).toString('hex')}`;
       const create = {instanceName: instance, qrcode: true, integration: 'WHATSAPP-BAILEYS', ...(phone ? {number: phone} : {})};
       const response = await fetchImpl(`${base}/instance/create`, {method: 'POST', headers: {apikey: key, 'Content-Type': 'application/json'}, body: JSON.stringify(create), signal: AbortSignal.timeout(25000)});
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw fail(502, 'Não foi possível criar a conexão WhatsApp.');
       const pairingCode = String(payload?.qrcode?.pairingCode || payload?.pairingCode || '');
       if (phone && !pairingCode) throw fail(502, 'A Evolution não gerou o código de pareamento. Tente de novo ou use o QR Code.');
-      saveFlowInstance(flow, instance);
+      if (flow) saveFlowInstance(flow, instance); else saveAlertInstance(instance);
       return send(res, 201, {instance, qr: payload?.qrcode?.base64 || payload?.base64 || '', pairingCode});
     }
     if ((route === '/api/flow/whatsapp/qr' || route === '/api/flow/whatsapp/status') && req.method === 'GET') {
@@ -673,7 +678,7 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
       const instance = String(payload.instance || ''), groupJid = String(payload.groupJid || '');
       const enabled = Boolean(payload.enabled);
       if (enabled && (!instance || !groupJid)) throw fail(400, 'Conecte o WhatsApp e escolha o grupo antes de ativar os alertas.');
-      if (instance && settings.flow_whatsapp_instance !== instance) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar os alertas.');
+      if (instance && !instanceOwned(instance)) throw fail(403, 'Conecte o seu WhatsApp pelo QR Code antes de ativar os alertas.');
       const thresholds = (Array.isArray(payload.thresholds) ? payload.thresholds : [75, 90, 100, 120]).map(Number).filter(Number.isFinite);
       const groupName = String(payload.groupName || '').trim().slice(0, 200);
       const config = {enabled, dryRun: payload.dryRun !== false, instance, groupJid: groupJid.slice(0, 200), groupName, thresholds, balanceThresholds: [50, 75, 90, 100], balanceTimes: normalizeTimes(payload.balanceTimes), frequencyAlertEnabled: Boolean(payload.frequencyAlertEnabled), maxFrequency: Number(payload.maxFrequency) > 0 ? Number(payload.maxFrequency) : 0, triggerWords: normalizeTriggerWords(payload.triggerWords), webhookToken: alertConfig(user.id)?.webhookToken || crypto.randomBytes(18).toString('hex')};

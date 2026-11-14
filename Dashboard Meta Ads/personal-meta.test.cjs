@@ -302,3 +302,12 @@ test('a new flow WhatsApp connection can be paired with a phone number code inst
  const stored=await f.request(f.sessionA,`/api/flows/${flow.body.id}`);assert.equal(stored.status,200);
 });
 
+
+test('alerts can connect their own WhatsApp without a flow and save it to the alert settings',async t=>{
+ const previousUrl=process.env.EVOLUTION_API_URL,previousKey=process.env.EVOLUTION_API_KEY;process.env.EVOLUTION_API_URL='http://evolution.test';process.env.EVOLUTION_API_KEY='test-key';t.after(()=>{if(previousUrl===undefined)delete process.env.EVOLUTION_API_URL;else process.env.EVOLUTION_API_URL=previousUrl;if(previousKey===undefined)delete process.env.EVOLUTION_API_KEY;else process.env.EVOLUTION_API_KEY=previousKey;});
+ const calls=[];const f=fixture(t,null,{evolution:async(url,options)=>{const parsed=new URL(url);calls.push({endpoint:parsed.pathname,body:options.body?JSON.parse(options.body):null});if(parsed.pathname==='/instance/create')return {ok:true,status:201,json:async()=>({qrcode:{base64:'data:image/png;base64,QR',pairingCode:'ALRT1234'}})};if(parsed.pathname.startsWith('/instance/connectionState/'))return {ok:true,status:200,json:async()=>({instance:{state:'open'}})};throw new Error(`Unexpected Evolution endpoint: ${parsed.pathname}`);}});
+ await f.connect(f.sessionA,f.tokens.a);
+ const paired=await f.request(f.sessionA,'/api/flow/whatsapp/instance','POST',{phone:'5511999998888'});assert.equal(paired.status,201);assert.equal(paired.body.pairingCode,'ALRT1234');
+ const create=calls.find(call=>call.endpoint==='/instance/create');assert.equal(create.body.number,'5511999998888');
+ const status=await f.request(f.sessionA,'/api/flow/whatsapp/instance');assert.equal(status.status,200);assert.equal(status.body.connected,true);assert.equal(status.body.instance,paired.body.instance);
+});
