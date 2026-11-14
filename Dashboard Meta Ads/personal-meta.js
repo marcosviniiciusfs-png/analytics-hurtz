@@ -983,7 +983,15 @@ function createPersonalMeta({directory = process.env.META_PERSONAL_DATA_DIR || '
 
   // Agendador dentro da API: a cada 15 minutos percorre só as conexões com alertas ativos.
   if (process.env.PERSONAL_ALERTS_DISABLED !== '1') {
-    const timer = setInterval(() => runAlertCycle().catch(() => {}), 15 * 60 * 1000);
+    // Registra cada ciclo nos logs da API (início, fim e falha), sem tokens nem URLs.
+    const safeError = error => String(error?.message || error?.name || error || "erro").replace(/EAA[w]+/g, "[token]").replace(/access_token=[^&s]+/g, "access_token=[token]").slice(0, 200);
+    const timer = setInterval(() => {
+      const started = Date.now();
+      console.log(`[alertas] ciclo iniciado ${new Date(started).toISOString()}`);
+      runAlertCycle()
+        .then(() => console.log(`[alertas] ciclo concluído em ${Date.now() - started} ms`))
+        .catch(error => console.error(`[alertas] ciclo falhou: ${safeError(error)}`));
+    }, 15 * 60 * 1000);
     timer.unref();
   }
 
